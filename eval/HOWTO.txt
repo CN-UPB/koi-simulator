@@ -1,0 +1,23 @@
+Last evaluation results
+-------------------------------------------------------------
+Used evaluation node: mpi-s from RWTH HPC guide Primer 8.2.6
+Last commit of Distributed Horizon: commit 2cb9996f100a08ce3447d50c1cf81646bd9aafcf
+Used MPI: Intel MPI 4.1
+
+HPC Cluster
+-------------------------------------------------------------
+- Install libatomic_ops in home dir
+- Copy configure.user.hpc from abstractLTE as configure.user in Horizon's root
+- cd into Horizon's root
+- module switch openmpi intelmpi
+- ./configure
+- make
+
+HowTo Eval
+-------------------------------------------------------------
+1. Run the evaluation scripts with startAllHpcScripts.sh
+2. Wait for all results
+3. Use correctness.sh to compare all runs with the sequential (diff over packets)
+4. Use generateLteCsv.sh to generate the used lte.csv for the plots 
+5. genlteplots.py generates the plots (genlteplotstalk.py for the presentation version)
+6. syncs.sh calculates the events/synchronization of the MPI based methods

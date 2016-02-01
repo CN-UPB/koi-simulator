@@ -1,0 +1,48 @@
+/*
+ * MsMac.h
+ *
+ *  Created on: Jul 1, 2013
+ *      Author: Sascha Schmerling
+ */
+
+#pragma once
+
+#include <omnetpp.h>
+#include "Position.h"
+#include <itpp/itbase.h>
+#include <algorithm>
+#include "util.h"
+
+using namespace itpp;
+using namespace std;
+
+class MsMac : public cSimpleModule  {
+    private:
+        cQueue packetQueue;
+        Position msPosition;
+        int msId;
+        int bsId;
+        int positionResendInterval;
+        int currentChannel;
+        int packetLength;
+        int downResourceBlocks;
+        simtime_t initOffset;
+        simtime_t epsilon;
+        simtime_t tti;
+        double radius;
+		vector<double> velocity;
+        Position initBsPos; //just used for position centering in Tkenv ms pos calc in init
+        vec SINR_;
+
+        inline simtime_t positionResendTime();
+        Position initMsPosition(int quadrant, double alpha, double beta, double gamma);
+	Position initMsPositionLinear();
+        void updateDisplayString();
+
+    protected:
+        virtual void initialize();
+        virtual void handleMessage(cMessage *msg);
+
+    public:
+        ~MsMac();
+};

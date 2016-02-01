@@ -1,0 +1,9 @@
+To reproduce Validation results do as follows:
+
+1. In demo_model.m (line 95) change 'x' in 'rng(x)' to an arbitrary number. (Random seed)
+
+2. Run demo_model.m (this will produce cluster.txt, mpc.txt, VR.txt and power.txt files and 2 result text files within the right folders).
+
+3. Compile/Run the C++ Programm (makefile included) (this also produces 2 result text files)
+
+4. The Result files are in the "Results_Validation" folder. For the C++ and the matlab version there is an intermediate result and a final MIMO Matrix result. Compare the result with an arbitrary character level diff tool. (Intermediate result (each ray) ~14 digits precision, final result (all added up) ~7 digits precision - potentially due to numerical instability/cancellation)

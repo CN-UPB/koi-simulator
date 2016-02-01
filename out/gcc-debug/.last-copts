@@ -1,0 +1,1 @@
+-g -Wall -fPIC  -fno-stack-protector -DHAVE_SWAPCONTEXT -I /usr/include   -DHAVE_PCAP -DXMLPARSER=libxml -DWITH_PARSIM -DWITH_NETBUILDER -DNOBARRIER -DCACHE_LINE_SIZE=64  -I. -I/home/sahari/horizonParsim/include
