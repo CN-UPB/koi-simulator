@@ -1,0 +1,4 @@
+out/
+src/Makefile
+src/*_m.cc
+src/*_m.h
