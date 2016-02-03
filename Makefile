@@ -7,5 +7,5 @@ clean:
 
 makefiles:
 	@if [ ! -f src/Makefile ]; then \
-	cd src && opp_makemake -O out -o koisim;\
+	cd src && opp_makemake -O out -o koisim -litpp;\
 	fi
