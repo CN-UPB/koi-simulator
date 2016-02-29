@@ -1,13 +1,13 @@
 cplusplus {{
-	#include "DataPacket_m.h"
+	#include "KoiData_m.h"
 }}
 
-message DataPacket;
+message KoiData;
 
 message DataPacketBundle  {
     int msId;
     int bsId;
-	DataPacket packets[];
-	int RBs[];
-	int cqi;
+    KoiData packets[];
+    int RBs[];
+    int cqi;
 }

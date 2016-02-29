@@ -30,13 +30,6 @@ module BaseStation
     	output toMsMac[];
     	
    	submodules:
-   		app[numberOfMobileStations]: App  {
-   			parameters:
-   				bsId = bsId;
-   				msId = index;
-   				iconPosX = 50 * (index + 1);
-        		@display("p=$iconPosX,50");
-   		}
    		mac: BsMac  {
    			parameters:
    				xPos = xPos;
@@ -48,8 +41,6 @@ module BaseStation
    				@display("p=$halfPlaygroundSizeX,120");
    				
    			gates:
-   				fromApp[numberOfMobileStations];
-   				toApp[numberOfMobileStations];
    				fromCell[maxNumberOfNeighbours];
    				toCell[maxNumberOfNeighbours];
    				fromMsMac[numberOfMobileStations];
@@ -77,12 +68,6 @@ module BaseStation
    	connections allowunconnected:
    		phy.toMac --> mac.fromPhy;
    		mac.toPhy --> phy.fromMac;
-   		
-   		//connect BsMac with app for every MS
-   		for i=0..numberOfMobileStations-1  {
-   			mac.toApp[i] --> app[i].fromMac;
-   			app[i].toMac --> mac.fromApp[i];
-   		}
    		
    		//connect BsPhy with the BsChannels
    		for i=0..numberOfMobileStations-1  {

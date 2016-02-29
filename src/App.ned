@@ -1,6 +1,6 @@
 simple App  {
 	parameters:
-        int packetLength = default(1500);
+        int packetLength = default(1500b) @unit(b);
         int msId;
         int bsId;
         volatile double packetDistribution;

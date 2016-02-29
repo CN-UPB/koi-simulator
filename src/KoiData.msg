@@ -1,0 +1,19 @@
+// The message type used as simulated network traffic
+
+cplusplus {{
+#include "MessageTypes.h"
+}}
+
+enum TrafficType;
+enum MessageType;
+
+packet KoiData {
+	int bsId; // The id of the base station servicing the sending MS
+	bool critical = false;
+	simtime_t deadline; // The latest allowed arrival time for the message
+	int resourceBlock;
+	int src; // The ID of the mobile station which created the message
+	int dest; // The ID of the target mobile station
+	int trafficType @enum(TrafficType); // The type of traffic, periodic or event based
+	kind = MessageType::koidata;
+}

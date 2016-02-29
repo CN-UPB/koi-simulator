@@ -180,7 +180,6 @@ void MsMac::initialize()  {
    	tti = par("tti");
     	downResourceBlocks = par("downResourceBlocks");
     	packetLength = par("packetLength");
-    	packetLength = packetLength * 8; // want length in bits, not bytes.
 
         //msPosition = initMsPosition(initQuadrant, initPosAlpha, initPosBeta, initPosGamma); //for random MS positions in hexagonal cell
     	msPosition = initMsPositionLinear(); //for MS position along a straight road
@@ -208,6 +207,7 @@ void MsMac::handleMessage(cMessage *msg)  {
         Schedule *schedule = (Schedule *) msg;
         
         //drop schedule which not corresponds to the current channel of this MS
+	//TODO execute only if this is a DOWN schedule
         if(schedule->getChannel() == currentChannel)  {
             DataPacketBundle *packetBundle = new DataPacketBundle("DATA_BUNDLE"); //only send out one bundle of packets
             packetBundle->setMsId(msId);
@@ -220,6 +220,7 @@ void MsMac::handleMessage(cMessage *msg)  {
             // Get the number of Ressource Blocks, that are assigned to this MS
             for(int i = 0; i < (int) schedule->getUpScheduleArraySize(); ++i)  {
                 int currentMsId = schedule->getUpSchedule(i);
+		//std::cout << "Up Schedule MS Id: " << currentMsId << std::endl;
                 if(currentMsId == msId){
 					sinr_values.push_back(SINR_(i));
 					RBs.push_back(i);
@@ -236,19 +237,26 @@ void MsMac::handleMessage(cMessage *msg)  {
 			}
             
             if(channel_capacity > 0)  {
-                packetBundle->setPacketsArraySize((int) (channel_capacity / packetLength) + 1);
-                //std::cout << "Number of Packets: " << (int) (channel_capacity / packetLength) + 1 << " but queue has " << packetQueue.getLength() << " with a packet length of " << packetLength << endl;
+		int packetsToSend;
+		if(packetQueue.length()>channel_capacity/packetLength){
+			packetsToSend = channel_capacity/packetLength;
+		}
+		else{
+			packetsToSend = packetQueue.length();
+		}
+                packetBundle->setPacketsArraySize(packetsToSend);
                 //send packets to the bs if the own ms id is in the up schedule
                 ASSERT(schedule->getBsId() == bsId);
                 for(uint i = 0; i < packetBundle->getPacketsArraySize(); i++){
-					DataPacket *packet = (DataPacket *) packetQueue.pop();
-					packetBundle->setPackets(i, *packet);
-				}
-				packetBundle->setRBsArraySize(RBs.size());
-				packetBundle->setCqi(cqi);
-				for(uint i = 0; i < packetBundle->getRBsArraySize(); i++){
-					packetBundle->setRBs(i,RBs[i]);
-				}
+			KoiData *packet = dynamic_cast<KoiData*>(packetQueue.pop());
+			packetBundle->setPackets(i, *packet);
+			delete packet;
+		}
+		packetBundle->setRBsArraySize(RBs.size());
+		packetBundle->setCqi(cqi);
+		for(uint i = 0; i < packetBundle->getRBsArraySize(); i++){
+			packetBundle->setRBs(i,RBs[i]);
+		}
                 //ev << "MS " << msId << " sending " << packetBundle->getPacketsArraySize() << "packets to the BS " << schedule->getBsId() << " channel" << endl;
                 sendDelayed(packetBundle, epsilon, "toPhy");
             }
@@ -324,27 +332,18 @@ void MsMac::handleMessage(cMessage *msg)  {
     }
     //DataPacket
     else if(msg->arrivedOn("fromApp"))  {
-        //save outgoing packets in a queue
-        //ev << "Saving packet in the output queue" << endl;
-        if(packetQueue.getLength() < 25){
-			DataPacket *p = (DataPacket *) msg;
-			for(int i = 0; i < 24 - packetQueue.getLength(); i++){	
-				DataPacket *packet = new DataPacket("DATA");
-				packet->setByteLength(p->getByteLength());
-				packet->setBsId(p->getBsId());
-				packet->setMsId(p->getMsId());
-				packetQueue.insert( packet );
-			}
-			packetQueue.insert((DataPacket *) msg);
-		}else{
-			delete msg;
-		}
+	packetQueue.insert((DataPacket *) msg);
     }
     //DataPacket
     else if(msg->arrivedOn("fromPhy"))  {
-        //forward packets to the app
-        //ev << "Forwarding packet to the app" << endl;
-        send(msg, "toApp");
+	// Unpack the data bundle and forward data packets to app
+	if(msg->isName("DATA_BUNDLE")){
+		DataPacketBundle *bundle = dynamic_cast<DataPacketBundle*>(msg);
+		for(unsigned int i=0; i<bundle->getPacketsArraySize(); i++){
+			send(bundle->getPackets(i).dup(),"toApp");
+		} 
+	}
+	delete msg;
     }
 }
 

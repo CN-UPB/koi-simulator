@@ -16,7 +16,7 @@ simple MsMac  {
 	    double radius;
 	    int PosSeed;
 	    int downResourceBlocks;
-	    int packetLength = default(1500);
+	    int packetLength = default(1500b) @unit(b);
     	
         @display("i=block/mac");
         

@@ -19,6 +19,7 @@
 #include "PointerExchange_m.h"
 #include "ClusterMessage_m.h"
 #include "Schedule_m.h"
+#include "KoiData_m.h"
 #include <algorithm>
 
 using namespace itpp;
@@ -220,7 +221,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 			int toMsId = i;
 			while(sendingCapacity[i] > 0){
 				//cout << "current capacity: " << sendingCapacity[i] << endl;
-				DataPacket *packet = (DataPacket *) packetQueue[toMsId].get(packetsToSend[toMsId]);
+				KoiData *packet = dynamic_cast<KoiData*>(packetQueue[toMsId].get(packetsToSend[toMsId]));
 				if(packet == NULL){
 					break;
 				}
@@ -229,10 +230,11 @@ void BsMac::handleMessage(cMessage *msg)  {
 					sendingCapacity[i] = sendingCapacity[i] - packet->getBitLength();
 				}else{
 					//std::cout << "Last one cut off at: " << packet->getBitLength() - sendingCapacity[i] << " Bits" << std::endl;
-					DataPacket *packet_new = new DataPacket("DATA");
+					KoiData *packet_new = new KoiData("DATA");
 					packet_new->setBitLength(packet->getBitLength() - sendingCapacity[i]);
 					packet_new->setBsId(packet->getBsId());
-					packet_new->setMsId(packet->getMsId());
+					packet_new->setDest(packet->getDest());
+					packet_new->setDeadline(packet->getDeadline());
 					packetQueue[toMsId].insert(packet_new);
 					packet->setBitLength(sendingCapacity[i]);
 					sendingCapacity[i] = 0;
@@ -255,7 +257,7 @@ void BsMac::handleMessage(cMessage *msg)  {
             		bundle->setPacketsArraySize(packetsToSend[i]);
             		bundle->setRBsArraySize(RBs[i].size());
             		for(int j = 0; j < packetsToSend[i]; ++j)  {
-                		DataPacket *packet = (DataPacket *) packetQueue[i].pop();
+                		KoiData *packet = dynamic_cast<KoiData*>(packetQueue[i].pop());
                 		bundle->setPackets(j, *packet);
                 		delete packet;
             		}
@@ -308,7 +310,7 @@ void BsMac::handleMessage(cMessage *msg)  {
         TransmitRequest *transReq = (TransmitRequest *) msg;
         int fromMsId = transReq->getId();
         transmitRequests->at(fromMsId) = transReq->getPacketCount();
-        //ev << "BS Mac" << bsId << ": Received transmit reqeuest from MS " << fromMsId << endl;
+	//std::cout << "BS Mac" << bsId << ": Received transmit reqeuest from MS " << fromMsId << std::endl;
         delete msg;
     }
     else if(msg->isName("BS_MS_POSITIONS"))  {
@@ -413,8 +415,12 @@ void BsMac::handleMessage(cMessage *msg)  {
     else if(msg->arrivedOn("fromPhy"))  {
         DataPacketBundle *bundle = (DataPacketBundle *) msg;
         int msId = bundle->getMsId();
-        //ev << "Forwarding Packet to App " << msId << endl;
-        send(msg, "toApp", msId);
+	KoiData packet;
+	for(int i=0; i<bundle->getPacketsArraySize(); i++){
+		packet = bundle->getPackets(i);
+		packetQueue[packet.getDest()].insert(packet.dup());
+	}
+	delete bundle;
     }
 }
 
@@ -629,7 +635,6 @@ DATADIRECTION BsMac::getDataDirection(){
 }
 
 void BsMac::calcNewSchedule()  {
-	//std::cout << "Calculation Schedule with Periodicity: " << currentPeriodicity << std::endl;
     //from the bs to ms
     vector<int> packetCount(numberOfMobileStations);
     //vector that stores the ids of the sending apps; dynamic size numberOfSendingApps
