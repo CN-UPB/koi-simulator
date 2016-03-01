@@ -167,7 +167,7 @@ void BsChannel::handleMessage(cMessage *msg)  {
 			output2.close();
 		}
         if(simTime() >= 1)
-        channel->init(this, msPositions, neighbourPositions); //originally updateChannel(msPositions)
+		//channel->init(this, msPositions, neighbourPositions); //originally updateChannel(msPositions)
         delete msg;
     }
     else if(msg->arrivedOn("fromMs"))  {
@@ -176,54 +176,56 @@ void BsChannel::handleMessage(cMessage *msg)  {
 
         //the channel receives the packet in a bundle
         DataPacketBundle *bundle = (DataPacketBundle *) msg;
+	sendDelayed(bundle, tti - epsilon, "toPhy");
 
-        vector<double> instSINR;
-        int ownDataStrId = neighbourIdMatching->getDataStrId(bundle->getBsId());
-        
-        for(uint i = 0; i < bundle->getRBsArraySize(); i++){
-			int currentRessourceBlock = bundle->getRBs(i);
-		
-			vector<double> power;
-			vector<Position> pos;
-			vector<int> bsId;
-			
-			bsId.push_back(bundle->getBsId());
-			bsId.push_back(bundle->getBsId());
-			pos.push_back(msPositions[ownDataStrId][bundle->getMsId()]);
-			pos.push_back(bsPosition);
-			power.push_back(1.0);
-			power.push_back(1.0);
-			
-			NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
-			for(NeighbourMap::iterator it = map->begin(); it != map->end(); it++)  {
-				if(it->first == bundle->getBsId())
-					continue; //skip the own bs; cant interfere
-				int interfererId = schedules[(it->second).first][currentRessourceBlock];
-				
-				if(interfererId != -1)  { //skip unused slots
-					pos.push_back(msPositions[(it->second).first][interfererId]);
-					power.push_back(1.0);
-					bsId.push_back(it->first);
-					
-					//cout << "BS " << it->first << ", MS " << interfererId << " is an interferer for the packet!"  << endl;
-				}
-			}
-			instSINR.push_back(channel->calcSINR(currentRessourceBlock,power,pos,bsId,true,-1));
-		}
-		
-		double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
-		//cout << "Effektive SINR (Up): " << effSINR << endl;
-		double bler = getBler(bundle->getCqi(), effSINR, this);
-		//cout << "Block Error Rate(Up): " << bler << endl;
-		vec bler_(1);
-		bler_.set(0,bler);
-		double per = getPer(bler_);
-		
-		if(uniform(0,1) > per){
-			sendDelayed(bundle, tti - epsilon, "toPhy");
-		}else{
-			delete bundle;
-		}
+	//TODO Reinsert actual model
+//        vector<double> instSINR;
+//        int ownDataStrId = neighbourIdMatching->getDataStrId(bundle->getBsId());
+//        
+//        for(uint i = 0; i < bundle->getRBsArraySize(); i++){
+//			int currentRessourceBlock = bundle->getRBs(i);
+//		
+//			vector<double> power;
+//			vector<Position> pos;
+//			vector<int> bsId;
+//			
+//			bsId.push_back(bundle->getBsId());
+//			bsId.push_back(bundle->getBsId());
+//			pos.push_back(msPositions[ownDataStrId][bundle->getMsId()]);
+//			pos.push_back(bsPosition);
+//			power.push_back(1.0);
+//			power.push_back(1.0);
+//			
+//			NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
+//			for(NeighbourMap::iterator it = map->begin(); it != map->end(); it++)  {
+//				if(it->first == bundle->getBsId())
+//					continue; //skip the own bs; cant interfere
+//				int interfererId = schedules[(it->second).first][currentRessourceBlock];
+//				
+//				if(interfererId != -1)  { //skip unused slots
+//					pos.push_back(msPositions[(it->second).first][interfererId]);
+//					power.push_back(1.0);
+//					bsId.push_back(it->first);
+//					
+//					//cout << "BS " << it->first << ", MS " << interfererId << " is an interferer for the packet!"  << endl;
+//				}
+//			}
+//			instSINR.push_back(channel->calcSINR(currentRessourceBlock,power,pos,bsId,true,-1));
+//		}
+//		
+//		double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
+//		//cout << "Effektive SINR (Up): " << effSINR << endl;
+//		double bler = getBler(bundle->getCqi(), effSINR, this);
+//		//cout << "Block Error Rate(Up): " << bler << endl;
+//		vec bler_(1);
+//		bler_.set(0,bler);
+//		double per = getPer(bler_);
+//		
+//		if(uniform(0,1) > per){
+//			sendDelayed(bundle, tti - epsilon, "toPhy");
+//		}else{
+//			delete bundle;
+//		}
 
         //sendDelayed(bundle, tti - epsilon, "toPhy");
         // TODO: Calc reference SINR for Scheduler (even if not scheduled) for all possible RBs

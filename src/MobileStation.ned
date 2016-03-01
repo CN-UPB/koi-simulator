@@ -24,7 +24,7 @@ module MobileStation
         output toBsMac;
 
     submodules:
-        app: App  {
+        app: TrafficGen  {
         	parameters:
         		bsId = bsId;
         		msId = msId;
