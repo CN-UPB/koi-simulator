@@ -1,0 +1,16 @@
+// This message is send to the Scheduler by Mobile stations and Base stations 
+// to request the use of a Ressource Block for sending in the current TTI.
+
+cplusplus {{
+#include <omnetpp.h>
+using QueuePtr = const cQueue*;
+}}
+
+class noncobject QueuePtr;
+
+message StreamTransReq  {
+	int src; // The MS from which the packet was originally send
+	int dest; // The MS to which the Packet should be send
+	double period; // The (average) time between two packets in this stream
+	QueuePtr packets; // The current packet queue for this stream   
+}
