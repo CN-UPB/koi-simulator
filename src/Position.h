@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <omnetpp.h>
+#include "includes.h"
 
 struct Position  {
     double x;

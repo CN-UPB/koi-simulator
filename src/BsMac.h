@@ -8,7 +8,7 @@
 #pragma once
 
 #include <itpp/itbase.h>
-#include <omnetpp.h>
+#include "includes.h"
 #include "Position.h"
 #include "util.h"
 #include <vector>

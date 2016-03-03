@@ -1,6 +1,6 @@
 #pragma once
 
-#include <omnetpp.h>
+#include "includes.h"
 
 // uintptr_t is an unsigned int and can therefor be serialized by the pack/unpack functions
 struct PtrExchange  {

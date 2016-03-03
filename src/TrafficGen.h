@@ -11,8 +11,8 @@
 
 #pragma once
 
+#include "includes.h"
 #include <vector>
-#include <omnetpp.h>
 
 class TrafficGen: public cSimpleModule{
 	private:

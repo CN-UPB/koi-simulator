@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include "omnetpp.h"
+#include "includes.h"
 
 /**
  * @brief Decider for the 802.11G modules

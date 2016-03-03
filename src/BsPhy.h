@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <omnetpp.h>
+#include "includes.h"
 
 class BsPhy : public cSimpleModule  {
     private:

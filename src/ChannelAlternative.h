@@ -8,7 +8,7 @@
  
 #pragma once
 
-#include <omnetpp.h>
+#include "includes.h"
 #include <itpp/itbase.h>
 #include <itpp/stat/misc_stat.h>
 #include "Position.h"

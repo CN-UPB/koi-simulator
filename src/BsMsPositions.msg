@@ -1,5 +1,6 @@
 cplusplus {{
-	#include "Position.h"
+#include "includes.h"
+#include "Position.h"
 }}
 
 struct Position;

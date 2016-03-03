@@ -12,9 +12,9 @@
 #ifndef CLUSTER_H
 #define CLUSTER_H
 
+#include "includes.h"
 #include <itpp/itbase.h>
 #include <vector>
-#include <omnetpp.h>
 #include "mpc.h"
 
 using namespace itpp;

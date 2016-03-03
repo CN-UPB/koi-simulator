@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <omnetpp.h>
+#include "includes.h"
 #include <cstopwatch.h>
 
 class StopWatch : public cSimpleModule {

@@ -22,11 +22,11 @@
 //
 
 
+#include "includes.h"
 #include <iostream>
 #include <math.h>
 #include <stdlib.h>
 
-#include "omnetpp.h"
 #include "MySoSFading.h"
 
 /**
