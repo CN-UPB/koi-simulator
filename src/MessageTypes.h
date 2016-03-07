@@ -12,5 +12,7 @@ enum TrafficType {
 
 enum MessageType: short {
 	traffic,
-	koidata
+	koidata,
+	streamSched,
+	transReqList
 };
