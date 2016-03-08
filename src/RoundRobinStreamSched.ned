@@ -1,10 +1,11 @@
-moduleinterface StreamScheduler {
+simple RoundRobinStreamSched like StreamScheduler{
 	parameters:
 		double initOffset @unit(s);
 		int resourceBlocks;
 		int numberOfMobileStations;
 		double streamSchedPeriod @unit(s);
 		double tti @unit(s);
+		@class("StreamScheduler");
 	gates:
 		input fromBs;
 		input fromMs[numberOfMobileStations];
