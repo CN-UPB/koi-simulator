@@ -235,6 +235,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 					packet_new->setBsId(packet->getBsId());
 					packet_new->setDest(packet->getDest());
 					packet_new->setDeadline(packet->getDeadline());
+					packet_new->setInterarrival(packet->getInterarrival());
 					packetQueue[toMsId].insert(packet_new);
 					packet->setBitLength(sendingCapacity[i]);
 					sendingCapacity[i] = 0;

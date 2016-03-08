@@ -52,6 +52,7 @@ void TrafficGen::handleMessage(cMessage *msg){
 				pack->setDest(genMsg->getPartner());
 				pack->setTrafficType(TrafficType::periodic);
 				pack->setBitLength(this->packetLength);
+				pack->setInterarrival(this->period);
 				send(pack,"toMac");
 				scheduleAt(currTime+this->period,msg);
 				std::cout << "MS " << this->msId << " send msg " << pack->getId() << std::endl;
