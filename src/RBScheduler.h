@@ -1,7 +1,7 @@
 /**
  * \class RBScheduler RBScheduler.h
  *
- * The Stream Scheduler for a specific Resource Block.
+ * The Packet Scheduler for a specific Resource Block.
  *
  * This scheduler class is responsible for scheduling packet transmissions on 
  * a single Resource Block. It does not have a direct connection to Mobile and 
