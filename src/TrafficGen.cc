@@ -6,6 +6,7 @@
 #include "TrafficGen.h"
 #include "KoiData_m.h"
 #include "Traffic_m.h"
+#include "StreamInfo_m.h"
 #include "MessageTypes.h"
 
 #include <iostream>
@@ -36,6 +37,16 @@ void TrafficGen::initialize(){
 			scheduleAt(currTime+uniform(currTime,currTime+this->initOffset),
 					msg);
 		}
+		// Send stream notification message, which will inform the 
+		// mobile station's MAC, the base station's MAC and the 
+		// stream scheduler about the communication stream between 
+		// this MS and it's comm partner.
+		StreamInfo *info = new StreamInfo();
+		info->setSrc(msId);
+		info->setDest(i);
+		info->setInterarrival(period);
+		send(info,"toMac");
+		std::cout << "Sending successfull" << std::endl;
 	}
 }
 

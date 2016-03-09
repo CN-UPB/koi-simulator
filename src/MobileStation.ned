@@ -1,27 +1,31 @@
 module MobileStation
 {
     parameters:
-    	int bsId;
-    	int msId;
-        int currentChannel;
-    	double initBsXPos;
-    	double initBsYPos;
-		int initQuadrant;
-	    double initPosAlpha;
-	    double initPosBeta;
-	    double initPosGamma;
-        double radius;
+	int bsId;
+	int msId;
+	int currentChannel;
+	double initBsXPos;
+	double initBsYPos;
+	int initQuadrant;
+	double initPosAlpha;
+	double initPosBeta;
+	double initPosGamma;
+	double radius;
 
-        @display("bgb=200,300;i=device/cellphone");
+	@display("bgb=200,300;i=device/cellphone");
 
     gates:
     	//packet exchange with the BS through DataChannel
         input fromBs;
         output toBs;
 
-		//direct schedule exchange with BS
+	//direct schedule exchange with BS
         input fromBsMac;
         output toBsMac;
+
+	// Access to the Stream scheduling module
+	input fromScheduler;
+	output toScheduler;
 
     submodules:
         app: TrafficGen  {
@@ -66,4 +70,6 @@ module MobileStation
         phy.toChannel --> toBs;
         phy.toMsChannel --> dataChn.fromPhy;
         fromBs --> dataChn.fromBs;
+	fromScheduler --> mac.fromScheduler;
+	mac.toScheduler --> toScheduler;
 }

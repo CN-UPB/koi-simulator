@@ -11,6 +11,7 @@
 #include "Position.h"
 #include <itpp/itbase.h>
 #include <algorithm>
+#include <unordered_map>
 #include "util.h"
 
 using namespace itpp;
@@ -18,7 +19,7 @@ using namespace std;
 
 class MsMac : public cSimpleModule  {
     private:
-        cQueue packetQueue;
+	unordered_map<int,cQueue> streamQueues;
         Position msPosition;
         int msId;
         int bsId;
@@ -30,7 +31,7 @@ class MsMac : public cSimpleModule  {
         simtime_t epsilon;
         simtime_t tti;
         double radius;
-		vector<double> velocity;
+	vector<double> velocity;
         Position initBsPos; //just used for position centering in Tkenv ms pos calc in init
         vec SINR_;
 

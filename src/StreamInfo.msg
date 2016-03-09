@@ -8,6 +8,7 @@ cplusplus {{
 enum MessageType;
 
 message StreamInfo {
+	kind = MessageType::streamInfo;
 	int src;
 	int dest;
 	double interarrival; // The average time between two messages in this stream

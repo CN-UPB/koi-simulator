@@ -11,6 +11,9 @@
 #include "DataPacketBundle_m.h"
 #include "TransmitRequest_m.h"
 #include "Schedule_m.h"
+#include "StreamInfo_m.h"
+#include "StreamTransReq_m.h"
+#include "StreamTransSched_m.h"
 #include "SINR_m.h"
 #include <stdlib.h>
 #include <cmath>
@@ -192,7 +195,7 @@ void MsMac::initialize()  {
     //resend the ms position every x times to the BsMac layer
     scheduleAt(simTime() + initOffset + tti - epsilon, new cMessage("RESEND_POS")); //originally set to simTime() + initOffset 
 
-    //every tti send the bs the transmit requests
+    //every tti send transmit requests to stream scheduler
     scheduleAt(simTime() + initOffset + tti, new cMessage("GEN_TRANSMIT_REQUEST"));
     
     // Send MS Position once at the very beginning for cluster generation
@@ -203,30 +206,17 @@ void MsMac::initialize()  {
 }
 
 void MsMac::handleMessage(cMessage *msg)  {
-    if(msg->isName("SCHEDULE"))  {
-        Schedule *schedule = (Schedule *) msg;
+    if(msg->getKind()==MessageType::streamSched)  {
+        StreamTransSched *schedule = dynamic_cast<StreamTransSched*>(msg);
         
-        //drop schedule which not corresponds to the current channel of this MS
-	//TODO execute only if this is a DOWN schedule
-        if(schedule->getChannel() == currentChannel)  {
+        if(schedule->getSrc() == msId)  {
             DataPacketBundle *packetBundle = new DataPacketBundle("DATA_BUNDLE"); //only send out one bundle of packets
             packetBundle->setMsId(msId);
             packetBundle->setBsId(bsId);
-            int numberOfRB = 0;
             
             vector<double> sinr_values;
             vector<double> RBs;
-            
-            // Get the number of Ressource Blocks, that are assigned to this MS
-            for(int i = 0; i < (int) schedule->getUpScheduleArraySize(); ++i)  {
-                int currentMsId = schedule->getUpSchedule(i);
-		//std::cout << "Up Schedule MS Id: " << currentMsId << std::endl;
-                if(currentMsId == msId){
-					sinr_values.push_back(SINR_(i));
-					RBs.push_back(i);
-					numberOfRB++;
-				}
-            }
+	    sinr_values.push_back(SINR_(schedule->getRb()));
             
             double channel_capacity = getChannelCapacity(sinr_values);
             int cqi;
@@ -236,74 +226,39 @@ void MsMac::handleMessage(cMessage *msg)  {
 				cqi = 1;
 			}
             
+	    // For now, only 1 packet will be send per RB in each TTI
             if(channel_capacity > 0)  {
-		int packetsToSend;
-		if(packetQueue.length()>channel_capacity/packetLength){
-			packetsToSend = channel_capacity/packetLength;
-		}
-		else{
-			packetsToSend = packetQueue.length();
-		}
-                packetBundle->setPacketsArraySize(packetsToSend);
-                //send packets to the bs if the own ms id is in the up schedule
-                ASSERT(schedule->getBsId() == bsId);
-                for(uint i = 0; i < packetBundle->getPacketsArraySize(); i++){
-			KoiData *packet = dynamic_cast<KoiData*>(packetQueue.pop());
-			packetBundle->setPackets(i, *packet);
-			delete packet;
-		}
-		packetBundle->setRBsArraySize(RBs.size());
+                packetBundle->setPacketsArraySize(1);
+		KoiData *packet = dynamic_cast<KoiData*>(
+				streamQueues[schedule->getDest()].get(
+					schedule->getPacketIndex()));
+		streamQueues[schedule->getDest()].remove(packet);
+		packetBundle->setPackets(0, *packet);
+		delete packet;
+		packetBundle->setRBsArraySize(1);
+		packetBundle->setRBs(0,schedule->getRb());
 		packetBundle->setCqi(cqi);
-		for(uint i = 0; i < packetBundle->getRBsArraySize(); i++){
-			packetBundle->setRBs(i,RBs[i]);
-		}
-                //ev << "MS " << msId << " sending " << packetBundle->getPacketsArraySize() << "packets to the BS " << schedule->getBsId() << " channel" << endl;
                 sendDelayed(packetBundle, epsilon, "toPhy");
             }
-        
-		/*
-        //drop schedule which not corresponds to the current channel of this MS
-        if(schedule->getChannel() == currentChannel)  {
-            DataPacketBundle *packetBundle = new DataPacketBundle("DATA_BUNDLE"); //only send out one bundle of packets
-            packetBundle->setMsId(msId);
-            packetBundle->setBsId(bsId);
-            int neededSize = 0;
-            for(int i = 0; i < (int) schedule->getUpScheduleArraySize(); ++i)  { //TODO could be done more efficient
-                int currentMsId = schedule->getUpSchedule(i);
-                if(currentMsId == msId)
-                    neededSize++;
-            }
-            if(neededSize > 0)  {
-                packetBundle->setPacketsArraySize(neededSize);
-                //send packets to the bs if the own ms id is in the up schedule
-                ASSERT(schedule->getBsId() == bsId);
-                int curBundlePos = 0;
-                for(int i = 0; i < (int) schedule->getUpScheduleArraySize(); ++i)  {
-                    int currentMsId = schedule->getUpSchedule(i);
-                    //ev << "Slot " << i << " - " << currentMsId << endl;
-                    if(currentMsId == msId)  {
-                        DataPacket *packet = (DataPacket *) packetQueue.pop();
-                        packet->setResourceBlock(i);
-                        packetBundle->setPackets(curBundlePos, *packet);
-                        curBundlePos++;
-                    }
-                }
-                //ev << "MS " << msId << " sending " << packetBundle->getPacketsArraySize() << "packets to the BS " << schedule->getBsId() << " channel" << endl;
-                sendDelayed(packetBundle, epsilon, "toPhy");
-            }
-            * */
         }
         delete schedule;
     }
     else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
-        //send the bs the sending wishes
-        int length = packetQueue.length();
-        if(length != 0)  { //only send the transmit req when the queue is not empty
-            TransmitRequest *transReq = new TransmitRequest("TRANSMIT_REQUEST");
-            transReq->setId(msId);
-            transReq->setPacketCount(packetQueue.length());
-            send(transReq, "toBsMac");
-        }
+	// Send requests for each stream originating from this MS to the 
+	// scheduler if that stream has packets.
+	for(auto iter=this->streamQueues.begin(); iter!=streamQueues.end();
+			++iter){
+		if(!iter->second.empty()){
+			StreamTransReq *req = new StreamTransReq();
+			KoiData *queueHead = dynamic_cast<KoiData*>(iter->second.front());
+			req->setSrc(this->msId);
+			req->setDest(iter->first);
+			req->setPeriod(queueHead->getInterarrival());
+			req->setPackets(&(iter->second));
+			req->setBs(false);
+			send(req,"toScheduler");
+		}
+	}
         scheduleAt(simTime() + tti, msg);
     }
     else if(msg->isName("RESEND_POS"))  {
@@ -332,7 +287,20 @@ void MsMac::handleMessage(cMessage *msg)  {
     }
     //DataPacket
     else if(msg->arrivedOn("fromApp"))  {
-	packetQueue.insert((DataPacket *) msg);
+	switch(msg->getKind()){
+		case MessageType::streamInfo:{
+			// Add queue for the new stream
+			StreamInfo *tmp = dynamic_cast<StreamInfo*>(msg);
+			this->streamQueues[tmp->getDest()];
+			send(msg->dup(),"toScheduler");
+			send(msg->dup(),"toBsMac");
+			delete msg;
+		} break;
+		case MessageType::koidata:{
+			KoiData *data = dynamic_cast<KoiData*>(msg);
+			this->streamQueues[data->getDest()].insert(data);
+		} break;
+	}
     }
     //DataPacket
     else if(msg->arrivedOn("fromPhy"))  {
@@ -348,5 +316,4 @@ void MsMac::handleMessage(cMessage *msg)  {
 }
 
 MsMac::~MsMac()  {
-    //ev << "BS " << bsId << "; MS " << msId << ": Queue " << packetQueue.length() << endl;
 }
