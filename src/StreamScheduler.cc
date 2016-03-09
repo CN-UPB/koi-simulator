@@ -43,6 +43,13 @@ void StreamScheduler::scheduleStreams(){
 		for(auto info:this->infos){
 			this->rbAssignments[info->getSrc()][info->getDest()] = rb%resourceBlocks;
 			rb++;
+			std::cout << "Did RB Assignment: "
+				<< info->getSrc()
+				<< "->"
+				<< info->getDest()
+				<< " to RB "
+				<< this->rbAssignments[info->getSrc()][info->getDest()]
+				<< std::endl;
 			delete info;
 		}
 		// Remove all stream infos
@@ -64,14 +71,16 @@ void StreamScheduler::handleMessage(cMessage *msg){
 		case MessageType::scheduleStreams:{
 				this->scheduleStreams();
 				scheduleAt(simTime()+this->streamSchedPeriod,msg);
-			}
-			break;
+			} break;
 		case MessageType::scheduleRBs:
 			for(auto iter=this->requests.begin();
 					iter!=requests.end();
 					++iter){
 				TransReqList *lst = new TransReqList();
 				lst->setRequests(iter->second);
+				// Clear all transmission requests for this 
+				// stream from the stream schedulers queue.
+				iter->second.clear();
 				send(lst,"toRB",iter->first);
 			}
 			scheduleAt(simTime()+tti,msg);
