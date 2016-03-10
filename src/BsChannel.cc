@@ -132,23 +132,6 @@ void BsChannel::handleMessage(cMessage *msg)  {
         neighbourPositions[bsPos->getId()] = bsPos->getPosition();
         delete msg;
     }
-    else if(msg->isName("SCHEDULE"))  {
-		//cout << "test schedule" << endl;
-		//save the schedule locale
-        Schedule *schedule = (Schedule *) msg;
-        int direction = schedule->getScheduleDirection(); //0 = Up, 1 = Down, 2 = Guard.
-        if(direction == 0){
-			double power = schedule->getMaxPower();
-			int fromBsId = neighbourIdMatching->getDataStrId(schedule->getBsId());
-			scheduleDirection[fromBsId] = direction;
-			maxPower[fromBsId] = power;
-			for(unsigned int i = 0; i < schedule->getUpScheduleArraySize(); ++i)  {
-				schedules[fromBsId][i] = schedule->getUpSchedule(i);
-				//schedulePower[fromBsId][i] = schedule->getPowerAdaptation(i);
-			}
-		}
-        delete msg;
-    }
     else if(msg->isName("BS_MS_POSITIONS"))  {
         //save the postitions of the mobile stations
         BsMsPositions *msPos = (BsMsPositions *) msg;
@@ -336,7 +319,7 @@ BsChannel::~BsChannel()  {
     delete[] msPositions;
     delete[] schedules;
     delete neighbourIdMatching;
-    delete scheduleDirection;
+    delete[] scheduleDirection;
     delete[] schedulePower;
-    delete maxPower;
+    delete[] maxPower;
 }

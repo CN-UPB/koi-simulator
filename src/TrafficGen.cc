@@ -26,7 +26,7 @@ void TrafficGen::initialize(){
 
 	// convert communication partners string to vector of ints
 	const char *partners = par("commPartners").stringValue();
-	this->commPartners = cStringTokenizer(partners).asIntVector();
+	this->commPartners = cStringTokenizer(partners,",").asIntVector();
 	// schedule initial events randomly in [current time,initOffset]
 	simtime_t currTime = simTime();
 	for(int i:this->commPartners){
@@ -46,7 +46,6 @@ void TrafficGen::initialize(){
 		info->setDest(i);
 		info->setInterarrival(period);
 		send(info,"toMac");
-		std::cout << "Sending successfull" << std::endl;
 	}
 }
 
@@ -66,7 +65,7 @@ void TrafficGen::handleMessage(cMessage *msg){
 				pack->setInterarrival(this->period);
 				send(pack,"toMac");
 				scheduleAt(currTime+this->period,msg);
-				std::cout << "MS " << this->msId << " send msg " << pack->getId() << std::endl;
+				std::cout << "MS " << this->msId << " Generated Msg " << pack->getId() << " to " << pack->getDest() << std::endl;
 				break;
 			
 		}
@@ -76,6 +75,7 @@ void TrafficGen::handleMessage(cMessage *msg){
 		std::cout << "MS " << this->msId 
 			<< " got message " << pack->getId() 
 			<< " from " << pack->getSrc() 
+			<< " to " << pack->getDest() 
 			<< std::endl;
 		delete pack;
 	}

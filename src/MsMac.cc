@@ -196,7 +196,7 @@ void MsMac::initialize()  {
     scheduleAt(simTime() + initOffset + tti - epsilon, new cMessage("RESEND_POS")); //originally set to simTime() + initOffset 
 
     //every tti send transmit requests to stream scheduler
-    scheduleAt(simTime() + initOffset + tti, new cMessage("GEN_TRANSMIT_REQUEST"));
+    scheduleAt(simTime() + initOffset + 2*tti-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
     
     // Send MS Position once at the very beginning for cluster generation
     PositionExchange *posEx = new PositionExchange("MS_POS_UPDATE");
@@ -259,7 +259,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 			send(req,"toScheduler");
 		}
 	}
-        scheduleAt(simTime() + tti, msg);
+        scheduleAt(simTime() + tti-epsilon, msg);
     }
     else if(msg->isName("RESEND_POS"))  {
 	
@@ -292,8 +292,8 @@ void MsMac::handleMessage(cMessage *msg)  {
 			// Add queue for the new stream
 			StreamInfo *tmp = dynamic_cast<StreamInfo*>(msg);
 			this->streamQueues[tmp->getDest()];
-			send(msg->dup(),"toScheduler");
-			send(msg->dup(),"toBsMac");
+			send(tmp->dup(),"toScheduler");
+			send(tmp->dup(),"toBsMac");
 			delete msg;
 		} break;
 		case MessageType::koidata:{

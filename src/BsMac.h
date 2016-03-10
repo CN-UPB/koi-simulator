@@ -12,16 +12,11 @@
 #include "Position.h"
 #include "util.h"
 #include <vector>
+#include <unordered_map>
 #include "NeighbourIdMatching.h"
-#include "randomScheduler.h"
-#include "roundRobinScheduler.h"
-#include "bestCQIScheduler.h"
-#include "proportionalFairScheduler.h"
 
 using namespace std;
 using namespace itpp;
-
-enum DATADIRECTION {UP, DOWN, SPECIAL};
 
 class BsMac : public cSimpleModule  {
     private:
@@ -29,35 +24,26 @@ class BsMac : public cSimpleModule  {
         int maxNumberOfNeighbours;
         int bsId;
         int currentChannel;
-        int upResBlocks;
-        int downResBlocks;
+	int resourceBlocks;
         int sinr_est;
-        vector<int> *downSchedule;
         Position pos;
         double initOffset;
         vector<bool> *msPosUpdateArrived;
-        vector<int> *transmitRequests;
         Position *msPositions;
         mat SINR_;
         NeighbourIdMatching *neighbourIdMatching; //matching for bsId <-> dataStrPos
         int ownDataStrId; //pos in the dataStr for bsId
-        int downToUpPeriodicity; // The periodicity for change in Up and Downlink
-        int currentPeriodicity; // The current periodicity
-        Scheduler *scheduler;
         vec eesm_beta_values;
         mat blerTable;
 
         simtime_t tti;
         simtime_t epsilon;
         cQueue *packetQueue;
+	unordered_map<int,unordered_map<int,cQueue>> streamQueues;
 
     protected:
         virtual void initialize();
         virtual void handleMessage(cMessage *msg);
-        virtual simtime_t getProcessingDelay(cMessage *msg);
-        virtual void calcNewSchedule();
-        virtual DATADIRECTION getDataDirection();
-        inline virtual simtime_t scheduleTime();
         
         double getEffectiveSINR(vector<double> sinrValues);
         double getBler(int cqi, double sinr);
@@ -67,6 +53,5 @@ class BsMac : public cSimpleModule  {
         virtual void sendDelayedToNeighbourCells(cMessage *msg, simtime_t delay);
 
     public:
-        BsMac();
         ~BsMac();
 };

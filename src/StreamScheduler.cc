@@ -18,10 +18,10 @@ using std::unordered_map;
 Define_Module(StreamScheduler);
 
 void StreamScheduler::initialize(){
-	this->infos = vector<StreamInfo*>(this->numberOfMs);
 	this->initOffset = par("initOffset");
 	this->resourceBlocks = par("resourceBlocks");
 	this->numberOfMs = par("numberOfMobileStations");
+	this->infos = vector<StreamInfo*>();
 	this->streamSchedPeriod = par("streamSchedPeriod");
 	this->tti = par("tti");
 	// Produce the first schedule right at the init offset
@@ -43,13 +43,6 @@ void StreamScheduler::scheduleStreams(){
 		for(auto info:this->infos){
 			this->rbAssignments[info->getSrc()][info->getDest()] = rb%resourceBlocks;
 			rb++;
-			std::cout << "Did RB Assignment: "
-				<< info->getSrc()
-				<< "->"
-				<< info->getDest()
-				<< " to RB "
-				<< this->rbAssignments[info->getSrc()][info->getDest()]
-				<< std::endl;
 			delete info;
 		}
 		// Remove all stream infos

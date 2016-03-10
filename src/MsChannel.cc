@@ -140,6 +140,8 @@ void MsChannel::handleMessage(cMessage *msg)  {
 
         //the channel receives the packet in a bundle
         DataPacketBundle *bundle = (DataPacketBundle *) msg;
+	// Just forward the packet for now, without error checking etc
+	sendDelayed(bundle, tti - epsilon, "toPhy");
 		
 		/*
         bool forwardPacket[numberOfPackets];
@@ -204,17 +206,9 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			instSINR.push_back(channel->calcSINR(currentRessourceBlock,power,pos,bsId,false, msId));
 		}
 		//cout << "-----------------------" << endl;
+		/**
 		double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
-		//cout << "Effektive SINR(Down): " << effSINR << endl;
 		double bler = getBler(bundle->getCqi(), effSINR, this);
-		//cout << "Block Error Rate(Down): " << bler << endl;
-		//cout << "Bundle has CQI: " << bundle->getCqi() << endl;
-		//cout << "Number of RBs: " << bundle->getRBsArraySize() << endl;
-		//cout << "-----------------------" << endl;
-		
-		//cMessage *counter = new cMessage("COUNTER");
-		//channel->handleMessage(counter);
-		
 		vec bler_(1);
 		bler_.set(0,bler);
 		double per = getPer(bler_);
@@ -224,9 +218,9 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		}else{
 			delete bundle;
 		}
+		**/
 	}
 	
-	//sendDelayed(bundle, tti - epsilon, "toPhy");
 	/*
 	if(packetsToForward > 0)  {
 		//make a new bundle with the packets that are not lost
@@ -265,7 +259,7 @@ MsChannel::~MsChannel()  {
         std::cout << i->first << ": " << bsChannels[(i->second).first] << std::endl;
     }
     std::cout << "-------------------------------------------------------" << std::endl;*/
-    delete bsPositions;
-    delete bsChannels;
+    delete[] bsPositions;
+    delete[] bsChannels;
     delete neighbourIdMatching;
 }

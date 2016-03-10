@@ -4,12 +4,8 @@ simple BsMac  {
     	int numberOfMobileStations;
     	int bsId;
         int currentChannel;
-    	int upResourceBlocks;
-    	int downResourceBlocks;
-    	int Scheduler;
-    	int downToUpPeriodicity;
-        int currentPeriodicity;
         int SlidingWindowSize;
+	int resourceBlocks;
         double SmoothingFactor;
         bool useSinr;
         string AverageType;
@@ -18,10 +14,10 @@ simple BsMac  {
     	double xPos;
     	double yPos;
     	bool uniform;
-		double offset;
-		int N_s;
-		int N_c;
-		double runtime @unit(s);
+	double offset;
+	int N_s;
+	int N_c;
+	double runtime @unit(s);
     	
     	double epsilon @unit(s);
 
@@ -50,4 +46,8 @@ simple BsMac  {
         
         //position exchange with the BsChannels
         output toBsChannel[];
+
+	// Access to Streaming scheduler
+	input fromScheduler;
+	output toScheduler;
 }

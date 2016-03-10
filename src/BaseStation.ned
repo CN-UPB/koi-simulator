@@ -28,6 +28,10 @@ module BaseStation
     	//schedule/position exchange
     	input fromMsMac[];
     	output toMsMac[];
+
+    	// Access to Stream scheduler
+    	input fromScheduler;
+    	output toScheduler;
     	
    	submodules:
    		mac: BsMac  {
@@ -36,8 +40,8 @@ module BaseStation
    				yPos = yPos;
    				tti = tti;
    				bsId = bsId;
-                currentChannel = currentChannel;
-                numberOfMobileStations = numberOfMobileStations;
+				currentChannel = currentChannel;
+				numberOfMobileStations = numberOfMobileStations;
    				@display("p=$halfPlaygroundSizeX,120");
    				
    			gates:
@@ -68,6 +72,9 @@ module BaseStation
    	connections allowunconnected:
    		phy.toMac --> mac.fromPhy;
    		mac.toPhy --> phy.fromMac;
+
+		mac.toScheduler --> toScheduler;
+		fromScheduler --> mac.fromScheduler;
    		
    		//connect BsPhy with the BsChannels
    		for i=0..numberOfMobileStations-1  {
