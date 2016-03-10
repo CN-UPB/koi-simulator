@@ -1,0 +1,13 @@
+The KOI Simulator
+=================
+
+This package contains the source code and simulation parameters for the KOI 
+scheduling simulations.
+
+For installation/build instructions, please consult the INSTALL file.
+
+To execute an example simulation, build the simulation code as described in 
+the INSTALL file. Then, change into the ``simulations`` subdirectory and 
+execute::
+
+	$ ../src/koisim -n "./;../src/ned"
