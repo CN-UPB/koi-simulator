@@ -545,7 +545,9 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
     	// Begin small scale parameter generation.
     
     	// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
+	delete[] clusterDelays;
 	clusterDelays = new double**[numberOfMobileStations];
+	delete[] clusterDelays_LOS;
 	clusterDelays_LOS = new double**[numberOfMobileStations];
 	double delayScaling;
 	int N_cluster_LOS = module->par("NumberOfClusters_LOS");
@@ -659,6 +661,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		}
 	}
 		
+	delete[] clusterPowers;
 	clusterPowers = new double**[numberOfMobileStations];
 	double cluster_shadowing;
 	double sum;
@@ -771,6 +774,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	int numOfRays_NLOS = module->par("NumberOfRays_NLOS");
 	
 	// Precompute powers per ray (7.46)
+	delete[] rayPowers;
 	rayPowers = new double**[numberOfMobileStations];
 	for(int i = 0; i < numberOfMobileStations; i++){
 		rayPowers[i] = new double*[numOfInterferers];
@@ -2907,7 +2911,46 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	
 	//output2 << "Init 3 METIS at BS " << bsId << " with rand: " << normal(0,1) << std::endl;
 
-	
+	// Free memory allocated on heap for local variables
+	//
+	delete neighbourIdMatching; 
+	delete[] azimuth_cluster_ASA;
+	delete[] azimuth_cluster_ASD;
+	delete[] raySum_LOS;
+
+	delete[] raySumInterferer_LOS;
+
+	for(int m = 0; m < numberOfMobileStations; m++){
+		for(int i = 0; i < (N_cluster_NLOS + 4); i++){
+			for(int j = 0; j < timeSamples; j++){
+				for(int k = 0; k < NumRxAntenna; k++){
+					delete[] raySum[m][i][j][k];
+				}
+				delete[] raySum[m][i][j];
+			}
+			delete[] raySum[m][i];
+		}
+		delete[] raySum[m];
+	}
+	delete[] raySum;
+
+	for(int m = 0; m < numberOfMobileStations; m++){
+		for(int i = 0; i < numOfInterferers; i++){
+			for(int j = 0; j < (N_cluster_NLOS + 4); j++){
+				for(int k = 0; k < timeSamples; k++){
+					for(int l = 0; l < NumRxAntenna; l++){
+						delete[] raySumInterferer[m][i][j][k][l];
+					}
+					delete[] raySumInterferer[m][i][j][k];
+				}
+				delete[] raySumInterferer[m][i][j];
+			}
+			delete[] raySumInterferer[m][i];
+		}
+		delete[] raySumInterferer[m];
+	}
+	delete[] raySumInterferer;
+
 	return true;
 }
 
@@ -3119,6 +3162,29 @@ void METISChannel::generateAutoCorrelation_LOS(){
 			//autoCorrelation_LOS[i][a] = normal(0,1);
 		}
 	}
+	// Clean up all local variables allocated on the heap
+	// TODO Look into the possibility of actually putting those variables 
+	// directly on the stack, instead of using entirely unnecessary 
+	// dynamic memory allocation
+	for(int i = 0; i < 7; i++){
+		for(int j = 0; j < 2*r + 20; j++){
+			delete[] grid[i][j];
+			delete[] tmpX[i][j];
+			delete[] tmpY[i][j];
+		}
+		delete[] grid[i];
+		delete[] tmpX[i];
+		delete[] tmpY[i];
+	}
+	delete[] grid;
+	delete[] tmpX;
+	delete[] tmpY;
+	for(int i=0; i<7; i++){
+		delete[] filter[i];
+		delete[] sum[i];
+	}
+	delete[] filter;
+	delete[] sum;
 }
 
 /**
@@ -3173,7 +3239,7 @@ void METISChannel::generateAutoCorrelation_NLOS(){
 		grid[i] = new double*[2*r + 20];
 		tmpX[i] = new double*[2*r + 20];
 		tmpY[i] = new double*[2*r + 20];
-		for(int j = 0; j < 2*r + 100; j++){
+		for(int j = 0; j < 2*r + 20; j++){
 			grid[i][j] = new double[2*r + 20];
 			tmpX[i][j] = new double[2*r + 20];
 			tmpY[i][j] = new double[2*r + 20];
@@ -3253,6 +3319,29 @@ void METISChannel::generateAutoCorrelation_NLOS(){
 			//autoCorrelation_NLOS[i][a] = normal(0,1);
 		}
 	}
+	// Clean up all local variables allocated on the heap
+	// TODO Look into the possibility of actually putting those variables 
+	// directly on the stack, instead of using entirely unnecessary 
+	// dynamic memory allocation
+	for(int i = 0; i < 6; i++){
+		for(int j = 0; j < 2*r + 20; j++){
+			delete[] grid[i][j];
+			delete[] tmpX[i][j];
+			delete[] tmpY[i][j];
+		}
+		delete[] grid[i];
+		delete[] tmpX[i];
+		delete[] tmpY[i];
+	}
+	delete[] grid;
+	delete[] tmpX;
+	delete[] tmpY;
+	for(int i=0; i<6; i++){
+		delete[] filter[i];
+		delete[] sum[i];
+	}
+	delete[] filter;
+	delete[] sum;
 }
 
 /**
@@ -3382,6 +3471,7 @@ double METISChannel::calcSINR(int RB, vector<double> &power, vector<Position> &p
 	for(int i = 0; i < neighbourIdMatching->numberOfNeighbours() - 1; i++){
 		interference += SINRneighbour[msId][i][SINRCounter][RB];
 	}
+	delete neighbourIdMatching;
 	interference += getTermalNoise(300,180000);
 	// Convert to db scale
 	//std::cout << 10 * log10( SINRtable[msId][SINRcounter][RB] / interference ) << std::endl;

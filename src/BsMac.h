@@ -38,7 +38,6 @@ class BsMac : public cSimpleModule  {
 
         simtime_t tti;
         simtime_t epsilon;
-        cQueue *packetQueue;
 	unordered_map<int,unordered_map<int,cQueue>> streamQueues;
 
     protected:
