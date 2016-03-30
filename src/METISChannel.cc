@@ -3315,8 +3315,7 @@ bool METISChannel::LineOfSight(double dist2D){
 		prob = 	(18 / dist2D) + (1 - ( 18/dist2D )) * exp(-1.0 * dist2D/36);
 	}
 	double coin = uniform(0,1);
-	//return (coin > prob); // check for the value of coin when running simulation
-	return true;
+	return (coin <= prob); // check for the value of coin when running simulation
 }
 
 /**
