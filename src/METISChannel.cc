@@ -2916,8 +2916,36 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	delete neighbourIdMatching; 
 	delete[] azimuth_cluster_ASA;
 	delete[] azimuth_cluster_ASD;
+
+	for(int m = 0; m < numberOfMobileStations; m++){
+		for(int i = 0; i < (N_cluster_LOS + 4); i++){
+			for(int j = 0; j < timeSamples; j++){
+				for(int k = 0; k < NumRxAntenna; k++){
+					delete[] raySum_LOS[m][i][j][k];
+				}
+				delete[] raySum_LOS[m][i][j];
+			}
+			delete[] raySum_LOS[m][i];
+		}
+		delete[] raySum_LOS[m];
+	}
 	delete[] raySum_LOS;
 
+	for (int m = 0; m < numberOfMobileStations; m++){
+		delete[] raySumInterferer_LOS[m];
+		for(int i = 0; i < numOfInterferers; i++){
+			delete[] raySumInterferer_LOS[m][i];
+			for(int j = 0; j < (N_cluster_LOS + 4); j++){
+				delete[] raySumInterferer_LOS[m][i][j];
+				for(int k = 0; k < timeSamples; k++){
+					delete[] raySumInterferer_LOS[m][i][j][k];
+					for(int l = 0; l < NumRxAntenna; l++){
+						delete[] raySumInterferer_LOS[m][i][j][k][l];
+					}
+				}
+			}
+		}
+	}
 	delete[] raySumInterferer_LOS;
 
 	for(int m = 0; m < numberOfMobileStations; m++){
@@ -2951,6 +2979,56 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	}
 	delete[] raySumInterferer;
 
+	for(int i = 0; i < numberOfMobileStations; i++){
+		for(int s=0; s<numOfInterferers; s++){
+			for(int j=0;j<N_cluster_LOS;j++){
+				for(int k=0; k<numOfRays_LOS; k++){
+					delete[] randomPhase[i][s][j][k];
+				}
+				delete[] randomPhase[i][s][j];
+			}
+			delete[] randomPhase[i][s];
+		}
+		delete[] randomPhase[i];
+	}
+	delete[] randomPhase;
+
+	for(int i=0;i<numberOfMobileStations; i++){
+		for(int j=0; j<numOfInterferers; j++){
+			for(int k=0; k<N_cluster_NLOS; k++){
+				delete[] elevation_ASA[i][j][k];
+				delete[] elevation_ASD[i][j][k];
+			}
+			delete[] elevation_ASA[i][j];
+			delete[] elevation_ASD[i][j];
+		}
+		delete[] elevation_ASA[i];
+		delete[] elevation_ASD[i];
+	}
+	delete[] elevation_ASA;
+	delete[] elevation_ASD;
+
+	std::cout << "Num Interferers" << numOfInterferers << std::endl;
+	for(int i=0; i<numberOfMobileStations; i++){
+		for(int j=0; j<numOfInterferers; j++){
+			std::cout << "Deleting " << i << "/" << j << std::endl;
+			delete[] clusterDelays[i][j];
+			delete[] clusterDelays_LOS[i][j];
+		}
+		delete[] clusterDelays[i];
+		delete[] clusterDelays_LOS[i];
+	}
+	delete[] clusterDelays;
+	delete[] clusterDelays_LOS;
+
+	for(int i=0; i<numberOfMobileStations; i++){
+		for(int j=0; j<numOfInterferers; j++){
+			std::cout << "Deleting " << i << "/" << j << std::endl;
+			delete[] clusterPowers[i][j];
+		}
+	 	delete[] clusterPowers[i];
+	}
+	delete[] clusterPowers;
 	return true;
 }
 
