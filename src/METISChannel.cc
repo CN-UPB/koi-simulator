@@ -535,9 +535,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
     	// Begin small scale parameter generation.
     
     	// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
-	delete[] clusterDelays;
 	clusterDelays = new double**[numberOfMobileStations];
-	delete[] clusterDelays_LOS;
 	clusterDelays_LOS = new double**[numberOfMobileStations];
 	double delayScaling;
 	int N_cluster_LOS = module->par("NumberOfClusters_LOS");
@@ -651,7 +649,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		}
 	}
 		
-	delete[] clusterPowers;
 	clusterPowers = new double**[numberOfMobileStations];
 	double cluster_shadowing;
 	double sum;
@@ -764,7 +761,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	int numOfRays_NLOS = module->par("NumberOfRays_NLOS");
 	
 	// Precompute powers per ray (7.46)
-	delete[] rayPowers;
 	rayPowers = new double**[numberOfMobileStations];
 	for(int i = 0; i < numberOfMobileStations; i++){
 		rayPowers[i] = new double*[neighbourPositions.size()];
@@ -1590,8 +1586,8 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	complex<double> ******raySumInterferer_LOS;
 	complex<double> ******raySumInterferer;
 	if(numOfInterferers>0){
-	// Only compute values for interferers if there actually are any 
-	// interfering neighbours
+		// Only compute values for interferers if there actually are any 
+		// interfering neighbours
 		raySumInterferer_LOS = new complex<double>*****[numberOfMobileStations];
 		for (int m = 0; m < numberOfMobileStations; m++){
 			raySumInterferer_LOS[m] = new complex<double>****[numOfInterferers];
@@ -2923,8 +2919,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	// Free memory allocated on heap for local variables
 	//
 	delete neighbourIdMatching; 
-	delete[] azimuth_cluster_ASA;
-	delete[] azimuth_cluster_ASD;
 
 	for(int m = 0; m < numberOfMobileStations; m++){
 		for(int i = 0; i < (N_cluster_LOS + 4); i++){
@@ -2937,27 +2931,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 			delete[] raySum_LOS[m][i];
 		}
 		delete[] raySum_LOS[m];
-	}
-	delete[] raySum_LOS;
-
-	for (int m = 0; m < numberOfMobileStations; m++){
-		delete[] raySumInterferer_LOS[m];
-		for(int i = 0; i < numOfInterferers; i++){
-			delete[] raySumInterferer_LOS[m][i];
-			for(int j = 0; j < (N_cluster_LOS + 4); j++){
-				delete[] raySumInterferer_LOS[m][i][j];
-				for(int k = 0; k < timeSamples; k++){
-					delete[] raySumInterferer_LOS[m][i][j][k];
-					for(int l = 0; l < NumRxAntenna; l++){
-						delete[] raySumInterferer_LOS[m][i][j][k][l];
-					}
-				}
-			}
-		}
-	}
-	delete[] raySumInterferer_LOS;
-
-	for(int m = 0; m < numberOfMobileStations; m++){
 		for(int i = 0; i < (N_cluster_NLOS + 4); i++){
 			for(int j = 0; j < timeSamples; j++){
 				for(int k = 0; k < NumRxAntenna; k++){
@@ -2969,75 +2942,79 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		}
 		delete[] raySum[m];
 	}
+	delete[] raySum_LOS;
 	delete[] raySum;
 
-	for(int m = 0; m < numberOfMobileStations; m++){
-		for(int i = 0; i < numOfInterferers; i++){
-			for(int j = 0; j < (N_cluster_NLOS + 4); j++){
-				for(int k = 0; k < timeSamples; k++){
-					for(int l = 0; l < NumRxAntenna; l++){
-						delete[] raySumInterferer[m][i][j][k][l];
+	if(numOfInterferers>0){
+		for (int m = 0; m < numberOfMobileStations; m++){
+			for(int i = 0; i < numOfInterferers; i++){
+				for(int j = 0; j < (N_cluster_LOS + 4); j++){
+					for(int k = 0; k < timeSamples; k++){
+						for(int l = 0; l < NumRxAntenna; l++){
+							delete[] raySumInterferer_LOS[m][i][j][k][l];
+							delete[] raySumInterferer[m][i][j][k][l];
+						}
+						delete[] raySumInterferer_LOS[m][i][j][k];
+						delete[] raySumInterferer[m][i][j][k];
 					}
-					delete[] raySumInterferer[m][i][j][k];
+					delete[] raySumInterferer_LOS[m][i][j];
+					delete[] raySumInterferer[m][i][j];
 				}
-				delete[] raySumInterferer[m][i][j];
+				delete[] raySumInterferer_LOS[m][i];
+				delete[] raySumInterferer[m][i];
 			}
-			delete[] raySumInterferer[m][i];
+			delete[] raySumInterferer_LOS[m];
+			delete[] raySumInterferer[m];
 		}
-		delete[] raySumInterferer[m];
+		delete[] raySumInterferer_LOS;
+		delete[] raySumInterferer;
 	}
-	delete[] raySumInterferer;
 
 	for(int i = 0; i < numberOfMobileStations; i++){
-		for(int s=0; s<numOfInterferers; s++){
-			for(int j=0;j<N_cluster_LOS;j++){
-				for(int k=0; k<numOfRays_LOS; k++){
-					delete[] randomPhase[i][s][j][k];
+		for(int s=0; s<neighbourPositions.size(); s++){
+			for(int j=0;j<N_cluster_NLOS;j++){
+				if(!LOSCondition[i][s]){
+					for(int k = 0; k < numOfRays_NLOS; k++){
+						delete[] randomPhase[i][0][j][k];
+					}
+					delete[] randomPhase[i][s][j];
 				}
-				delete[] randomPhase[i][s][j];
+				delete[] elevation_ASA[i][s][j];
+				delete[] elevation_ASD[i][s][j];
+			}
+			delete[] elevation_ASA[i][s];
+			delete[] elevation_ASD[i][s];
+			delete[] clusterDelays[i][s];
+			if(LOSCondition[i][s]){
+				for(int j=0;j<N_cluster_LOS;j++){
+					for(int k = 0; k < numOfRays_LOS; k++){
+						delete[] randomPhase[i][0][j][k];
+					}
+					delete[] randomPhase[i][s][j];
+				}
+				delete[] clusterDelays_LOS[i][s];
 			}
 			delete[] randomPhase[i][s];
+			delete[] clusterPowers[i][s];
 		}
+		delete[] azimuth_cluster_ASA[i];
+		delete[] azimuth_cluster_ASD[i];
 		delete[] randomPhase[i];
-	}
-	delete[] randomPhase;
-
-	for(int i=0;i<numberOfMobileStations; i++){
-		for(int j=0; j<numOfInterferers; j++){
-			for(int k=0; k<N_cluster_NLOS; k++){
-				delete[] elevation_ASA[i][j][k];
-				delete[] elevation_ASD[i][j][k];
-			}
-			delete[] elevation_ASA[i][j];
-			delete[] elevation_ASD[i][j];
-		}
 		delete[] elevation_ASA[i];
 		delete[] elevation_ASD[i];
-	}
-	delete[] elevation_ASA;
-	delete[] elevation_ASD;
-
-	std::cout << "Num Interferers" << numOfInterferers << std::endl;
-	for(int i=0; i<numberOfMobileStations; i++){
-		for(int j=0; j<numOfInterferers; j++){
-			std::cout << "Deleting " << i << "/" << j << std::endl;
-			delete[] clusterDelays[i][j];
-			delete[] clusterDelays_LOS[i][j];
-		}
 		delete[] clusterDelays[i];
 		delete[] clusterDelays_LOS[i];
-	}
-	delete[] clusterDelays;
-	delete[] clusterDelays_LOS;
-
-	for(int i=0; i<numberOfMobileStations; i++){
-		for(int j=0; j<numOfInterferers; j++){
-			std::cout << "Deleting " << i << "/" << j << std::endl;
-			delete[] clusterPowers[i][j];
-		}
 	 	delete[] clusterPowers[i];
 	}
+	delete[] azimuth_cluster_ASA;
+	delete[] azimuth_cluster_ASD;
+	delete[] randomPhase;
+	delete[] elevation_ASA;
+	delete[] elevation_ASD;
+	delete[] clusterDelays;
+	delete[] clusterDelays_LOS;
 	delete[] clusterPowers;
+
 	return true;
 }
 
