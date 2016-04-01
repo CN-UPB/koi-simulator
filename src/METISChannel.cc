@@ -118,6 +118,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		MSVelDir[i][1] = MSVelDir[i][1] / dirMag;
 		MSVelDir[i][2] = MSVelDir[i][2] / dirMag;
 	}
+	std::cout << "Length NeighbourPositions: " << neighbourPositions.size() << std::endl;
 	    
     	// Find the neighbours and store the pair (bsId, position in data structures) in a map
 	NeighbourIdMatching *neighbourIdMatching;
@@ -186,10 +187,10 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		
 	// Cycle through all mobile stations
     	for(int i = 0; i < numberOfMobileStations; i++){
-		AoA_LOS_dir[i] = new double[numOfInterferers];
-		AoD_LOS_dir[i] = new double[numOfInterferers];
-		ZoA_LOS_dir[i] = new double[numOfInterferers];
-		ZoD_LOS_dir[i] = new double[numOfInterferers];
+		AoA_LOS_dir[i] = new double[neighbourPositions.size()];
+		AoD_LOS_dir[i] = new double[neighbourPositions.size()];
+		ZoA_LOS_dir[i] = new double[neighbourPositions.size()];
+		ZoD_LOS_dir[i] = new double[neighbourPositions.size()];
 		
 		// Cycle through all base stations
 		int PosIt = 1;
@@ -264,17 +265,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		}
 	}
 	
-	SINRneighbour = new double***[numberOfMobileStations];
-	for(int i = 0; i < numberOfMobileStations; i++){
-		SINRneighbour[i] = new double**[numOfInterferers];
-		for(int j = 0; j < numOfInterferers; j++){
-			SINRneighbour[i][j] = new double*[timeSamples];
-			for(int k = 0; k < timeSamples; k++){
-				SINRneighbour[i][j][k] = new double[downRBs];
-			}
-		}
-	}
-	    
     	// Initialize BS antenna parameters
     	for(int i = 0; i < 3; i++){
 		bs_antenna_downtilt[i] = 12.0;			// "..commonly assumed to be 12 Degrees.."; page 57 METIS Document
@@ -295,7 +285,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	//Assign LOS Conditions:
 	double MS_BS_dist;
 	for(int i = 0; i < numberOfMobileStations; i++){
-		LOSCondition[i] = new bool[numOfInterferers];
+		LOSCondition[i] = new bool[neighbourPositions.size()];
 		int k = 1;
 		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
 			if(it->first == bsId){
@@ -386,13 +376,13 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	// TODO: Take Square root
 	// cross_matrix = sqrt(cross_matrix)
 	for(int i = 0; i < numberOfMobileStations; i++){
-		sigma_ds_LOS[i] = new double[numOfInterferers];
-		sigma_asD_LOS[i] = new double[numOfInterferers];
-		sigma_asA_LOS[i] = new double[numOfInterferers];
-		sigma_zsD_LOS[i] = new double[numOfInterferers];
-		sigma_zsA_LOS[i] = new double[numOfInterferers];
-		sigma_sf_LOS[i] = new double[numOfInterferers];
-		sigma_kf_LOS[i] = new double[numOfInterferers];
+		sigma_ds_LOS[i] = new double[neighbourPositions.size()];
+		sigma_asD_LOS[i] = new double[neighbourPositions.size()];
+		sigma_asA_LOS[i] = new double[neighbourPositions.size()];
+		sigma_zsD_LOS[i] = new double[neighbourPositions.size()];
+		sigma_zsA_LOS[i] = new double[neighbourPositions.size()];
+		sigma_sf_LOS[i] = new double[neighbourPositions.size()];
+		sigma_kf_LOS[i] = new double[neighbourPositions.size()];
 		int id_BS = 1;
 		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
 			if(it->first == bsId){
@@ -492,12 +482,12 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	// TODO: Take Square root
 	// cross_matrix = sqrt(cross_matrix)
 	for(int i = 0; i < numberOfMobileStations; i++){
-		sigma_ds_NLOS[i] = new double[numOfInterferers];
-		sigma_asD_NLOS[i] = new double[numOfInterferers];
-		sigma_asA_NLOS[i] = new double[numOfInterferers];
-		sigma_zsD_NLOS[i] = new double[numOfInterferers];
-		sigma_zsA_NLOS[i] = new double[numOfInterferers];
-		sigma_sf_NLOS[i] = new double[numOfInterferers];
+		sigma_ds_NLOS[i] = new double[neighbourPositions.size()];
+		sigma_asD_NLOS[i] = new double[neighbourPositions.size()];
+		sigma_asA_NLOS[i] = new double[neighbourPositions.size()];
+		sigma_zsD_NLOS[i] = new double[neighbourPositions.size()];
+		sigma_zsA_NLOS[i] = new double[neighbourPositions.size()];
+		sigma_sf_NLOS[i] = new double[neighbourPositions.size()];
 		int it_BS = 1;
 		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
 			if(it->first == bsId){
@@ -554,8 +544,8 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
     	std::cout << "N_cluster_NLOS: " << N_cluster_NLOS << std::endl;
     
     	for(int i = 0; i < numberOfMobileStations; i++){
-		clusterDelays[i] = new double*[numOfInterferers];
-		clusterDelays_LOS[i] = new double*[numOfInterferers];
+		clusterDelays[i] = new double*[neighbourPositions.size()];
+		clusterDelays_LOS[i] = new double*[neighbourPositions.size()];
 		int k = 1;
 		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
 			if(it->first == bsId){
@@ -665,7 +655,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	
 	// Generate cluster powers. 
 	for(int i = 0; i < numberOfMobileStations; i++){
-		clusterPowers[i] = new double*[numOfInterferers];
+		clusterPowers[i] = new double*[neighbourPositions.size()];
 		int itIdx = 1;
 		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
 			if(it->first == bsId){
@@ -773,7 +763,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	// Precompute powers per ray (7.46)
 	rayPowers = new double**[numberOfMobileStations];
 	for(int i = 0; i < numberOfMobileStations; i++){
-		rayPowers[i] = new double*[numOfInterferers];
+		rayPowers[i] = new double*[neighbourPositions.size()];
 		int itIdx = 1;
 		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
 			if(it->first == bsId){
@@ -819,7 +809,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	
 	// Generate azimuth angles of arrival
 	for(int i = 0; i < numberOfMobileStations; i++){
-		azimuth_ASA[i] = new double**[numOfInterferers];
+		azimuth_ASA[i] = new double**[neighbourPositions.size()];
 		int itIdx = 1;
 		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
 			if(it->first == bsId){
@@ -934,7 +924,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	
 	// Generate azimuth angles of departure in the same way 
 	for(int i = 0; i < numberOfMobileStations; i++){
-		azimuth_ASD[i] = new double**[numOfInterferers];
+		azimuth_ASD[i] = new double**[neighbourPositions.size()];
 		int itIdx = 1;
 		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
 			if(it->first == bsId){
@@ -1047,8 +1037,8 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	elevation_ASA = new double***[numberOfMobileStations];
 	elevation_ASD = new double***[numberOfMobileStations];
 	for(int i = 0; i < numberOfMobileStations; i++){
-		elevation_ASA[i] = new double**[numOfInterferers];
-		elevation_ASD[i] = new double**[numOfInterferers];
+		elevation_ASA[i] = new double**[neighbourPositions.size()];
+		elevation_ASD[i] = new double**[neighbourPositions.size()];
 		int itIdx = 1;
 		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
 			if(it->first == bsId){
@@ -1343,8 +1333,8 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	randomPhase_LOS = new double*[numberOfMobileStations];					// Random phase for LOS component
 	for(int i = 0; i < numberOfMobileStations; i++){
 		int itIdx = 1;
-		randomPhase[i] = new double***[numOfInterferers];
-		randomPhase_LOS[i] = new double[numOfInterferers];
+		randomPhase[i] = new double***[neighbourPositions.size()];
+		randomPhase_LOS[i] = new double[neighbourPositions.size()];
 		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
 			if(it->first == bsId){
 				if(LOSCondition[i][0]){
@@ -1421,7 +1411,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	Xn_m = new double***[numberOfMobileStations];
 	
 	for(int i = 0; i < numberOfMobileStations; i++){
-		Xn_m[i] = new double**[numOfInterferers];
+		Xn_m[i] = new double**[neighbourPositions.size()];
 		int id_BS =1;
 		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
 			if(it->first == bsId){
@@ -1556,11 +1546,9 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 
 	// For LOS case:
 	complex<double> *****raySum_LOS;
-	complex<double> ******raySumInterferer_LOS;
 	int clusterIdx_LOS;
 	
 	raySum_LOS = new complex<double>****[numberOfMobileStations];
-	raySumInterferer_LOS = new complex<double>*****[numberOfMobileStations];
 	
 	for(int m = 0; m < numberOfMobileStations; m++){
 		// +4 Clusters, because 2 are subdivided into 6, resulting in 4 more.
@@ -1576,28 +1564,10 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		}
 	}
 	
-	for (int m = 0; m < numberOfMobileStations; m++){
-		raySumInterferer_LOS[m] = new complex<double>****[numOfInterferers];
-		for(int i = 0; i < numOfInterferers; i++){
-			raySumInterferer_LOS[m][i] = new complex<double>***[(N_cluster_LOS + 4)];
-			for(int j = 0; j < (N_cluster_LOS + 4); j++){
-				raySumInterferer_LOS[m][i][j] = new complex<double>**[timeSamples];
-				for(int k = 0; k < timeSamples; k++){
-					raySumInterferer_LOS[m][i][j][k] = new complex<double>*[NumRxAntenna];
-					for(int l = 0; l < NumRxAntenna; l++){
-						raySumInterferer_LOS[m][i][j][k][l] = new complex<double>[NumTxAntenna]();
-					}
-				}
-			}
-		}
-	}
-	
 	// For NLOS case:
 	complex<double> *****raySum;
-	complex<double> ******raySumInterferer;
 	int clusterIdx;
 	raySum = new complex<double>****[numberOfMobileStations];
-	raySumInterferer = new complex<double>*****[numberOfMobileStations];
 
 	for(int m = 0; m < numberOfMobileStations; m++){
 		// +4 Clusters, because 2 are subdivided into 6, resulting in 4 more.
@@ -1613,17 +1583,41 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		}
 	}
 	
-	for(int m = 0; m < numberOfMobileStations; m++){
-		// +4 Clusters, because 2 are subdivided into 6, resulting in 4 more.
-		raySumInterferer[m] = new complex<double>****[numOfInterferers];
-		for(int i = 0; i < numOfInterferers; i++){
-			raySumInterferer[m][i] = new complex<double>***[(N_cluster_NLOS + 4)];
-			for(int j = 0; j < (N_cluster_NLOS + 4); j++){
-				raySumInterferer[m][i][j] = new complex<double>**[timeSamples];
-				for(int k = 0; k < timeSamples; k++){
-					raySumInterferer[m][i][j][k] = new complex<double>*[NumRxAntenna];
-					for(int l = 0; l < NumRxAntenna; l++){
-						raySumInterferer[m][i][j][k][l] = new complex<double>[NumTxAntenna]();
+	complex<double> ******raySumInterferer_LOS;
+	complex<double> ******raySumInterferer;
+	if(numOfInterferers>0){
+	// Only compute values for interferers if there actually are any 
+	// interfering neighbours
+		raySumInterferer_LOS = new complex<double>*****[numberOfMobileStations];
+		for (int m = 0; m < numberOfMobileStations; m++){
+			raySumInterferer_LOS[m] = new complex<double>****[numOfInterferers];
+			for(int i = 0; i < numOfInterferers; i++){
+				raySumInterferer_LOS[m][i] = new complex<double>***[(N_cluster_LOS + 4)];
+				for(int j = 0; j < (N_cluster_LOS + 4); j++){
+					raySumInterferer_LOS[m][i][j] = new complex<double>**[timeSamples];
+					for(int k = 0; k < timeSamples; k++){
+						raySumInterferer_LOS[m][i][j][k] = new complex<double>*[NumRxAntenna];
+						for(int l = 0; l < NumRxAntenna; l++){
+							raySumInterferer_LOS[m][i][j][k][l] = new complex<double>[NumTxAntenna]();
+						}
+					}
+				}
+			}
+		}
+
+		raySumInterferer = new complex<double>*****[numberOfMobileStations];
+		for(int m = 0; m < numberOfMobileStations; m++){
+			// +4 Clusters, because 2 are subdivided into 6, resulting in 4 more.
+			raySumInterferer[m] = new complex<double>****[numOfInterferers];
+			for(int i = 0; i < numOfInterferers; i++){
+				raySumInterferer[m][i] = new complex<double>***[(N_cluster_NLOS + 4)];
+				for(int j = 0; j < (N_cluster_NLOS + 4); j++){
+					raySumInterferer[m][i][j] = new complex<double>**[timeSamples];
+					for(int k = 0; k < timeSamples; k++){
+						raySumInterferer[m][i][j][k] = new complex<double>*[NumRxAntenna];
+						for(int l = 0; l < NumRxAntenna; l++){
+							raySumInterferer[m][i][j][k][l] = new complex<double>[NumTxAntenna]();
+						}
 					}
 				}
 			}
@@ -2715,74 +2709,89 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		TimeFrequency.close();
 	}
 	
-	for(int i = 0; i < numberOfMobileStations; i++){ //TODO: Correct the implementation for each Tx-Rx antenna
-		int idIdx = 0;
-		//Fourier Transform for interferers:
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				// Skip own BS
-				continue;
-			}else{
-				//TimeFrequencyInteferer.open ("/home/sahari/GSCM_Channel_model/abstractLTEChannelModel/results/TimeFrequency_Interferer_BS_" + std::to_string( (long long) bsId ) + "_" + std::to_string((MSPos[i].x * 100)) + ".txt");
-				dist2D = sqrt(pow((it->second.x - MSPos[i].x),2) + pow((it->second.y - MSPos[i].y),2));
-				dist3D = sqrt(pow(dist2D,2) + pow((heightBS - heightUE),2));
-				complex<double> res = complex<double>(0.0,0.0);
-				for(int t = 0; t < timeSamples; t++){
-					for(int f = 0; f < downRBs; f++){
-						double freq_ = freq_c + f*180000;
-						res = complex<double>(0.0,0.0);
-						if(LOSCondition[i][idIdx+1]){
-							pathloss = CalcPathloss(dist2D, dist3D, true);
-							for(int u = 0; u < NumRxAntenna; u++){
-								for(int s = 0; s < NumTxAntenna; s++){
-									for(int n = 0; n < N_cluster_LOS; n++){
-										if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
-											res = res + raySumInterferer_LOS[i][idIdx][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][idIdx+1][n]) );
-											res = res + raySumInterferer_LOS[i][idIdx][n+1][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx+1][n] + delay_SC_1)) );
-											res = res + raySumInterferer_LOS[i][idIdx][n+2][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx+1][n] + delay_SC_2)) );
-											res = res + raySumInterferer_LOS[i][idIdx][n+3][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][idIdx+1][n+1]) );
-											res = res + raySumInterferer_LOS[i][idIdx][n+4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx+1][n+1] + delay_SC_1)) );
-											res = res + raySumInterferer_LOS[i][idIdx][n+5][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx+1][n+1] + delay_SC_2)) );
-											n++;
-										}else{
-											res = res + raySumInterferer_LOS[i][idIdx][n + 4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][idIdx+1][n]) );
-										}
-									}
-								}
-							}
-							double tempRes = pow(res.real(),2) + pow(res.imag(),2);
-							SINRneighbour[i][idIdx][t][f] = pathloss * tempRes;
-							//TimeFrequencyInteferer << pathloss * tempRes << " ";
-						}else{
-							pathloss = CalcPathloss(dist2D, dist3D, false);
-							for(int u = 0; u < NumRxAntenna; u++){
-								for(int s = 0; s < NumTxAntenna; s++){
-									for(int n = 0; n < N_cluster_NLOS; n++){
-										if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
-											res = res + raySumInterferer[i][idIdx][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][idIdx+1][n]) );
-											res = res + raySumInterferer[i][idIdx][n+1][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx+1][n] + delay_SC_1)) );
-											res = res + raySumInterferer[i][idIdx][n+2][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx+1][n] + delay_SC_2)) );
-											res = res + raySumInterferer[i][idIdx][n+3][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][idIdx+1][n+1]) );
-											res = res + raySumInterferer[i][idIdx][n+4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx+1][n+1] + delay_SC_1)) );
-											res = res + raySumInterferer[i][idIdx][n+5][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx+1][n+1] + delay_SC_2)) );
-											n++;
-										}else{
-											res = res + raySumInterferer[i][idIdx][n + 4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][idIdx+1][n]) );
-										}
-									}
-								}
-							}
-							double tempRes = pow(res.real(),2) + pow(res.imag(),2);
-							SINRneighbour[i][idIdx][t][f] = pathloss * tempRes;
-							//TimeFrequencyInteferer << pathloss * tempRes << " ";
-						}
-					}
-					//TimeFrequencyInteferer << "\n";
+	if(numOfInterferers>0){
+		//Only compute SINRneighbour values if there actually are any 
+		// neighbours to influence transmissions
+		SINRneighbour = new double***[numberOfMobileStations];
+		for(int i = 0; i < numberOfMobileStations; i++){
+			SINRneighbour[i] = new double**[numOfInterferers];
+			for(int j = 0; j < numOfInterferers; j++){
+				SINRneighbour[i][j] = new double*[timeSamples];
+				for(int k = 0; k < timeSamples; k++){
+					SINRneighbour[i][j][k] = new double[downRBs];
 				}
-				idIdx++;
 			}
 		}
-		//TimeFrequencyInteferer.close();
+		for(int i = 0; i < numberOfMobileStations; i++){ //TODO: Correct the implementation for each Tx-Rx antenna
+			int idIdx = 0;
+			//Fourier Transform for interferers:
+			for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
+				if(it->first == bsId){
+					// Skip own BS
+					continue;
+				}else{
+					//TimeFrequencyInteferer.open ("/home/sahari/GSCM_Channel_model/abstractLTEChannelModel/results/TimeFrequency_Interferer_BS_" + std::to_string( (long long) bsId ) + "_" + std::to_string((MSPos[i].x * 100)) + ".txt");
+					dist2D = sqrt(pow((it->second.x - MSPos[i].x),2) + pow((it->second.y - MSPos[i].y),2));
+					dist3D = sqrt(pow(dist2D,2) + pow((heightBS - heightUE),2));
+					complex<double> res = complex<double>(0.0,0.0);
+					for(int t = 0; t < timeSamples; t++){
+						for(int f = 0; f < downRBs; f++){
+							double freq_ = freq_c + f*180000;
+							res = complex<double>(0.0,0.0);
+							if(LOSCondition[i][idIdx+1]){
+								pathloss = CalcPathloss(dist2D, dist3D, true);
+								for(int u = 0; u < NumRxAntenna; u++){
+									for(int s = 0; s < NumTxAntenna; s++){
+										for(int n = 0; n < N_cluster_LOS; n++){
+											if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
+												res = res + raySumInterferer_LOS[i][idIdx][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][idIdx+1][n]) );
+												res = res + raySumInterferer_LOS[i][idIdx][n+1][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx+1][n] + delay_SC_1)) );
+												res = res + raySumInterferer_LOS[i][idIdx][n+2][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx+1][n] + delay_SC_2)) );
+												res = res + raySumInterferer_LOS[i][idIdx][n+3][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][idIdx+1][n+1]) );
+												res = res + raySumInterferer_LOS[i][idIdx][n+4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx+1][n+1] + delay_SC_1)) );
+												res = res + raySumInterferer_LOS[i][idIdx][n+5][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx+1][n+1] + delay_SC_2)) );
+												n++;
+											}else{
+												res = res + raySumInterferer_LOS[i][idIdx][n + 4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][idIdx+1][n]) );
+											}
+										}
+									}
+								}
+								double tempRes = pow(res.real(),2) + pow(res.imag(),2);
+								SINRneighbour[i][idIdx][t][f] = pathloss * tempRes;
+								//TimeFrequencyInteferer << pathloss * tempRes << " ";
+							}else{
+								pathloss = CalcPathloss(dist2D, dist3D, false);
+								for(int u = 0; u < NumRxAntenna; u++){
+									for(int s = 0; s < NumTxAntenna; s++){
+										for(int n = 0; n < N_cluster_NLOS; n++){
+											if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
+												res = res + raySumInterferer[i][idIdx][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][idIdx+1][n]) );
+												res = res + raySumInterferer[i][idIdx][n+1][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx+1][n] + delay_SC_1)) );
+												res = res + raySumInterferer[i][idIdx][n+2][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx+1][n] + delay_SC_2)) );
+												res = res + raySumInterferer[i][idIdx][n+3][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][idIdx+1][n+1]) );
+												res = res + raySumInterferer[i][idIdx][n+4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx+1][n+1] + delay_SC_1)) );
+												res = res + raySumInterferer[i][idIdx][n+5][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx+1][n+1] + delay_SC_2)) );
+												n++;
+											}else{
+												res = res + raySumInterferer[i][idIdx][n + 4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][idIdx+1][n]) );
+											}
+										}
+									}
+								}
+								double tempRes = pow(res.real(),2) + pow(res.imag(),2);
+								SINRneighbour[i][idIdx][t][f] = pathloss * tempRes;
+								//TimeFrequencyInteferer << pathloss * tempRes << " ";
+							}
+						}
+						//TimeFrequencyInteferer << "\n";
+					}
+					idIdx++;
+				}
+			}
+			//TimeFrequencyInteferer.close();
+		}
+	
 	}
 	
 	std::cout << "FINISHED FOURIER TRANSFORM for BS: " << bsId << std::endl;
