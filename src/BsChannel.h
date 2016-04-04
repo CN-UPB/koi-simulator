@@ -56,5 +56,5 @@ class BsChannel : public cSimpleModule  {
         NeighbourIdMatching* getNeighbourMatching(){return neighbourIdMatching;}
 
     public:
-        ~BsChannel();
+        virtual ~BsChannel();
 };

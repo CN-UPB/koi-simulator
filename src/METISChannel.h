@@ -141,5 +141,5 @@ class METISChannel : public Channel{
 		void updateChannel(Position** msPos);
 		
 		//! Destructor of METIS Channel subclass.
-		~METISChannel();
+		virtual ~METISChannel();
 };

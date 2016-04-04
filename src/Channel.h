@@ -52,5 +52,5 @@ class Channel{
         void clearInterfererPostitions(int Id) { interfererPositions.at(Id).clear(); interfererPower.at(Id).clear(); }
         void addInterfererPosition(Position p, double power, int Id) { interfererPositions.at(Id).push_back(p); interfererPower.at(Id).push_back(power); }
 
-		virtual ~Channel() = 0;
+		virtual ~Channel(){}
 };

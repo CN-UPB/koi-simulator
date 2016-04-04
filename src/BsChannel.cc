@@ -151,7 +151,7 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		}
         if(simTime() >= 1)
 		//channel->init(this, msPositions, neighbourPositions); //originally updateChannel(msPositions)
-        delete msg;
+        delete msPos;
     }
     else if(msg->arrivedOn("fromMs"))  {
 		//std::cout << "received fromMs Message." << std::endl;
@@ -316,10 +316,18 @@ BsChannel::~BsChannel()  {
     }
     ev << "-------------------------------------------------------" << endl;*/
 
+    for(int i = 0; i < neighbourIdMatching->numberOfNeighbours(); ++i)  {
+        delete[] msPositions[i];
+	delete[] schedulePower[i];
+        delete[] schedules[i];
+    }
     delete[] msPositions;
+    delete[] schedulePower;
     delete[] schedules;
     delete neighbourIdMatching;
     delete[] scheduleDirection;
-    delete[] schedulePower;
     delete[] maxPower;
+    if(this->getIndex() == 0){
+	    delete channel;
+    }
 }

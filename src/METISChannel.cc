@@ -3570,23 +3570,38 @@ double METISChannel::calcPathloss(double dist){
 
 METISChannel::~METISChannel(){
 	//TODO: Delete all dynamic memory
-	delete sigma_ds_LOS;					
-	delete sigma_asD_LOS;					
-	delete sigma_asA_LOS;
-	delete sigma_zsD_LOS;
-	delete sigma_zsA_LOS;					
-	delete sigma_sf_LOS;					
-	delete sigma_kf_LOS;					
-	delete sigma_ds_NLOS;					
-	delete sigma_asD_NLOS;					
-	delete sigma_asA_NLOS;
-	delete sigma_zsD_NLOS;
-	delete sigma_zsA_NLOS;					
-	delete sigma_sf_NLOS;						
-	delete bs_antenna_bearing;				
-	delete bs_antenna_downtilt;			
-	delete bs_antenna_slant;				
-	delete ms_antenna_bearing;				
-	delete ms_antenna_downtilt;			
-	delete ms_antenna_slant;				
+	for(int i=0; i<numberOfMobileStations; i++){
+		delete[] sigma_ds_LOS[i];					
+		delete[] sigma_asD_LOS[i];					
+		delete[] sigma_asA_LOS[i];
+		delete[] sigma_zsD_LOS[i];
+		delete[] sigma_zsA_LOS[i];					
+		delete[] sigma_sf_LOS[i];					
+		delete[] sigma_kf_LOS[i];					
+		delete[] sigma_ds_NLOS[i];					
+		delete[] sigma_asD_NLOS[i];					
+		delete[] sigma_asA_NLOS[i];
+		delete[] sigma_zsD_NLOS[i];
+		delete[] sigma_zsA_NLOS[i];					
+		delete[] sigma_sf_NLOS[i];						
+	}
+	delete[] sigma_ds_LOS;					
+	delete[] sigma_asD_LOS;					
+	delete[] sigma_asA_LOS;
+	delete[] sigma_zsD_LOS;
+	delete[] sigma_zsA_LOS;					
+	delete[] sigma_sf_LOS;					
+	delete[] sigma_kf_LOS;					
+	delete[] sigma_ds_NLOS;					
+	delete[] sigma_asD_NLOS;					
+	delete[] sigma_asA_NLOS;
+	delete[] sigma_zsD_NLOS;
+	delete[] sigma_zsA_NLOS;					
+	delete[] sigma_sf_NLOS;						
+	delete[] bs_antenna_bearing;				
+	delete[] bs_antenna_downtilt;			
+	delete[] bs_antenna_slant;				
+	delete[] ms_antenna_bearing;				
+	delete[] ms_antenna_downtilt;			
+	delete[] ms_antenna_slant;				
 }
