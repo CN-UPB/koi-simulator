@@ -19,6 +19,7 @@ void StopWatch::initialize()  {
     runtime = par("runtime");
     tti = par("tti");
     initOffset = par("initOffset");
+    result[0] = '\0';
 
     cMessage *selfMsg = new cMessage("START_WATCH");
     scheduleAt(initOffset + (5 * tti) - (1.5 * epsilon), selfMsg);

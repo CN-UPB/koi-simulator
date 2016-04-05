@@ -53,9 +53,6 @@ void BsMac::initialize()  {
     string bler = par("bler_table");
     blerTable = mat(bler);
 
-    //Every App gets an own sending queue
-    packetQueue = new cQueue[numberOfMobileStations];
-
     //find the neighbours and store the pair (bsId, position in data structures) in a map
     cModule *cell = getParentModule()->getParentModule();
     neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
@@ -221,8 +218,9 @@ void BsMac::handleMessage(cMessage *msg)  {
              * also possible to do with the config
              * but i think this is more flexible */
             send(bsPos, "toPhy");
+	    delete msg;
         }
-        if(msg->isName("BS_CHANNEL_INIT"))  {
+        else if(msg->isName("BS_CHANNEL_INIT"))  {
 		ChannelExchange *chnEx = new ChannelExchange("BS_CHANNEL_UPDATE");
 		chnEx->setId(bsId);
 		chnEx->setChannel(currentChannel);
@@ -230,6 +228,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 		sendToNeighbourCells(chnEx);
 		// send the channel also to the own ms
 		send(chnEx, "toPhy");
+		delete msg;
         }
 	else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
 		// Send requests for each stream to the 

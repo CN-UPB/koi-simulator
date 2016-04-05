@@ -79,6 +79,7 @@ void RBScheduler::handleMessage(cMessage *msg){
 		if(sched!=nullptr){
 			send(sched,"toScheduler");
 		}
+		delete req;
 	}
 }
 

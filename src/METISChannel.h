@@ -40,9 +40,6 @@ class METISChannel : public Channel{
 		double **sigma_zsD_NLOS;					/*!< an integer value */
 		double **sigma_zsA_NLOS;					/*!< an integer value */
 		double **sigma_sf_NLOS;					/*!< Shadow Fading NLOS sigma */
-		//double **autoCorrelation;				/*!< The spatial correlation values of the MS links. */
-		double **autoCorrelation_LOS;				/*!< The spatial correlation values of the MS for LOS links. */
-		double **autoCorrelation_NLOS;				/*!< The spatial correlation values of the MS for NLOS links. */
 		double *bs_antenna_bearing;				/*!< bearing angles of the 3 BS sectors */
 		double *bs_antenna_downtilt;				/*!< downtilt angles of the 3 BS sectors */
 		double *bs_antenna_slant;				/*!< Slant angles of the 3 BS sectors */
@@ -107,10 +104,10 @@ class METISChannel : public Channel{
 		double sigma_ZSD(double meanZSD, bool LOS);
 
 		//! Generate the spatial correlation between the MS for LOS links.
-		void generateAutoCorrelation_LOS();
+		double **generateAutoCorrelation_LOS();
 
 		//! Generate the spatial correlation between the MS for NLOS links.
-		void generateAutoCorrelation_NLOS();
+		double **generateAutoCorrelation_NLOS();
         
 	public:
 		//! Constructor of METIS Channel subclass.
@@ -141,5 +138,5 @@ class METISChannel : public Channel{
 		void updateChannel(Position** msPos);
 		
 		//! Destructor of METIS Channel subclass.
-		~METISChannel();
+		virtual ~METISChannel();
 };
