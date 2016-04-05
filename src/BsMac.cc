@@ -220,7 +220,7 @@ void BsMac::handleMessage(cMessage *msg)  {
             send(bsPos, "toPhy");
 	    delete msg;
         }
-        if(msg->isName("BS_CHANNEL_INIT"))  {
+        else if(msg->isName("BS_CHANNEL_INIT"))  {
 		ChannelExchange *chnEx = new ChannelExchange("BS_CHANNEL_UPDATE");
 		chnEx->setId(bsId);
 		chnEx->setChannel(currentChannel);

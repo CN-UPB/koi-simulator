@@ -2720,11 +2720,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	delete[] timeVector;
 	delete[] Xn_m;
 
-	for(int i=0; i<7; i++){
-		delete[] autoCorrelation_LOS[i];
-	}
-	delete[] autoCorrelation_LOS;
-
 	for(int i=0; i<NumTxAntenna; i++){
 		delete[] TxAntennaPosition[0][i];
 	}
