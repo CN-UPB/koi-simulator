@@ -326,7 +326,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	std::cout << "Before Auto Correlation!" << std::endl;
 	
 	// Generate Autocorrelation
-	generateAutoCorrelation_LOS();
+	double **autoCorrelation_LOS = generateAutoCorrelation_LOS();
 	
 	std::cout << "After Auto Correlation!" << std::endl;
        
@@ -437,7 +437,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	std::cout << "Before Auto Correlation (NLOS)!" << std::endl;
 	
 	// Generate Autocorrelation
-	generateAutoCorrelation_NLOS();
+	double **autoCorrelation_NLOS = generateAutoCorrelation_NLOS();
 	
 	std::cout << "After Auto Correlation (NLOS)!" << std::endl;
        
@@ -2643,6 +2643,9 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						delete[] randomPhase[i][0][j][k];
 					}
 					delete[] randomPhase[i][s][j];
+					delete[] Xn_m[i][s][j];
+					delete[] azimuth_ASD[i][s][j];
+					delete[] azimuth_ASA[i][s][j];
 				}
 				delete[] elevation_ASA[i][s][j];
 				delete[] elevation_ASD[i][s][j];
@@ -2656,29 +2659,87 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						delete[] randomPhase[i][0][j][k];
 					}
 					delete[] randomPhase[i][s][j];
+					delete[] Xn_m[i][s][j];
+					delete[] azimuth_ASD[i][s][j];
+					delete[] azimuth_ASA[i][s][j];
 				}
 				delete[] clusterDelays_LOS[i][s];
 			}
+			delete[] azimuth_ASA[i][s];
+			delete[] azimuth_ASD[i][s];
 			delete[] randomPhase[i][s];
+			delete[] rayPowers[i][s];
 			delete[] clusterPowers[i][s];
+			delete[] Xn_m[i][s];
 		}
+		for(int s=0; s<NumRxAntenna; s++){
+			delete[] RxAntennaPosition[i][s];
+		}
+		delete[] AoA_LOS_dir[i];
+		delete[] AoD_LOS_dir[i];
+		delete[] ZoA_LOS_dir[i];
+		delete[] ZoD_LOS_dir[i];
+		delete[] azimuth_ASA[i];
+		delete[] azimuth_ASD[i];
 		delete[] azimuth_cluster_ASA[i];
 		delete[] azimuth_cluster_ASD[i];
-		delete[] randomPhase[i];
-		delete[] elevation_ASA[i];
-		delete[] elevation_ASD[i];
 		delete[] clusterDelays[i];
 		delete[] clusterDelays_LOS[i];
 	 	delete[] clusterPowers[i];
+		delete[] elevation_ASA[i];
+		delete[] elevation_ASD[i];
+		delete[] LOSCondition[i];
+		delete[] MSVelDir[i];
+		delete[] randomPhase[i];
+		delete[] randomPhase_LOS[i];
+		delete[] rayPowers[i];
+		delete[] RxAntennaPosition[i];
+		delete[] timeVector[i];
+		delete[] Xn_m[i];
 	}
+	delete[] AoA_LOS_dir;
+	delete[] AoD_LOS_dir;
+	delete[] ZoA_LOS_dir;
+	delete[] ZoD_LOS_dir;
+	delete[] azimuth_ASA;
+	delete[] azimuth_ASD;
 	delete[] azimuth_cluster_ASA;
 	delete[] azimuth_cluster_ASD;
-	delete[] randomPhase;
 	delete[] elevation_ASA;
 	delete[] elevation_ASD;
 	delete[] clusterDelays;
 	delete[] clusterDelays_LOS;
 	delete[] clusterPowers;
+	delete[] LOSCondition;
+	delete[] MSVelDir;
+	delete[] MSVelMag;
+	delete[] randomPhase;
+	delete[] randomPhase_LOS;
+	delete[] rayPowers;
+	delete[] RxAntennaPosition;
+	delete[] timeVector;
+	delete[] Xn_m;
+
+	for(int i=0; i<7; i++){
+		delete[] autoCorrelation_LOS[i];
+	}
+	delete[] autoCorrelation_LOS;
+
+	for(int i=0; i<NumTxAntenna; i++){
+		delete[] TxAntennaPosition[0][i];
+	}
+	delete[] TxAntennaPosition[0];
+	delete[] TxAntennaPosition;
+
+	for(int i=0; i<6; i++){
+		delete[] autoCorrelation_NLOS[i];
+	}
+	delete[] autoCorrelation_NLOS;
+
+	for(int i=0; i<7; i++){
+		delete[] autoCorrelation_LOS[i];
+	}
+	delete[] autoCorrelation_LOS;
 
 	return true;
 }
@@ -2758,10 +2819,10 @@ double METISChannel::C_ZS(int numCluster, bool LOS){
 * Function that computes the exponential auto correlation for LOS.
 * @return True if succesful. False otherwise.
 */
-void METISChannel::generateAutoCorrelation_LOS(){
+double **METISChannel::generateAutoCorrelation_LOS(){
 	int r = initModule->par("cellRadiusMETIS");
 	std::cout << "Radius: " << r << std::endl;
-	autoCorrelation_LOS = new double*[7];
+	double **autoCorrelation_LOS = new double*[7];
 	for(int i = 0; i < 7; i++){
 		autoCorrelation_LOS[i] = new double[numberOfMobileStations];
 		for(int j = 0; j < numberOfMobileStations; j++){
@@ -2783,19 +2844,12 @@ void METISChannel::generateAutoCorrelation_LOS(){
 	double ***grid;
 	double ***tmpX;
 	double ***tmpY; 
-	double **filter; 
-	double **sum; 
+	double filter[7][11]; 
+	double sum[7][11]; 
 	
 	grid = new double**[7];
 	tmpX = new double**[7];
 	tmpY = new double**[7];
-	filter = new double*[7];
-	sum = new double*[7];
-	
-	for(int i = 0; i < 7; i++){
-		filter[i] = new double[11];
-		sum[i] = new double[11];
-	}
 	
 	for(int i = 0; i < 7; i++){
 		for(int j = 0; j <= 10; j++){
@@ -2908,22 +2962,18 @@ void METISChannel::generateAutoCorrelation_LOS(){
 	delete[] grid;
 	delete[] tmpX;
 	delete[] tmpY;
-	for(int i=0; i<7; i++){
-		delete[] filter[i];
-		delete[] sum[i];
-	}
-	delete[] filter;
-	delete[] sum;
+
+	return autoCorrelation_LOS;
 }
 
 /**
 * Function that computes the exponential auto correlation for NLOS.
 * @return True if succesful. False otherwise.
 */
-void METISChannel::generateAutoCorrelation_NLOS(){
+double **METISChannel::generateAutoCorrelation_NLOS(){
 	int r = initModule->par("cellRadiusMETIS");
 	std::cout << "Radius: " << r << std::endl;
-	autoCorrelation_NLOS = new double*[6];
+	double **autoCorrelation_NLOS = new double*[6];
 	for(int i = 0; i < 6; i++){
 		autoCorrelation_NLOS[i] = new double[numberOfMobileStations];
 		for(int j = 0; j < numberOfMobileStations; j++){
@@ -3071,6 +3121,8 @@ void METISChannel::generateAutoCorrelation_NLOS(){
 	}
 	delete[] filter;
 	delete[] sum;
+
+	return autoCorrelation_NLOS;
 }
 
 /**
@@ -3249,6 +3301,10 @@ METISChannel::~METISChannel(){
 		delete[] sigma_zsD_NLOS[i];
 		delete[] sigma_zsA_NLOS[i];					
 		delete[] sigma_sf_NLOS[i];						
+		for(int j=0; j<timeSamples; j++){
+			delete[] SINRtable[i][j];
+		}
+		delete[] SINRtable[i];
 	}
 	delete[] sigma_ds_LOS;					
 	delete[] sigma_asD_LOS;					
@@ -3269,4 +3325,6 @@ METISChannel::~METISChannel(){
 	delete[] ms_antenna_bearing;				
 	delete[] ms_antenna_downtilt;			
 	delete[] ms_antenna_slant;				
+	delete[] MSPos;
+	delete[] SINRtable;
 }
