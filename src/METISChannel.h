@@ -92,7 +92,10 @@ class METISChannel : public Channel{
         
 	public:
 		//! Constructor of METIS Channel subclass.
-		METISChannel(){bsId = -1;}
+		METISChannel(){
+			bsId = -1;
+			initialized = false;
+		}
 		
 		//! Initialize the METIS channel through ini access via OMNeT++ module pointer.
 		bool init(cSimpleModule* module, Position** msPositions, std::map <int,Position> neighbourPositions);

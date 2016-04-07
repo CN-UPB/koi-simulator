@@ -156,8 +156,12 @@ void BsChannel::handleMessage(cMessage *msg)  {
 			}
 			output2.close();
 		}
-        //if(simTime() >= 1)
-		//channel->init(this, msPositions, neighbourPositions); //originally updateChannel(msPositions)
+        if(simTime() >= 1 && this->getIndex()==0){
+		// The channel instance is shared among all BsChannel instances,
+		// thus only one BsChannel actually needs to call the update 
+		// method.
+		//channel->updateChannel(msPositions); 
+	}
         delete msPos;
     }
     else if(msg->arrivedOn("fromMs"))  {
