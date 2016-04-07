@@ -24,55 +24,28 @@ class METISChannel : public Channel{
 		double freq_c;						/*!< center/carrier frequence */
 		double heightUE;					/*!< Height of the user equipments */
 		double heightBS;					/*!< Height of the base stations */
-		double speedOfLight;					/*!< speed of light value */
+		static constexpr double speedOfLight = 299792458.0;					/*!< speed of light value */
 		double xPos;						/*!< BS Position x value */
 		double yPos;						/*!< BS Position y value */
-		double **sigma_ds_LOS;					/*!< Delay Spread LOS sigma */
-		double **sigma_asD_LOS;					/*!< an integer value */
-		double **sigma_asA_LOS;					/*!< an integer value */
-		double **sigma_zsD_LOS;					/*!< an integer value */
-		double **sigma_zsA_LOS;					/*!< an integer value */
-		double **sigma_sf_LOS;					/*!< Shadow Fading LOS sigma */
-		double **sigma_kf_LOS;					/*!< an integer value */
-		double **sigma_ds_NLOS;					/*!< Delay Spread NLOS sigma */
-		double **sigma_asD_NLOS;				/*!< an integer value */
-		double **sigma_asA_NLOS;				/*!< an integer value */
-		double **sigma_zsD_NLOS;					/*!< an integer value */
-		double **sigma_zsA_NLOS;					/*!< an integer value */
-		double **sigma_sf_NLOS;					/*!< Shadow Fading NLOS sigma */
 		double *bs_antenna_bearing;				/*!< bearing angles of the 3 BS sectors */
 		double *bs_antenna_downtilt;				/*!< downtilt angles of the 3 BS sectors */
 		double *bs_antenna_slant;				/*!< Slant angles of the 3 BS sectors */
 		double *ms_antenna_bearing;				/*!< bearing angle of the MS */
 		double *ms_antenna_downtilt;				/*!< downtilt angle of the MS */
 		double *ms_antenna_slant;				/*!< Slant angle of the MS */
-		double ***clusterDelays;				/*!< The delays in seconds for each cluster [#MS]x[#BS]x[#Cluster] */
-		double ***clusterDelays_LOS;				/*!< The delays in seconds for each cluster in LOS case [#MS]x[#BS]x[#Cluster] */
-		double ***clusterPowers;				/*!< The cluster power distribution for each link [#MS]x[#BS]x[#Cluster] */
-		double ***rayPowers;					/*!< The ray power for each cluster */
-		double ****azimuth_ASA;					/*!< The angles of arrival in azimuth plane */
-		double ****azimuth_ASD;					/*!< The angles of departure in azimuth plane */
-		double ****elevation_ASA;				/*!< The angles of arrival in azimuth plane */
-		double ****elevation_ASD;				/*!< The angles of departure in azimuth plane */
-		double *****randomPhase;				/*!< The random subpath phases uniformly from [0,2pi) */
-		double **randomPhase_LOS;					/*!< The random phase for the LOS component, taken uniformly from [0,2pi) */
-		double ****Xn_m;					/*!< Cross polarization values per ray */
-		double **AoA_LOS_dir;					/*!< azimuth angle of arrival of true geometric LOS direction */
-		double **AoD_LOS_dir;					/*!< azimuth angle of departure of true geometric LOS direction */
-		double **ZoA_LOS_dir;					/*!< zenith angle of arrival of true geometric LOS direction */
-		double **ZoD_LOS_dir;					/*!< zenith angle of departure of true geometric LOS direction */
+		int N_cluster_LOS;
+		int N_cluster_NLOS;
+		int numOfRays_LOS;
+		int numOfRays_NLOS;
 		int timeSamples;					/*!< Number of TTIs until Position is updated (Number of Time Samples for Channel Model) */
 		double **timeVector;					/*!< Time vector für scm computation */
 		double ***channelGain;					/*!< Final channel gain within time axis */
-		bool **LOSCondition;					/*!< Stores wether each of the links is LOS or NLOS */
 		int numberOfMobileStations;				/*!< Number of MSs within this BS */
 		int bsId;						/*!< Unique ID of according BS */
 		double tti;						/*!< Transmission Time Interval */
-		Position *MSPos;					/*!< Position of the MS */
-		double *MSVelMag;					/*!< Magnitude of MS Velocity */
-		double **MSVelDir;					/*!< Direction of MS Velocity */
 		int maxNumberOfNeighbours;				/*!< Max Number of Neighbour BS that interfere with this one */
-		map <int,Position> neighbourPos;			/*!< Positions of Neighbour BS */
+		map <int,Position> neighbourPositions;			/*!< Positions of Neighbour BS */
+		NeighbourIdMatching *neighbourIdMatching;
 		cSimpleModule *initModule;				/*!< Pointer to OMNeT module for intermodule communication */
 		double ***SINRtable;					/*!< Table to save precomputed channel values (linear) */
 		double ****SINRneighbour;				/*!< Table to save precomputed neighbourvalues values (linear) */
@@ -81,18 +54,23 @@ class METISChannel : public Channel{
 		int SINRcounter;					/*!< If position resend intervall > 1, it counts the current TTI */
 		int NumTxAntenna;					/*!< Number of Transmitter Antenna */
 		int NumRxAntenna;					/*!< Number of Receiver Antenna */
-		double ***RxAntennaPosition;				/*!< Position vector of Receiver antenna */
 		double ***TxAntennaPosition;				/*!< Position vector of Transmitter antenna */
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
+		double vel;
+		double XPR_Mean_LOS;
+		double XPR_Std_LOS;
+		double XPR_Mean_NLOS;
+		double XPR_Std_NLOS;
+		bool initialized;					/*!< True iff METISChannel::init has been called */
 		
 		//! Calculates the pathloss for a given distance.
 		double CalcPathloss(double dist2D, double dist3D, bool LOS);
 		
 		//! Maps the cluster number to scaling factors for azimuth angles
-		double C_AS(int numCluster, bool LOS, int i);
+		double C_AS(int numCluster, bool LOS, int i,double **sigma_kf_LOS);
 		
 		//! Maps the cluster number to scaling factors for zenith angles
-		double C_ZS(int numCluster, bool LOS);
+		double C_ZS(int numCluster, bool LOS,double **sigma_kf_LOS);
 		
 		//! Calculates the probability of a link being a LOS link.
 		bool LineOfSight(double dist2D);
@@ -103,11 +81,14 @@ class METISChannel : public Channel{
 		//! Calculate the sigma of Zenith spread of departure.
 		double sigma_ZSD(double meanZSD, bool LOS);
 
+		//! Recalculate all position dependent values, e.g. SINR
+		void recomputeMETISParams(Position **msPositions);
+
 		//! Generate the spatial correlation between the MS for LOS links.
-		double **generateAutoCorrelation_LOS();
+		double **generateAutoCorrelation_LOS(Position *MSPos);
 
 		//! Generate the spatial correlation between the MS for NLOS links.
-		double **generateAutoCorrelation_NLOS();
+		double **generateAutoCorrelation_NLOS(Position *MSPos);
         
 	public:
 		//! Constructor of METIS Channel subclass.

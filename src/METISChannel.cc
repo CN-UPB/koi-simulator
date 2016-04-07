@@ -65,7 +65,7 @@ inline vec Sph_to_Cart(vec const &input){
 */
 bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map <int,Position> neighbourPositions){
 	// Basic Initialization
-	neighbourPos = neighbourPositions;
+	this->neighbourPositions = neighbourPositions;
 	maxNumberOfNeighbours = module->par("maxNumberOfNeighbours");
 	bsId = module->par("bsId");
 	tti = module->par("tti");
@@ -80,9 +80,10 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
     	ms_antenna_bearing = new double[numberOfMobileStations];
     	ms_antenna_downtilt = new double[numberOfMobileStations];
     	ms_antenna_slant = new double[numberOfMobileStations];
-    	LOSCondition = new bool*[numberOfMobileStations];
-    	MSPos = new Position[numberOfMobileStations];
-    	speedOfLight = 299792458.0;
+	N_cluster_LOS = module->par("NumberOfClusters_LOS");
+	N_cluster_NLOS = module->par("NumberOfClusters_NLOS");
+	numOfRays_LOS = module->par("NumberOfRays_LOS");
+	numOfRays_NLOS = module->par("NumberOfRays_NLOS");
    	initModule = module;
     	freq_c = module->par("CarrierFrequency");
     	SINRcounter = 0;
@@ -90,55 +91,26 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
     	NumRxAntenna = module->par("NumRxAntenna");
     	heightUE = module->par("OutdoorHeightUE");
    	heightBS = module->par("BsHeight");
-    
-    	MSVelMag = new double[numberOfMobileStations];
-    	MSVelDir = new double*[numberOfMobileStations];
+	vel = module->par("Velocity");
+	XPR_Mean_LOS = module->par("XPR_Mean_LOS");
+	XPR_Std_LOS = module->par("XPR_Std_LOS");
+	XPR_Mean_NLOS = module->par("XPR_Mean_NLOS");
+	XPR_Std_NLOS = module->par("XPR_Std_NLOS");
     
     	TxAntennaPosition = new double**[1];
-    	RxAntennaPosition = new double**[numberOfMobileStations];
     
-    	double wavelength = speedOfLight / freq_c;
-	double dist2D;
-    
-    	//string out2 = std::to_string( (long long) bsId ) + "valid.txt";
-    	//ofstream output2(out2);
-    	//output2 << "Init METIS at BS " << bsId << " with rand: " << normal(0,1) << std::endl;
-    
-    	// randomly generate direction and magnitude of movement vector
-    	// TODO: sync with OMNeT++ part
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		MSVelDir[i] = new double[3];
-		double vel = module->par("Velocity");
-		MSVelMag[i] = (vel*1000)/3600; // converting velocity from km/h to m/s 
-		MSVelDir[i][0] = 1.0; // +1 for moving towards the BS, -1 for moving away from the BS
-		MSVelDir[i][1] = 0.0; // set to zero b/c MS is not moving in y or z-directions
-		MSVelDir[i][2] = 0.0; // same as above; originally all are set to uniform(-1.0,1.0)
-		double dirMag = sqrt(pow(MSVelDir[i][0],2) + pow(MSVelDir[i][1],2) + pow(MSVelDir[i][2],2));
-		MSVelDir[i][0] = MSVelDir[i][0] / dirMag;
-		MSVelDir[i][1] = MSVelDir[i][1] / dirMag;
-		MSVelDir[i][2] = MSVelDir[i][2] / dirMag;
-	}
-	std::cout << "Length NeighbourPositions: " << neighbourPositions.size() << std::endl;
-	    
     	// Find the neighbours and store the pair (bsId, position in data structures) in a map
-	NeighbourIdMatching *neighbourIdMatching;
     	cModule *cell = module->getParentModule()->getParentModule();
     	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
     
     	// Actually, this counts the own BS as well, so substract 1 
     	numOfInterferers = neighbourIdMatching->numberOfNeighbours() - 1;
     
-    	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
     
-    	// Copy MS Positions
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		MSPos[i].x = msPositions[fromBsId][i].x;
-		MSPos[i].y = msPositions[fromBsId][i].y;
-	}
-	
 	// One Channel module per base station
     	// Half wavelength distance between antennas; give the position of Tx and Rx antennas in GCS
 	// For even value of NumTxAntenna, the antenna elements will be equally spaced around the center of Tx
+    	double wavelength = speedOfLight / freq_c;
     	for(int i = 0; i < 1; i++){
 		TxAntennaPosition[i] = new double*[NumTxAntenna];
 		for(int j = 0; j < (NumTxAntenna/2); j++){
@@ -157,8 +129,106 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 
 	}
 	
-	// Do the same for Rx antennas
+		
+	// Get position resend interval (Stationary MS assumed during this interval)
+	timeSamples = module->par("positionResendInterval");
+	// 4 Samples per TTI; for smooth Fourier transform
+	timeSamples = timeSamples * 4; //scale according to positionResendInterval; timeSamples should be comparable to sim-time-limit
+	timeVector = new double*[numberOfMobileStations];
+	for(int i = 0; i < numberOfMobileStations; i++){
+		timeVector[i] = new double[timeSamples];
+		for(int t = 0; t < timeSamples; t++){
+			timeVector[i][t] = 0.00025 * t;
+		}
+	}
+	
+	// properly initialize the SINRtable with all zeros
+	SINRtable = new double**[numberOfMobileStations];
+	for(int i = 0; i < numberOfMobileStations; i++){
+		SINRtable[i] = new double*[timeSamples];
+		for(int j = 0; j < timeSamples; j++){
+			SINRtable[i][j] = new double[downRBs];
+			for(int k=0; k<downRBs; k++){
+				SINRtable[i][j][k] = 0;
+			}
+		}
+	}
+
+	// properly initialize the SINRneighbour with all zeros
+	SINRneighbour = new double***[numberOfMobileStations];
+	for(int i = 0; i < numberOfMobileStations; i++){
+		SINRneighbour[i] = new double**[numOfInterferers];
+		for(int j = 0; j < numOfInterferers; j++){
+			SINRneighbour[i][j] = new double*[timeSamples];
+			for(int k = 0; k < timeSamples; k++){
+				SINRneighbour[i][j][k] = new double[downRBs];
+				for(int s=0; s<downRBs; s++){
+					SINRneighbour[i][j][k][s] = 0;
+				}
+			}
+		}
+	}
+	
+    	// Initialize BS antenna parameters
+    	for(int i = 0; i < 3; i++){
+		bs_antenna_downtilt[i] = 12.0;			// "..commonly assumed to be 12 Degrees.."; page 57 METIS Document
+		bs_antenna_slant[i] = 0.0;				// "..usually Zero Degrees.."; page 57 METIS Document
+	}
+	bs_antenna_bearing[0] = 0.0;
+	bs_antenna_bearing[1] = 120.0;
+	bs_antenna_bearing[2] = 240.0;
+	
+	// Initialize MS antenna parameters
+	// (The orientation may be completely randomly generated or based on more realistic distributions.)
+    	for(int i = 0; i < numberOfMobileStations; i++){
+		ms_antenna_bearing[i] = uniform(0.0,360.0);
+		ms_antenna_downtilt[i] = uniform(0.0,360.0);
+		ms_antenna_slant[i] = uniform(0.0,360.0);
+	}
+
+	//compute initial SINR parameters
+	std::cout << "NeighbourPositions.size: " << this->neighbourPositions.size() << std::endl;
+	recomputeMETISParams(msPositions);
+
+	// There are a number of dynamically allocated member variables which 
+	// are only allocated in this init method, which need only be freed 
+	// in the destructor iff init has actually been called.
+	initialized = true;
+	
+	return true;
+}
+
+void METISChannel::recomputeMETISParams(Position** msPositions){
+	std::cout << "NeighbourPositions.size: " << neighbourPositions.size() << std::endl;
+    	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
+    	double wavelength = speedOfLight / freq_c;
+	double dist2D;
+    
+    	// randomly generate direction and magnitude of movement vector
+	double *MSVelMag = new double[numberOfMobileStations]; /*!< Magnitude of MS Velocity */
+	double **MSVelDir = new double*[numberOfMobileStations]; /*!< Direction of MS Velocity */
+    	// TODO: sync with OMNeT++ part
+    	for(int i = 0; i < numberOfMobileStations; i++){
+		MSVelDir[i] = new double[3];
+		MSVelMag[i] = (vel*1000)/3600; // converting velocity from km/h to m/s 
+		MSVelDir[i][0] = 1.0; // +1 for moving towards the BS, -1 for moving away from the BS
+		MSVelDir[i][1] = 0.0; // set to zero b/c MS is not moving in y or z-directions
+		MSVelDir[i][2] = 0.0; // same as above; originally all are set to uniform(-1.0,1.0)
+		double dirMag = sqrt(pow(MSVelDir[i][0],2) + pow(MSVelDir[i][1],2) + pow(MSVelDir[i][2],2));
+		MSVelDir[i][0] = MSVelDir[i][0] / dirMag;
+		MSVelDir[i][1] = MSVelDir[i][1] / dirMag;
+		MSVelDir[i][2] = MSVelDir[i][2] / dirMag;
+	}
+
+    	// Copy MS Positions
+	Position *MSPos = new Position[numberOfMobileStations];	/*!< Position of the MS */
+    	for(int i = 0; i < numberOfMobileStations; i++){
+		MSPos[i].x = msPositions[fromBsId][i].x;
+		MSPos[i].y = msPositions[fromBsId][i].y;
+	}
+
 	// Mobile stations should be randomly rotated..?
+	double ***RxAntennaPosition = new double**[numberOfMobileStations]; /*!< Position vector of Receiver antenna */
     	for(int i = 0; i < numberOfMobileStations; i++){
 		RxAntennaPosition[i] = new double*[NumRxAntenna];
 		for(int j = 0; j < (NumRxAntenna/2); j++){
@@ -175,10 +245,10 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		}
 	}
 
-	AoA_LOS_dir = new double*[numberOfMobileStations];
-	AoD_LOS_dir = new double*[numberOfMobileStations];
-	ZoA_LOS_dir = new double*[numberOfMobileStations];
-	ZoD_LOS_dir = new double*[numberOfMobileStations];
+	double **AoA_LOS_dir = new double*[numberOfMobileStations]; /*!< azimuth angle of arrival of true geometric LOS direction */
+	double **AoD_LOS_dir = new double*[numberOfMobileStations]; /*!< azimuth angle of departure of true geometric LOS direction */
+	double **ZoA_LOS_dir = new double*[numberOfMobileStations]; /*!< zenith angle of arrival of true geometric LOS direction */
+	double **ZoD_LOS_dir = new double*[numberOfMobileStations]; /*!< zenith angle of departure of true geometric LOS direction */
 	double x_dir;
 	double y_dir;
 	vec cartLOS_BStoMS_Angle = zeros(3);
@@ -244,46 +314,10 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 			}
 		}
 	}
-		
-	// Get position resend interval (Stationary MS assumed during this interval)
-	timeSamples = module->par("positionResendInterval");
-	// 4 Samples per TTI; for smooth Fourier transform
-	timeSamples = timeSamples * 4; //scale according to positionResendInterval; timeSamples should be comparable to sim-time-limit
-	timeVector = new double*[numberOfMobileStations];
-	for(int i = 0; i < numberOfMobileStations; i++){
-		timeVector[i] = new double[timeSamples];
-		for(int t = 0; t < timeSamples; t++){
-			timeVector[i][t] = 0.00025 * t;
-		}
-	}
-	
-	SINRtable = new double**[numberOfMobileStations];
-	for(int i = 0; i < numberOfMobileStations; i++){
-		SINRtable[i] = new double*[timeSamples];
-		for(int j = 0; j < timeSamples; j++){
-			SINRtable[i][j] = new double[downRBs];
-		}
-	}
-	
-    	// Initialize BS antenna parameters
-    	for(int i = 0; i < 3; i++){
-		bs_antenna_downtilt[i] = 12.0;			// "..commonly assumed to be 12 Degrees.."; page 57 METIS Document
-		bs_antenna_slant[i] = 0.0;				// "..usually Zero Degrees.."; page 57 METIS Document
-	}
-	bs_antenna_bearing[0] = 0.0;
-	bs_antenna_bearing[1] = 120.0;
-	bs_antenna_bearing[2] = 240.0;
-	
-	// Initialize MS antenna parameters
-	// (The orientation may be completely randomly generated or based on more realistic distributions.)
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		ms_antenna_bearing[i] = uniform(0.0,360.0);
-		ms_antenna_downtilt[i] = uniform(0.0,360.0);
-		ms_antenna_slant[i] = uniform(0.0,360.0);
-	}
 	
 	//Assign LOS Conditions:
 	double MS_BS_dist;
+	bool **LOSCondition = new bool*[numberOfMobileStations]; /* Stores whether each of the links is LOS or NLOS */
 	for(int i = 0; i < numberOfMobileStations; i++){
 		LOSCondition[i] = new bool[neighbourPositions.size()];
 		int k = 1;
@@ -298,50 +332,21 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 			}
 		}
 	}
-	
-	// Initialize large scale parameters (Line of Sight)
-	// Generate Cross-correlation Matrix
-	double a = module->par("cross_a_LOS"); // departure AS vs delay spread
-	double b = module->par("cross_b_LOS"); // arrival AS vs delay spread
-	double c = module->par("cross_c_LOS"); // arrival AS vs shadowing std
-	double d = module->par("cross_d_LOS"); // departure AS vs shadoving std
-	double e = module->par("cross_e_LOS"); // delay spread vs shadoving std
-	double f = module->par("cross_f_LOS"); // departure AS vs arrival AS
-	double g = module->par("cross_g_LOS"); // departure AS vs k-factor
-	double h = module->par("cross_h_LOS"); // arrival AS vs k-factor
-	double k = module->par("cross_k_LOS"); // delay spread vs k-factor
-	double l = module->par("cross_l_LOS"); // shadowing std vs k-factor
-	double m = module->par("cross_m_LOS"); // departure ZS vs shadowing std
-	double n = module->par("cross_n_LOS"); // arrival ZS vs shadowing std
-	double o = module->par("cross_o_LOS"); // departure ZS vs k-factor
-	double p = module->par("cross_p_LOS"); // arrival ZS vs k-factor
-	double q = module->par("cross_q_LOS"); // departure ZS vs delay spread
-	double r = module->par("cross_r_LOS"); // arrival ZS vs delay spread
-	double s = module->par("cross_s_LOS"); // departure ZS vs departure AS
-	double t = module->par("cross_t_LOS"); // arrival ZS vs departure AS
-	double u = module->par("cross_u_LOS"); // departure ZS vs arrival AS
-	double v = module->par("cross_v_LOS"); // arrival ZS vs arrival AS
-	double w = module->par("cross_w_LOS"); // arrival ZS vs departure ZS
-		
+
 	std::cout << "Before Auto Correlation!" << std::endl;
 	
 	// Generate Autocorrelation
-	double **autoCorrelation_LOS = generateAutoCorrelation_LOS();
+	double **autoCorrelation_LOS = generateAutoCorrelation_LOS(MSPos);
 	
 	std::cout << "After Auto Correlation!" << std::endl;
        
-	//Cross-correlation matrix 
-	/*
-    	double cross_matrix[7][7] = {
-		{1,a,b,q,r,e,k},
-		{a,1,f,s,t,d,g},
-		{b,f,1,u,v,c,h},
-		{q,s,u,1,w,m,o},
-		{r,t,v,w,1,n,p},
-		{e,d,c,m,n,1,l},
-		{k,g,h,o,p,l,1}};
-	*/
-	
+	double **sigma_ds_LOS = new double*[numberOfMobileStations]; /*!< Delay Spread LOS sigma */
+	double **sigma_asD_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
+	double **sigma_asA_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
+	double **sigma_zsD_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
+	double **sigma_zsA_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
+	double **sigma_sf_LOS = new double*[numberOfMobileStations]; /*!< Shadow Fading LOS sigma */
+	double **sigma_kf_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
 	//TODO: Remove hardcoded, values taken after taking the square-root of the cross_matrix using sqrtm() in MATLAB
 	double cross_matrix[7][7] = {
 		{ 0.7249,   0.2510,   0.4678,  -0.0401,   0.1106,  -0.0903,  -0.4132},
@@ -353,26 +358,18 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
  		{-0.4132,  -0.0143,  -0.0343,  -0.0122,   0.0221,   0.2542,   0.8733}};
 		
     	// Transform Normal distributed random numbers to scenario specific distributions
-    	a = module->par("DS_mu_LOS"); 			// mean of delay spread
-	b = module->par("DS_eps_LOS"); 			// epsilon of delay spread
-	c = module->par("AoD_mu_LOS"); 			// mean of AoD
-	d = module->par("AoD_eps_LOS"); 		// epsilon of AoD
-	e = module->par("AoA_mu_LOS"); 			// mean of AoA
-	f = module->par("AoA_eps_LOS"); 		// epsilon of AoA
-	g = module->par("ZoA_mu_LOS"); 			// mean of ZoA
-	h = module->par("ZoA_eps_LOS"); 		// epsilon of ZoA
-	k = module->par("SF_sigma_LOS"); 		// sigma for shadow fading
-	l = module->par("K_mu"); 			// mean of Ricean K-factor
-	double sigma_K = module->par("K_sigma");	// spread of K-factor
+    	double a = initModule->par("DS_mu_LOS"); 			// mean of delay spread
+	double b = initModule->par("DS_eps_LOS"); 			// epsilon of delay spread
+	double c = initModule->par("AoD_mu_LOS"); 			// mean of AoD
+	double d = initModule->par("AoD_eps_LOS"); 		// epsilon of AoD
+	double e = initModule->par("AoA_mu_LOS"); 			// mean of AoA
+	double f = initModule->par("AoA_eps_LOS"); 		// epsilon of AoA
+	double g = initModule->par("ZoA_mu_LOS"); 			// mean of ZoA
+	double h = initModule->par("ZoA_eps_LOS"); 		// epsilon of ZoA
+	double k = initModule->par("SF_sigma_LOS"); 		// sigma for shadow fading
+	double l = initModule->par("K_mu"); 			// mean of Ricean K-factor
+	double sigma_K = initModule->par("K_sigma");	// spread of K-factor
 	
-	sigma_ds_LOS = new double*[numberOfMobileStations];
-	sigma_asD_LOS = new double*[numberOfMobileStations];
-	sigma_asA_LOS = new double*[numberOfMobileStations];
-	sigma_zsD_LOS = new double*[numberOfMobileStations];
-	sigma_zsA_LOS = new double*[numberOfMobileStations];
-	sigma_sf_LOS = new double*[numberOfMobileStations];
-	sigma_kf_LOS = new double*[numberOfMobileStations];
-		
 	// TODO: Take Square root
 	// cross_matrix = sqrt(cross_matrix)
 	for(int i = 0; i < numberOfMobileStations; i++){
@@ -415,43 +412,15 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 			}
 		}
 	}
-    
-    	// Initialize large scale parameters (Non Line of Sight)
-    	// Generate Cross-correlation Matrix
-	a = module->par("cross_a"); // departure AS vs delay spread
-	b = module->par("cross_b"); // arrival AS vs delay spread
-	c = module->par("cross_c"); // arrival AS vs shadowing std
-	d = module->par("cross_d"); // departure AS vs shadoving std
-	e = module->par("cross_e"); // delay spread vs shadoving std
-	f = module->par("cross_f"); // departure AS vs arrival AS
-	m = module->par("cross_m"); // departure ZS vs shadowing std
-	n = module->par("cross_n"); // arrival ZS vs shadowing std
-	q = module->par("cross_q"); // departure ZS vs delay spread
-	r = module->par("cross_r"); // arrival ZS vs delay spread
-	s = module->par("cross_s"); // departure ZS vs departure AS
-	t = module->par("cross_t"); // arrival ZS vs departure AS
-	u = module->par("cross_u"); // departure ZS vs arrival AS
-	v = module->par("cross_v"); // arrival ZS vs arrival AS
-	w = module->par("cross_w"); // arrival ZS vs departure ZS
 
+    	// Initialize large scale parameters (Non Line of Sight)
 	std::cout << "Before Auto Correlation (NLOS)!" << std::endl;
 	
 	// Generate Autocorrelation
-	double **autoCorrelation_NLOS = generateAutoCorrelation_NLOS();
+	double **autoCorrelation_NLOS = generateAutoCorrelation_NLOS(MSPos);
 	
 	std::cout << "After Auto Correlation (NLOS)!" << std::endl;
        
-	//Cross-correlation matrix 
-	/*
-    	double cross_matrix2[6][6] = {
-		{1,a,b,q,r,e},
-		{a,1,f,s,t,d},
-		{b,f,1,u,v,c},
-		{q,s,u,1,w,m},
-		{r,t,v,w,1,n},
-		{e,d,c,m,n,1}};
-	*/
-		
 	//TODO: Remove hardcoded, values taken after taking the square-root of the cross_matrix using sqrtm() in MATLAB 
 	double cross_matrix2[6][6] = {
 		{ 0.8302,   0.0709,   0.1949,  -0.3252,  -0.0341,  -0.4011},
@@ -462,22 +431,22 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
   		{-0.4011,   0.0259,  -0.1716,  -0.0741,  -0.0030,   0.8964}};
 		
     	// Transform Normal distributed random numbers to scenario specific distributions
-    	a = module->par("DS_mu_NLOS"); 				// departure AS vs delay spread
-	b = module->par("DS_eps_NLOS"); 			// arrival AS vs delay spread
-	c = module->par("AoD_mu_NLOS"); 			// arrival AS vs shadowing std
-	d = module->par("AoD_eps_NLOS"); 			// departure AS vs shadoving std
-	e = module->par("AoA_mu_NLOS"); 			// delay spread vs shadoving std
-	f = module->par("AoA_eps_NLOS"); 			// departure AS vs arrival AS
-	g = module->par("SF_sigma_NLOS"); 			// departure AS vs k-factor
-	h = module->par("ZoA_mu_NLOS"); 			// arrival AS vs k-factor
-	k = module->par("ZoA_eps_NLOS"); 			// delay spread vs k-factor	
+    	a = initModule->par("DS_mu_NLOS"); 				// departure AS vs delay spread
+	b = initModule->par("DS_eps_NLOS"); 			// arrival AS vs delay spread
+	c = initModule->par("AoD_mu_NLOS"); 			// arrival AS vs shadowing std
+	d = initModule->par("AoD_eps_NLOS"); 			// departure AS vs shadoving std
+	e = initModule->par("AoA_mu_NLOS"); 			// delay spread vs shadoving std
+	f = initModule->par("AoA_eps_NLOS"); 			// departure AS vs arrival AS
+	g = initModule->par("SF_sigma_NLOS"); 			// departure AS vs k-factor
+	h = initModule->par("ZoA_mu_NLOS"); 			// arrival AS vs k-factor
+	k = initModule->par("ZoA_eps_NLOS"); 			// delay spread vs k-factor	
 	
-	sigma_ds_NLOS = new double*[numberOfMobileStations];
-	sigma_asD_NLOS = new double*[numberOfMobileStations];
-	sigma_asA_NLOS = new double*[numberOfMobileStations];
-	sigma_zsD_NLOS = new double*[numberOfMobileStations];
-	sigma_zsA_NLOS = new double*[numberOfMobileStations];
-	sigma_sf_NLOS = new double*[numberOfMobileStations];
+	double **sigma_ds_NLOS = new double*[numberOfMobileStations];
+	double **sigma_asD_NLOS = new double*[numberOfMobileStations];
+	double **sigma_asA_NLOS = new double*[numberOfMobileStations];
+	double **sigma_zsD_NLOS = new double*[numberOfMobileStations];
+	double **sigma_zsA_NLOS = new double*[numberOfMobileStations];
+	double **sigma_sf_NLOS = new double*[numberOfMobileStations];
 
 	// TODO: Take Square root
 	// cross_matrix = sqrt(cross_matrix)
@@ -535,11 +504,9 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
     	// Begin small scale parameter generation.
     
     	// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
-	clusterDelays = new double**[numberOfMobileStations];
-	clusterDelays_LOS = new double**[numberOfMobileStations];
+	double ***clusterDelays = new double**[numberOfMobileStations];	/*!< The delays in seconds for each cluster [#MS]x[#BS]x[#Cluster] */
+	double ***clusterDelays_LOS = new double**[numberOfMobileStations]; /*!< The delays in seconds for each cluster in LOS case [#MS]x[#BS]x[#Cluster] */
 	double delayScaling;
-	int N_cluster_LOS = module->par("NumberOfClusters_LOS");
-	int N_cluster_NLOS = module->par("NumberOfClusters_NLOS");
 	std::cout << "N_cluster_LOS: " << N_cluster_LOS << std::endl;
     	std::cout << "N_cluster_NLOS: " << N_cluster_NLOS << std::endl;
     
@@ -553,7 +520,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 					// LOS Condition
 					clusterDelays[i][0] = new double[N_cluster_LOS];
 					clusterDelays_LOS[i][0] = new double[N_cluster_LOS];
-					delayScaling = module->par("DelayScaling_LOS");
+					delayScaling = initModule->par("DelayScaling_LOS");
 					
 					for(int j = 0; j < N_cluster_LOS; j++){
 						clusterDelays[i][0][j] = -1.0*delayScaling*sigma_ds_LOS[i][0]*log(uniform(0,1));
@@ -580,7 +547,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 				}else{
 					// NLOS Condition
 					clusterDelays[i][0] = new double[N_cluster_NLOS];
-					delayScaling = module->par("DelayScaling_NLOS");
+					delayScaling = initModule->par("DelayScaling_NLOS");
 					
 					for(int j = 0; j < N_cluster_NLOS; j++){
 						clusterDelays[i][0][j] = -1.0*delayScaling*sigma_ds_NLOS[i][0]*log(uniform(0,1));
@@ -602,7 +569,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 					// LOS Condition
 					clusterDelays[i][k] = new double[N_cluster_LOS];
 					clusterDelays_LOS[i][k] = new double[N_cluster_LOS];
-					delayScaling = module->par("DelayScaling_LOS");
+					delayScaling = initModule->par("DelayScaling_LOS");
 					
 					for(int j = 0; j < N_cluster_LOS; j++){
 						clusterDelays[i][k][j] = -1.0*delayScaling*sigma_ds_LOS[i][k]*log(uniform(0,1));
@@ -628,7 +595,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 				}else{
 					// NLOS Condition
 					clusterDelays[i][k] = new double[N_cluster_NLOS];
-					delayScaling = module->par("DelayScaling_NLOS");
+					delayScaling = initModule->par("DelayScaling_NLOS");
 					
 					for(int j = 0; j < N_cluster_NLOS; j++){
 						clusterDelays[i][k][j] = -1.0*delayScaling*sigma_ds_NLOS[i][k]*log(uniform(0,1));
@@ -648,8 +615,8 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 			}
 		}
 	}
-		
-	clusterPowers = new double**[numberOfMobileStations];
+
+	double ***clusterPowers = new double**[numberOfMobileStations];	/*!< The cluster power distribution for each link [#MS]x[#BS]x[#Cluster] */
 	double cluster_shadowing;
 	double sum;
 	
@@ -667,9 +634,9 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 					
 					double P1_LOS = K / (K + 1);
 					
-					double temp_CS = module->par("PerClusterShadowing_LOS");
+					double temp_CS = initModule->par("PerClusterShadowing_LOS");
 					cluster_shadowing = pow(temp_CS,2);
-					delayScaling = module->par("DelayScaling_LOS");
+					delayScaling = initModule->par("DelayScaling_LOS");
 					for(int j = 0; j < N_cluster_LOS; j++){
 						// Formula 7.42
 						clusterPowers[i][0][j] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][0][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_LOS[i][0])) );
@@ -688,16 +655,12 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 					clusterPowers[i][0] = new double[N_cluster_NLOS];
 					sum = 0;
 					
-					double temp_CS = module->par("PerClusterShadowing_NLOS");
+					double temp_CS = initModule->par("PerClusterShadowing_NLOS");
 					cluster_shadowing = pow(temp_CS,2); //METIS
-					delayScaling = module->par("DelayScaling_NLOS");
+					delayScaling = initModule->par("DelayScaling_NLOS");
 					for(int j = 0; j < N_cluster_NLOS; j++){
 						// Formula 7.42
 						clusterPowers[i][0][j] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][0][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_NLOS[i][0])) ); //METIS
-						//cluster_shadowing = normal(0,1) * temp_CS; //WINNER II
-						//cluster_shadowing = 2.0;
-						//clusterDelays[i][j] = 7.6e-8;
-						//clusterPowers[i][j] = pow(10,-1.0*cluster_shadowing/10) * exp(-1.0 * clusterDelays[i][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_NLOS[i])) ); //WINNER II
 						sum += clusterPowers[i][0][j];
 					}
 					
@@ -714,9 +677,9 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 					
 					double P1_LOS = K / (K + 1);
 					
-					double temp_CS = module->par("PerClusterShadowing_LOS");
+					double temp_CS = initModule->par("PerClusterShadowing_LOS");
 					cluster_shadowing = pow(temp_CS,2);
-					delayScaling = module->par("DelayScaling_LOS");
+					delayScaling = initModule->par("DelayScaling_LOS");
 					for(int j = 0; j < N_cluster_LOS; j++){
 						// Formula 7.42
 						clusterPowers[i][itIdx][j] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][itIdx][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_LOS[i][itIdx])) );
@@ -735,16 +698,12 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 					clusterPowers[i][itIdx] = new double[N_cluster_NLOS];
 					sum = 0;
 					
-					double temp_CS = module->par("PerClusterShadowing_NLOS");
+					double temp_CS = initModule->par("PerClusterShadowing_NLOS");
 					cluster_shadowing = pow(temp_CS,2); //METIS
-					delayScaling = module->par("DelayScaling_NLOS");
+					delayScaling = initModule->par("DelayScaling_NLOS");
 					for(int j = 0; j < N_cluster_NLOS; j++){
 						// Formula 7.42
 						clusterPowers[i][itIdx][j] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][itIdx][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_NLOS[i][itIdx])) ); //METIS
-						//cluster_shadowing = normal(0,1) * temp_CS; //WINNER II
-						//cluster_shadowing = 2.0;
-						//clusterDelays[i][j] = 7.6e-8;
-						//clusterPowers[i][j] = pow(10,-1.0*cluster_shadowing/10) * exp(-1.0 * clusterDelays[i][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_NLOS[i])) ); //WINNER II
 						sum += clusterPowers[i][itIdx][j];
 					}
 					
@@ -756,12 +715,9 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 			}
 		}
 	}
-		
-	int numOfRays_LOS = module->par("NumberOfRays_LOS");
-	int numOfRays_NLOS = module->par("NumberOfRays_NLOS");
 	
 	// Precompute powers per ray (7.46)
-	rayPowers = new double**[numberOfMobileStations];
+	double ***rayPowers = new double**[numberOfMobileStations]; /*!< The ray power for each cluster */
 	for(int i = 0; i < numberOfMobileStations; i++){
 		rayPowers[i] = new double*[neighbourPositions.size()];
 		int itIdx = 1;
@@ -803,11 +759,9 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 							2.1551, -2.1551
 							};
 	
-	double **azimuth_cluster_ASA;
-	azimuth_cluster_ASA = new double*[numberOfMobileStations];
-	azimuth_ASA = new double***[numberOfMobileStations];
-	
 	// Generate azimuth angles of arrival
+	double **azimuth_cluster_ASA = new double*[numberOfMobileStations];
+	double ****azimuth_ASA = new double***[numberOfMobileStations];	/*!< The angles of arrival in azimuth plane */
 	for(int i = 0; i < numberOfMobileStations; i++){
 		azimuth_ASA[i] = new double**[neighbourPositions.size()];
 		int itIdx = 1;
@@ -824,7 +778,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						azimuth_ASA[i][0][j] = new double[numOfRays_LOS];
 				
 						//Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_LOS[i][0] / (0.7 * C_AS(N_cluster_LOS, true, i))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_LOS))) );
+						azimuth_cluster_ASA[i][j] = (sigma_asA_LOS[i][0] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_LOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asA_LOS[i][0] / 7.0,2)));
 				
@@ -832,7 +786,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						azimuth_cluster_ASA[i][j] = azimuth_cluster_ASA[i][j] * (X_N - X_1) + (Y_N - Y_1) + (AoA_LOS_dir[i][0]*180.0/pi);  // since AOA_LOS_dir is in radians
 				
 						for(int k = 0; k < numOfRays_LOS; k++){
-							double cluster_ASA = module->par("Cluster_ASA_LOS");
+							double cluster_ASA = initModule->par("Cluster_ASA_LOS");
 					
 							// Final angle computation per ray (LOS)
 							azimuth_ASA[i][0][j][k] = azimuth_cluster_ASA[i][j] + cluster_ASA * ray_offset[k];
@@ -850,14 +804,14 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						azimuth_ASA[i][0][j] = new double[numOfRays_NLOS];
 				
 						// Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_NLOS[i][0] / (0.7 * C_AS(N_cluster_NLOS, false, i))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_NLOS))) );
+						azimuth_cluster_ASA[i][j] = (sigma_asA_NLOS[i][0] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_NLOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asA_NLOS[i][0] / 7.0,2)));
 				
 						azimuth_cluster_ASA[i][j] = azimuth_cluster_ASA[i][j] * X_N + Y_N + (AoA_LOS_dir[i][0]*180.0/pi);   // since AOA_LOS_dir is in radians
 				 
 						for(int k = 0; k < numOfRays_NLOS; k++){
-							double cluster_ASA = module->par("Cluster_ASA_NLOS");
+							double cluster_ASA = initModule->par("Cluster_ASA_NLOS");
 					
 							// Final angle computation per ray (NLOS)
 							azimuth_ASA[i][0][j][k] = azimuth_cluster_ASA[i][j] + cluster_ASA * ray_offset[k];
@@ -876,7 +830,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						azimuth_ASA[i][itIdx][j] = new double[numOfRays_LOS];
 				
 						//Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_LOS[i][itIdx] / (0.7 * C_AS(N_cluster_LOS, true, i))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_LOS))) );
+						azimuth_cluster_ASA[i][j] = (sigma_asA_LOS[i][itIdx] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_LOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asA_LOS[i][itIdx] / 7.0,2)));
 				
@@ -884,7 +838,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						azimuth_cluster_ASA[i][j] = azimuth_cluster_ASA[i][j] * (X_N - X_1) + (Y_N - Y_1) + (AoA_LOS_dir[i][itIdx]*180.0/pi);   // since AOA_LOS_dir is in radians
   				
 						for(int k = 0; k < numOfRays_LOS; k++){
-							double cluster_ASA = module->par("Cluster_ASA_LOS");
+							double cluster_ASA = initModule->par("Cluster_ASA_LOS");
 					
 							// Final angle computation per ray (LOS)
 							azimuth_ASA[i][itIdx][j][k] = azimuth_cluster_ASA[i][j] + cluster_ASA * ray_offset[k];
@@ -899,14 +853,14 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						azimuth_ASA[i][itIdx][j] = new double[numOfRays_NLOS];
 				
 						// Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_NLOS[i][itIdx] / (0.7 * C_AS(N_cluster_NLOS, false, i))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_NLOS))) );
+						azimuth_cluster_ASA[i][j] = (sigma_asA_NLOS[i][itIdx] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_NLOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asA_NLOS[i][itIdx] / 7.0,2)));
 				
 						azimuth_cluster_ASA[i][j] = azimuth_cluster_ASA[i][j] * X_N + Y_N + (AoA_LOS_dir[i][itIdx]*180.0/pi);   // since AOA_LOS_dir is in radians
 				
 						for(int k = 0; k < numOfRays_NLOS; k++){
-							double cluster_ASA = module->par("Cluster_ASA_NLOS");
+							double cluster_ASA = initModule->par("Cluster_ASA_NLOS");
 					
 							// Final angle computation per ray (NLOS)
 							azimuth_ASA[i][itIdx][j][k] = azimuth_cluster_ASA[i][j] + cluster_ASA * ray_offset[k];
@@ -918,11 +872,9 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		}
 	}
 	
-	double **azimuth_cluster_ASD;
-	azimuth_cluster_ASD = new double*[numberOfMobileStations];
-	azimuth_ASD = new double***[numberOfMobileStations];
-	
 	// Generate azimuth angles of departure in the same way 
+	double **azimuth_cluster_ASD = new double*[numberOfMobileStations];
+	double ****azimuth_ASD = new double***[numberOfMobileStations];	/*!< The angles of departure in azimuth plane */
 	for(int i = 0; i < numberOfMobileStations; i++){
 		azimuth_ASD[i] = new double**[neighbourPositions.size()];
 		int itIdx = 1;
@@ -939,7 +891,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						azimuth_ASD[i][0][j] = new double[numOfRays_LOS];
 				
 						//Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_LOS[i][0] / (0.7 * C_AS(N_cluster_LOS, true, i))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_LOS))) );
+						azimuth_cluster_ASD[i][j] = (sigma_asD_LOS[i][0] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_LOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asD_LOS[i][0] / 7.0,2)));
 				
@@ -947,7 +899,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						azimuth_cluster_ASD[i][j] = azimuth_cluster_ASD[i][j] * (X_N - X_1) + (Y_N - Y_1) + (AoD_LOS_dir[i][0]*180.0/pi);   // since AOD_LOS_dir is in radians
 				
 						for(int k = 0; k < numOfRays_LOS; k++){
-							double cluster_ASD = module->par("Cluster_ASD_LOS");
+							double cluster_ASD = initModule->par("Cluster_ASD_LOS");
 					
 							// Final angle computation per ray (LOS)
 							azimuth_ASD[i][0][j][k] = azimuth_cluster_ASD[i][j] + cluster_ASD * ray_offset[k];
@@ -965,14 +917,14 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						azimuth_ASD[i][0][j] = new double[numOfRays_NLOS];
 				
 						// Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_NLOS[i][0] / (0.7 * C_AS(N_cluster_NLOS, false, i))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_NLOS))) );
+						azimuth_cluster_ASD[i][j] = (sigma_asD_NLOS[i][0] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_NLOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asD_NLOS[i][0] / 7.0,2)));
 				
 						azimuth_cluster_ASD[i][j] = azimuth_cluster_ASD[i][j] * X_N + Y_N + (AoD_LOS_dir[i][0]*180.0/pi);    // since AOD_LOS_dir is in radians
 				
 						for(int k = 0; k < numOfRays_NLOS; k++){
-							double cluster_ASD = module->par("Cluster_ASD_NLOS");
+							double cluster_ASD = initModule->par("Cluster_ASD_NLOS");
 					
 							// Final angle computation per ray (NLOS)
 							azimuth_ASD[i][0][j][k] = azimuth_cluster_ASD[i][j] + cluster_ASD * ray_offset[k];
@@ -991,7 +943,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						azimuth_ASD[i][itIdx][j] = new double[numOfRays_LOS];
 				
 						//Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_LOS[i][itIdx] / (0.7 * C_AS(N_cluster_LOS, true, i))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_LOS))) );
+						azimuth_cluster_ASD[i][j] = (sigma_asD_LOS[i][itIdx] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_LOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asD_LOS[i][itIdx] / 7.0,2)));
 				
@@ -999,7 +951,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						azimuth_cluster_ASD[i][j] = azimuth_cluster_ASD[i][j] * (X_N - X_1) + (Y_N - Y_1) + (AoD_LOS_dir[i][itIdx]*180.0/pi);   // since AOD_LOS_dir is in radians
 				
 						for(int k = 0; k < numOfRays_LOS; k++){
-							double cluster_ASD = module->par("Cluster_ASD_LOS");
+							double cluster_ASD = initModule->par("Cluster_ASD_LOS");
 					
 							// Final angle computation per ray (LOS)
 							azimuth_ASD[i][itIdx][j][k] = azimuth_cluster_ASD[i][j] + cluster_ASD * ray_offset[k];
@@ -1014,14 +966,14 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 						azimuth_ASD[i][itIdx][j] = new double[numOfRays_NLOS];
 				
 						// Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_NLOS[i][itIdx] / (0.7 * C_AS(N_cluster_NLOS, false, i))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_NLOS))) );
+						azimuth_cluster_ASD[i][j] = (sigma_asD_NLOS[i][itIdx] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_NLOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asD_NLOS[i][itIdx] / 7.0,2)));
 				
 						azimuth_cluster_ASD[i][j] = azimuth_cluster_ASD[i][j] * X_N + Y_N + (AoD_LOS_dir[i][itIdx]*180.0/pi);    // since AOD_LOS_dir is in radians
 				
 						for(int k = 0; k < numOfRays_NLOS; k++){
-							double cluster_ASD = module->par("Cluster_ASD_NLOS");
+							double cluster_ASD = initModule->par("Cluster_ASD_NLOS");
 					
 							// Final angle computation per ray (NLOS)
 							azimuth_ASD[i][itIdx][j][k] = azimuth_cluster_ASD[i][j] + cluster_ASD * ray_offset[k];
@@ -1034,8 +986,8 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	}
 	
 	// Generate Elevation angles (for 2D channel model, set all elevtaion angles to 90 deg; otherwise use the code below for elevation angle generation according to METIS 1.2 or 1.4)
-	elevation_ASA = new double***[numberOfMobileStations];
-	elevation_ASD = new double***[numberOfMobileStations];
+	double ****elevation_ASA = new double***[numberOfMobileStations]; /*!< The angles of arrival in azimuth plane */
+	double ****elevation_ASD = new double***[numberOfMobileStations]; /*!< The angles of departure in azimuth plane */
 	for(int i = 0; i < numberOfMobileStations; i++){
 		elevation_ASA[i] = new double**[neighbourPositions.size()];
 		elevation_ASD[i] = new double**[neighbourPositions.size()];
@@ -1067,9 +1019,10 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 			}
 		}
 	} 
+
 	// Generate random phases (7.3.17)
-	randomPhase = new double****[numberOfMobileStations];
-	randomPhase_LOS = new double*[numberOfMobileStations];					// Random phase for LOS component
+	double *****randomPhase = new double****[numberOfMobileStations]; /*!< The random subpath phases uniformly from [0,2pi) */
+	double **randomPhase_LOS = new double*[numberOfMobileStations];	/*!< The random phase for the LOS component, taken uniformly from [0,2pi) */
 	for(int i = 0; i < numberOfMobileStations; i++){
 		int itIdx = 1;
 		randomPhase[i] = new double***[neighbourPositions.size()];
@@ -1143,12 +1096,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	}
 	
 	// Generate cross polarization values
-	double XPR_Mean_LOS = module->par("XPR_Mean_LOS");
-	double XPR_Std_LOS = module->par("XPR_Std_LOS");
-	double XPR_Mean_NLOS = module->par("XPR_Mean_NLOS");
-	double XPR_Std_NLOS = module->par("XPR_Std_NLOS");
-	Xn_m = new double***[numberOfMobileStations];
-	
+	double ****Xn_m = new double***[numberOfMobileStations]; /*!< Cross polarization values per ray */
 	for(int i = 0; i < numberOfMobileStations; i++){
 		Xn_m[i] = new double**[neighbourPositions.size()];
 		int id_BS =1;
@@ -1214,10 +1162,8 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	double sq_P_over_M;
 
 	// For LOS case:
-	complex<double> *****raySum_LOS;
+	complex<double> *****raySum_LOS = new complex<double>****[numberOfMobileStations];
 	int clusterIdx_LOS;
-	
-	raySum_LOS = new complex<double>****[numberOfMobileStations];
 	
 	for(int m = 0; m < numberOfMobileStations; m++){
 		// +4 Clusters, because 2 are subdivided into 6, resulting in 4 more.
@@ -1232,12 +1178,9 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 			}
 		}
 	}
-	
 	// For NLOS case:
-	complex<double> *****raySum;
+	complex<double> *****raySum = new complex<double>****[numberOfMobileStations];
 	int clusterIdx;
-	raySum = new complex<double>****[numberOfMobileStations];
-
 	for(int m = 0; m < numberOfMobileStations; m++){
 		// +4 Clusters, because 2 are subdivided into 6, resulting in 4 more.
 		raySum[m] = new complex<double>***[(N_cluster_NLOS + 4)];
@@ -1251,7 +1194,8 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 			}
 		}
 	}
-	
+
+	// initialize arrays for interferer ray sums
 	complex<double> ******raySumInterferer_LOS;
 	complex<double> ******raySumInterferer;
 	if(numOfInterferers>0){
@@ -2298,7 +2242,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	} // End Links/MS
 	
 	std::cout << "FINISHED MAIN LOOP for BS: " << bsId << std::endl;
-		
+
 	//output2 << "Init 3 METIS at BS " << bsId << " with rand: " << normal(0,1) << std::endl;
 		
 	//------------------------------------------------------------------
@@ -2314,7 +2258,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	double delay_SC_2 = 10 * pow(10,-9); // delay for sub-cluster 2 (7-60)
 	
 	for(int i = 0; i < numberOfMobileStations; i++){
-		TimeFrequency.open ("/home/sahari/GSCM_Channel_model/abstractLTEChannelModel/results/TimeFrequency_BS_" + std::to_string( (long long) bsId ) + "_" + std::to_string((MSPos[i].x * 100)) + ".txt");
+		//TimeFrequency.open ("/home/sahari/GSCM_Channel_model/abstractLTEChannelModel/results/TimeFrequency_BS_" + std::to_string( (long long) bsId ) + "_" + std::to_string((MSPos[i].x * 100)) + ".txt");
 		dist2D = sqrt(pow((xPos - MSPos[i].x),2) + pow((yPos - MSPos[i].y),2));
 		dist3D = sqrt(pow(dist2D,2) + pow((heightBS - heightUE),2));
 		complex<double> res = complex<double>(0.0,0.0);
@@ -2343,7 +2287,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 					}
 					double tempRes = pow(res.real(),2) + pow(res.imag(),2);
 					SINRtable[i][t][f] = pathloss * tempRes;
-					TimeFrequency << pathloss * tempRes << " ";
+					//TimeFrequency << pathloss * tempRes << " ";
 				}else{
 					pathloss = CalcPathloss(dist2D, dist3D, false);
 					for(int u = 0; u < NumRxAntenna; u++){
@@ -2365,28 +2309,18 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 					} //End clusters
 					double tempRes = pow(res.real(),2) + pow(res.imag(),2);
 					SINRtable[i][t][f] = pathloss * tempRes;
-					TimeFrequency << pathloss * tempRes << " ";
+					//TimeFrequency << pathloss * tempRes << " ";
 				} //End if condition for LOS/NLOS
 			} //End loop for RBs
 			TimeFrequency << "\n\n";
 		}
-		TimeFrequency << pathloss << "\n";
-		TimeFrequency.close();
+		//TimeFrequency << pathloss << "\n";
+		//TimeFrequency.close();
 	}
 	
 	if(numOfInterferers>0){
 		//Only compute SINRneighbour values if there actually are any 
 		// neighbours to influence transmissions
-		SINRneighbour = new double***[numberOfMobileStations];
-		for(int i = 0; i < numberOfMobileStations; i++){
-			SINRneighbour[i] = new double**[numOfInterferers];
-			for(int j = 0; j < numOfInterferers; j++){
-				SINRneighbour[i][j] = new double*[timeSamples];
-				for(int k = 0; k < timeSamples; k++){
-					SINRneighbour[i][j][k] = new double[downRBs];
-				}
-			}
-		}
 		for(int i = 0; i < numberOfMobileStations; i++){ //TODO: Correct the implementation for each Tx-Rx antenna
 			int idIdx = 0;
 			//Fourier Transform for interferers:
@@ -2463,128 +2397,111 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	
 	//------------------------------------------------------------------
 	
-	//output2 << "Init 3 METIS at BS " << bsId << " with rand: " << normal(0,1) << std::endl;
+	//---------------------------------------------------------------------
+	// Delete all heap allocated local variables
 
-	
-	// To write the channel coefficients to respective files
-	
-	std::cout << "START WRITING CHANNEL COEFFICIENTS for BS: " << bsId << std::endl;
-	
-	ofstream H_Time;
-	//ofstream H_TimeInterferer;
-	
 	for(int i = 0; i < numberOfMobileStations; i++){
-		H_Time.open ("/home/sahari/GSCM_Channel_model/abstractLTEChannelModel/results/H_Time_BS_" + std::to_string( (long long) bsId )  + "_" + std::to_string((MSPos[i].x * 100)) + ".txt");;
-		complex<double> res = complex<double>(0.0,0.0);
-		for(int t = 0; t < timeSamples; t++){
-			for(int u = 0; u < NumRxAntenna; u++){
-				for(int s = 0; s < NumTxAntenna; s++){
-					res = complex<double>(0.0,0.0);
-					if(LOSCondition[i][0]){
-						for(int n = 0; n < N_cluster_LOS; n++){
-							if(n < 2){
-								res = res + raySum_LOS[i][n][t][u][s];
-								res = res + raySum_LOS[i][n+1][t][u][s];
-								res = res + raySum_LOS[i][n+2][t][u][s];
-								res = res + raySum_LOS[i][n+3][t][u][s];
-								res = res + raySum_LOS[i][n+4][t][u][s];
-								res = res + raySum_LOS[i][n+5][t][u][s];
-								n++;
-							}else{
-								res = res + raySum_LOS[i][n + 4][t][u][s];
-							}
-						}
-					}else{
-						for(int n = 0; n < N_cluster_NLOS; n++){
-							if(n < 2){ 
-								res = res + raySum[i][n][t][u][s];
-								res = res + raySum[i][n+1][t][u][s];
-								res = res + raySum[i][n+2][t][u][s];
-								res = res + raySum[i][n+3][t][u][s];
-								res = res + raySum[i][n+4][t][u][s];
-								res = res + raySum[i][n+5][t][u][s];
-								n++;
-							}else{
-								res = res + raySum[i][n + 4][t][u][s];
-							}
-						}
+		for(unsigned s=0; s<neighbourPositions.size(); s++){
+			if(LOSCondition[i][s]){
+				for(int j=0;j<N_cluster_LOS;j++){
+					delete[] azimuth_ASA[i][s][j];
+					delete[] azimuth_ASD[i][s][j];
+					for(int k = 0; k < numOfRays_LOS; k++){
+						delete[] randomPhase[i][0][j][k];
 					}
-					H_Time << res << " ";
-				} //end loop TxAntenna
-				H_Time << "\n";
-			} //end loop RxAntenna
-			//H_Time << "\n";
-		}
-		H_Time << "\n" << i+1 << "\n";
-		H_Time.close();
-	}
-	
-	for(int i = 0; i < numberOfMobileStations; i++){
-		int idIdx = 0;
-		//Channel Coefficients for interferers:
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				// Skip own BS
-				continue;
-			}else{
-				//H_TimeInterferer.open ("/home/sahari/GSCM_Channel_model/abstractLTEChannelModel/results/H_Time_Interferer_BS_" + std::to_string( (long long) bsId )  + "_" + std::to_string((MSPos[i].x * 100)) + ".txt");
-				complex<double> res = complex<double>(0.0,0.0);
-				for(int t = 0; t < timeSamples; t++){
-					for(int u = 0; u < NumRxAntenna; u++){
-						for(int s = 0; s < NumTxAntenna; s++){
-							res = complex<double>(0.0,0.0);
-							if(LOSCondition[i][idIdx+1]){
-								for(int n = 0; n < N_cluster_LOS; n++){
-									if(n < 2){
-										res = res + raySumInterferer_LOS[i][idIdx][n][t][u][s];
-										res = res + raySumInterferer_LOS[i][idIdx][n+1][t][u][s];
-										res = res + raySumInterferer_LOS[i][idIdx][n+2][t][u][s];
-										res = res + raySumInterferer_LOS[i][idIdx][n+3][t][u][s];
-										res = res + raySumInterferer_LOS[i][idIdx][n+4][t][u][s];
-										res = res + raySumInterferer_LOS[i][idIdx][n+5][t][u][s];
-										n++;
-									}else{
-										res = res + raySumInterferer_LOS[i][idIdx][n + 4][t][u][s];
-									}
-								}
-							}else{
-								for(int n = 0; n < N_cluster_NLOS; n++){
-									if(n < 2){ 
-										res = res + raySumInterferer[i][idIdx][n][t][u][s];
-										res = res + raySumInterferer[i][idIdx][n+1][t][u][s];
-										res = res + raySumInterferer[i][idIdx][n+2][t][u][s];
-										res = res + raySumInterferer[i][idIdx][n+3][t][u][s];
-										res = res + raySumInterferer[i][idIdx][n+4][t][u][s];
-										res = res + raySumInterferer[i][idIdx][n+5][t][u][s];
-										n++;
-									}else{
-										res = res + raySumInterferer[i][idIdx][n + 4][t][u][s];
-									}
-								}
-							}
-							//H_TimeInterferer << res << " ";
-						} //end loop TxAntenna
-						//H_TimeInterferer << "\n";
-					} // end loop RxAntenna
-					//H_TimeInterferer << "\n\n";
+					delete[] randomPhase[i][s][j];
+					delete[] Xn_m[i][s][j];
 				}
-				//H_TimeInterferer << "\n" << i+1 << " " << idIdx+1 << "\n";
-				idIdx++;
+				delete[] clusterDelays_LOS[i][s];
 			}
+			else{
+				for(int j=0;j<N_cluster_NLOS;j++){
+					delete[] azimuth_ASA[i][s][j];
+					delete[] azimuth_ASD[i][s][j];
+					for(int k = 0; k < numOfRays_NLOS; k++){
+						delete[] randomPhase[i][0][j][k];
+					}
+					delete[] randomPhase[i][s][j];
+					delete[] Xn_m[i][s][j];
+				}
+			}
+			delete[] azimuth_ASA[i][s];
+			delete[] azimuth_ASD[i][s];
+			delete[] clusterDelays[i][s];
+			delete[] clusterPowers[i][s];
+			for(int j=0;j<N_cluster_NLOS;j++){
+				delete[] elevation_ASA[i][s][j];
+				delete[] elevation_ASD[i][s][j];
+			}
+			delete[] elevation_ASA[i][s];
+			delete[] elevation_ASD[i][s];
+			delete[] randomPhase[i][s];
+			delete[] rayPowers[i][s];
+			delete[] Xn_m[i][s];
 		}
-		//H_TimeInterferer.close();
+		delete[] AoA_LOS_dir[i];
+		delete[] AoD_LOS_dir[i];
+		delete[] azimuth_ASA[i];
+		delete[] azimuth_ASD[i];
+		delete[] azimuth_cluster_ASA[i];
+		delete[] azimuth_cluster_ASD[i];
+		delete[] clusterDelays[i];
+		delete[] clusterDelays_LOS[i];
+	 	delete[] clusterPowers[i];
+		delete[] elevation_ASA[i];
+		delete[] elevation_ASD[i];
+		delete[] LOSCondition[i];
+		delete[] MSVelDir[i];
+		delete[] randomPhase[i];
+		delete[] randomPhase_LOS[i];
+		delete[] rayPowers[i];
+		for(int s=0; s<NumRxAntenna; s++){
+			delete[] RxAntennaPosition[i][s];
+		}
+		delete[] RxAntennaPosition[i];
+		delete[] sigma_ds_LOS[i];					
+		delete[] sigma_asD_LOS[i];					
+		delete[] sigma_asA_LOS[i];
+		delete[] sigma_zsD_LOS[i];
+		delete[] sigma_zsA_LOS[i];					
+		delete[] sigma_sf_LOS[i];					
+		delete[] sigma_kf_LOS[i];					
+		delete[] sigma_ds_NLOS[i];					
+		delete[] sigma_asD_NLOS[i];					
+		delete[] sigma_asA_NLOS[i];
+		delete[] sigma_zsD_NLOS[i];
+		delete[] sigma_zsA_NLOS[i];					
+		delete[] sigma_sf_NLOS[i];						
+		delete[] Xn_m[i];
+		delete[] ZoA_LOS_dir[i];
+		delete[] ZoD_LOS_dir[i];
 	}
-	
-	std::cout << "FINISHED WRITING CHANNEL COEFFICIENTS for BS: " << bsId << std::endl;
-	
-	//------------------------------------------------------------------
-	
-	//output2 << "Init 3 METIS at BS " << bsId << " with rand: " << normal(0,1) << std::endl;
-
-	// Free memory allocated on heap for local variables
-	//
-	delete neighbourIdMatching; 
-
+	for(int i=0; i<6; i++){
+		delete[] autoCorrelation_NLOS[i];
+	}
+	delete[] autoCorrelation_NLOS;
+	for(int i=0; i<7; i++){
+		delete[] autoCorrelation_LOS[i];
+	}
+	delete[] autoCorrelation_LOS;
+	delete[] AoA_LOS_dir;
+	delete[] AoD_LOS_dir;
+	delete[] azimuth_ASA;
+	delete[] azimuth_ASD;
+	delete[] azimuth_cluster_ASA;
+	delete[] azimuth_cluster_ASD;
+	delete[] clusterDelays;
+	delete[] clusterDelays_LOS;
+	delete[] clusterPowers;
+	delete[] elevation_ASA;
+	delete[] elevation_ASD;
+	delete[] LOSCondition;
+	delete[] MSPos;
+	delete[] MSVelDir;
+	delete[] MSVelMag;
+	delete[] randomPhase;
+	delete[] randomPhase_LOS;
+	delete[] rayPowers;
 	for(int m = 0; m < numberOfMobileStations; m++){
 		for(int i = 0; i < (N_cluster_LOS + 4); i++){
 			for(int j = 0; j < timeSamples; j++){
@@ -2607,9 +2524,8 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		}
 		delete[] raySum[m];
 	}
-	delete[] raySum_LOS;
 	delete[] raySum;
-
+	delete[] raySum_LOS;
 	if(numOfInterferers>0){
 		for (int m = 0; m < numberOfMobileStations; m++){
 			for(int i = 0; i < numOfInterferers; i++){
@@ -2634,109 +2550,23 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		delete[] raySumInterferer_LOS;
 		delete[] raySumInterferer;
 	}
-
-	for(int i = 0; i < numberOfMobileStations; i++){
-		for(int s=0; s<neighbourPositions.size(); s++){
-			for(int j=0;j<N_cluster_NLOS;j++){
-				if(!LOSCondition[i][s]){
-					for(int k = 0; k < numOfRays_NLOS; k++){
-						delete[] randomPhase[i][0][j][k];
-					}
-					delete[] randomPhase[i][s][j];
-					delete[] Xn_m[i][s][j];
-					delete[] azimuth_ASD[i][s][j];
-					delete[] azimuth_ASA[i][s][j];
-				}
-				delete[] elevation_ASA[i][s][j];
-				delete[] elevation_ASD[i][s][j];
-			}
-			delete[] elevation_ASA[i][s];
-			delete[] elevation_ASD[i][s];
-			delete[] clusterDelays[i][s];
-			if(LOSCondition[i][s]){
-				for(int j=0;j<N_cluster_LOS;j++){
-					for(int k = 0; k < numOfRays_LOS; k++){
-						delete[] randomPhase[i][0][j][k];
-					}
-					delete[] randomPhase[i][s][j];
-					delete[] Xn_m[i][s][j];
-					delete[] azimuth_ASD[i][s][j];
-					delete[] azimuth_ASA[i][s][j];
-				}
-				delete[] clusterDelays_LOS[i][s];
-			}
-			delete[] azimuth_ASA[i][s];
-			delete[] azimuth_ASD[i][s];
-			delete[] randomPhase[i][s];
-			delete[] rayPowers[i][s];
-			delete[] clusterPowers[i][s];
-			delete[] Xn_m[i][s];
-		}
-		for(int s=0; s<NumRxAntenna; s++){
-			delete[] RxAntennaPosition[i][s];
-		}
-		delete[] AoA_LOS_dir[i];
-		delete[] AoD_LOS_dir[i];
-		delete[] ZoA_LOS_dir[i];
-		delete[] ZoD_LOS_dir[i];
-		delete[] azimuth_ASA[i];
-		delete[] azimuth_ASD[i];
-		delete[] azimuth_cluster_ASA[i];
-		delete[] azimuth_cluster_ASD[i];
-		delete[] clusterDelays[i];
-		delete[] clusterDelays_LOS[i];
-	 	delete[] clusterPowers[i];
-		delete[] elevation_ASA[i];
-		delete[] elevation_ASD[i];
-		delete[] LOSCondition[i];
-		delete[] MSVelDir[i];
-		delete[] randomPhase[i];
-		delete[] randomPhase_LOS[i];
-		delete[] rayPowers[i];
-		delete[] RxAntennaPosition[i];
-		delete[] timeVector[i];
-		delete[] Xn_m[i];
-	}
-	delete[] AoA_LOS_dir;
-	delete[] AoD_LOS_dir;
+	delete[] RxAntennaPosition;
+	delete[] sigma_ds_LOS;					
+	delete[] sigma_asD_LOS;					
+	delete[] sigma_asA_LOS;
+	delete[] sigma_zsD_LOS;
+	delete[] sigma_zsA_LOS;					
+	delete[] sigma_sf_LOS;					
+	delete[] sigma_kf_LOS;					
+	delete[] sigma_ds_NLOS;					
+	delete[] sigma_asD_NLOS;					
+	delete[] sigma_asA_NLOS;
+	delete[] sigma_zsD_NLOS;
+	delete[] sigma_zsA_NLOS;					
+	delete[] sigma_sf_NLOS;						
+	delete[] Xn_m;
 	delete[] ZoA_LOS_dir;
 	delete[] ZoD_LOS_dir;
-	delete[] azimuth_ASA;
-	delete[] azimuth_ASD;
-	delete[] azimuth_cluster_ASA;
-	delete[] azimuth_cluster_ASD;
-	delete[] elevation_ASA;
-	delete[] elevation_ASD;
-	delete[] clusterDelays;
-	delete[] clusterDelays_LOS;
-	delete[] clusterPowers;
-	delete[] LOSCondition;
-	delete[] MSVelDir;
-	delete[] MSVelMag;
-	delete[] randomPhase;
-	delete[] randomPhase_LOS;
-	delete[] rayPowers;
-	delete[] RxAntennaPosition;
-	delete[] timeVector;
-	delete[] Xn_m;
-
-	for(int i=0; i<NumTxAntenna; i++){
-		delete[] TxAntennaPosition[0][i];
-	}
-	delete[] TxAntennaPosition[0];
-	delete[] TxAntennaPosition;
-
-	for(int i=0; i<6; i++){
-		delete[] autoCorrelation_NLOS[i];
-	}
-	delete[] autoCorrelation_NLOS;
-
-	for(int i=0; i<7; i++){
-		delete[] autoCorrelation_LOS[i];
-	}
-	delete[] autoCorrelation_LOS;
-
-	return true;
 }
 
 /**
@@ -2745,12 +2575,12 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 * @param LOS true iff LOS Condition, false otherwise
 * @return Scaling factor
 */
-double METISChannel::C_AS(int numCluster, bool LOS, int i){
+double METISChannel::C_AS(int numCluster, bool LOS, int i,double **sigma_kf_LOS){
 	if(LOS){
 		double K = 10.0 * log10(abs(sigma_kf_LOS[i][0]));
 		double k_factor_LOS = 1.1035 - 0.028 * K - 0.002 * pow(K,2) + 0.0001 * pow(K,3);
 		
-		return C_AS(numCluster, false, i) * k_factor_LOS;
+		return C_AS(numCluster, false, i,sigma_kf_LOS) * k_factor_LOS;
 	}else{
 		switch(numCluster){
 			case 4:
@@ -2788,13 +2618,13 @@ double METISChannel::C_AS(int numCluster, bool LOS, int i){
 * @param LOS true iff LOS Condition, false otherwise
 * @return Scaling factor
 */
-double METISChannel::C_ZS(int numCluster, bool LOS){
+double METISChannel::C_ZS(int numCluster, bool LOS,double **sigma_kf_LOS){
 	int i = 0;
 	if(LOS){
 		double K = 10.0 * log10(abs(sigma_kf_LOS[i][0]));
 		double k_factor_LOS = 1.3086 - 0.0339 * K - 0.0077 * pow(K,2) + 0.0002 * pow(K,3);
 		
-		return C_ZS(numCluster, false) * k_factor_LOS;
+		return C_ZS(numCluster, false,sigma_kf_LOS) * k_factor_LOS;
 	}else{
 		switch(numCluster){
 			case 12:
@@ -2814,7 +2644,7 @@ double METISChannel::C_ZS(int numCluster, bool LOS){
 * Function that computes the exponential auto correlation for LOS.
 * @return True if succesful. False otherwise.
 */
-double **METISChannel::generateAutoCorrelation_LOS(){
+double **METISChannel::generateAutoCorrelation_LOS(Position *MSPos){
 	int r = initModule->par("cellRadiusMETIS");
 	std::cout << "Radius: " << r << std::endl;
 	double **autoCorrelation_LOS = new double*[7];
@@ -2965,7 +2795,7 @@ double **METISChannel::generateAutoCorrelation_LOS(){
 * Function that computes the exponential auto correlation for NLOS.
 * @return True if succesful. False otherwise.
 */
-double **METISChannel::generateAutoCorrelation_NLOS(){
+double **METISChannel::generateAutoCorrelation_NLOS(Position *MSPos){
 	int r = initModule->par("cellRadiusMETIS");
 	std::cout << "Radius: " << r << std::endl;
 	double **autoCorrelation_NLOS = new double*[6];
@@ -3267,7 +3097,7 @@ vec METISChannel::calcSINR(vector<double> &power, vector<Position> &pos, vector<
 }
 
 void METISChannel::updateChannel(Position** msPos){
-	//Placeholder
+	recomputeMETISParams(msPos);
 }
 
 // Johnson Nyquist Noise
@@ -3282,44 +3112,43 @@ double METISChannel::calcPathloss(double dist){
 
 METISChannel::~METISChannel(){
 	//TODO: Delete all dynamic memory
-	for(int i=0; i<numberOfMobileStations; i++){
-		delete[] sigma_ds_LOS[i];					
-		delete[] sigma_asD_LOS[i];					
-		delete[] sigma_asA_LOS[i];
-		delete[] sigma_zsD_LOS[i];
-		delete[] sigma_zsA_LOS[i];					
-		delete[] sigma_sf_LOS[i];					
-		delete[] sigma_kf_LOS[i];					
-		delete[] sigma_ds_NLOS[i];					
-		delete[] sigma_asD_NLOS[i];					
-		delete[] sigma_asA_NLOS[i];
-		delete[] sigma_zsD_NLOS[i];
-		delete[] sigma_zsA_NLOS[i];					
-		delete[] sigma_sf_NLOS[i];						
-		for(int j=0; j<timeSamples; j++){
-			delete[] SINRtable[i][j];
+	if(initialized){
+		// All of the following member variables are only allocated 
+		// in the init method, not the constructor. As a result,
+		// the destructor might be called with all of the following 
+		// variables uninitialized, leading to errors. Thus, they 
+		// are only freed when init has been called, as indicated by 
+		// the initialized variable.
+		delete[] bs_antenna_bearing;				
+		delete[] bs_antenna_downtilt;			
+		delete[] bs_antenna_slant;				
+		for(int i=0; i<numberOfMobileStations; i++){
+			for(int j=0; j<numOfInterferers; j++){
+				for(int k=0; k<timeSamples; k++){
+					delete[] SINRneighbour[i][j][k];
+				}
+				delete[] SINRneighbour[i][j];
+			}
+			delete[] SINRneighbour[i];
+			for(int j=0; j<timeSamples; j++){
+				delete[] SINRtable[i][j];
+			}
+			delete[] SINRtable[i];
+			delete[] timeVector[i];
 		}
-		delete[] SINRtable[i];
+		delete[] ms_antenna_bearing;				
+		delete[] ms_antenna_downtilt;			
+		delete[] ms_antenna_slant;				
+		delete neighbourIdMatching; 
+		delete[] SINRneighbour;
+		delete[] SINRtable;
+		for(int i=0; i<NumTxAntenna; i++){
+			delete[] TxAntennaPosition[0][i];
+		}
+		delete[] timeVector;
+		delete[] TxAntennaPosition[0];
+		delete[] TxAntennaPosition;
+	
 	}
-	delete[] sigma_ds_LOS;					
-	delete[] sigma_asD_LOS;					
-	delete[] sigma_asA_LOS;
-	delete[] sigma_zsD_LOS;
-	delete[] sigma_zsA_LOS;					
-	delete[] sigma_sf_LOS;					
-	delete[] sigma_kf_LOS;					
-	delete[] sigma_ds_NLOS;					
-	delete[] sigma_asD_NLOS;					
-	delete[] sigma_asA_NLOS;
-	delete[] sigma_zsD_NLOS;
-	delete[] sigma_zsA_NLOS;					
-	delete[] sigma_sf_NLOS;						
-	delete[] bs_antenna_bearing;				
-	delete[] bs_antenna_downtilt;			
-	delete[] bs_antenna_slant;				
-	delete[] ms_antenna_bearing;				
-	delete[] ms_antenna_downtilt;			
-	delete[] ms_antenna_slant;				
-	delete[] MSPos;
-	delete[] SINRtable;
+
 }
