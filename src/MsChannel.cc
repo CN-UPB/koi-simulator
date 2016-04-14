@@ -162,11 +162,15 @@ void MsChannel::handleMessage(cMessage *msg)  {
 	bler_.set(0,bler);
 	double per = getPer(bler_);
 
+	/**
 	if(uniform(0,1) > per){
 		sendDelayed(bundle, tti - epsilon, "toPhy");
 	}else{
 		delete bundle;
 	}
+	**/
+	// For now, all packets are received successfully
+	sendDelayed(bundle, tti - epsilon, "toPhy");
     }
 	
 }
