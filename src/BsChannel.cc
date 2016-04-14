@@ -207,9 +207,6 @@ void BsChannel::handleMessage(cMessage *msg)  {
 	if(uniform(0,1) > per){
 		sendDelayed(bundle, tti - epsilon, "toPhy");
 	}else{
-		std::cout << "MS Packet recieval failed." << std::endl;
-		std::cout << "Per: " << per << std::endl;
-		std::cout << "SINR EFF: " << effSINR << std::endl;
 		delete bundle;
 	}
 
