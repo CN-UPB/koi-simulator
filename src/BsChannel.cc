@@ -170,141 +170,49 @@ void BsChannel::handleMessage(cMessage *msg)  {
 
         //the channel receives the packet in a bundle
         DataPacketBundle *bundle = (DataPacketBundle *) msg;
-	sendDelayed(bundle, tti - epsilon, "toPhy");
+	//sendDelayed(bundle, tti - epsilon, "toPhy");
 
-	//TODO Reinsert actual model
-//        vector<double> instSINR;
-//        int ownDataStrId = neighbourIdMatching->getDataStrId(bundle->getBsId());
-//        
-//        for(uint i = 0; i < bundle->getRBsArraySize(); i++){
-//			int currentRessourceBlock = bundle->getRBs(i);
-//		
-//			vector<double> power;
-//			vector<Position> pos;
-//			vector<int> bsId;
-//			
-//			bsId.push_back(bundle->getBsId());
-//			bsId.push_back(bundle->getBsId());
-//			pos.push_back(msPositions[ownDataStrId][bundle->getMsId()]);
-//			pos.push_back(bsPosition);
-//			power.push_back(1.0);
-//			power.push_back(1.0);
-//			
-//			NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
-//			for(NeighbourMap::iterator it = map->begin(); it != map->end(); it++)  {
-//				if(it->first == bundle->getBsId())
-//					continue; //skip the own bs; cant interfere
-//				int interfererId = schedules[(it->second).first][currentRessourceBlock];
-//				
-//				if(interfererId != -1)  { //skip unused slots
-//					pos.push_back(msPositions[(it->second).first][interfererId]);
-//					power.push_back(1.0);
-//					bsId.push_back(it->first);
-//					
-//					//cout << "BS " << it->first << ", MS " << interfererId << " is an interferer for the packet!"  << endl;
-//				}
-//			}
-//			instSINR.push_back(channel->calcSINR(currentRessourceBlock,power,pos,bsId,true,-1));
-//		}
-//		
-//		double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
-//		//cout << "Effektive SINR (Up): " << effSINR << endl;
-//		double bler = getBler(bundle->getCqi(), effSINR, this);
-//		//cout << "Block Error Rate(Up): " << bler << endl;
-//		vec bler_(1);
-//		bler_.set(0,bler);
-//		double per = getPer(bler_);
-//		
-//		if(uniform(0,1) > per){
-//			sendDelayed(bundle, tti - epsilon, "toPhy");
-//		}else{
-//			delete bundle;
-//		}
+        vector<double> instSINR;
+        
+	int currentRessourceBlock = bundle->getRBs(0);
+	vector<double> power;
+	vector<Position> pos;
+	vector<int> bsId;
 
-        //sendDelayed(bundle, tti - epsilon, "toPhy");
-        // TODO: Calc reference SINR for Scheduler (even if not scheduled) for all possible RBs
-		/*
-        for(unsigned int i = 0; i < bundle->getPacketsArraySize(); ++i)  {
-            forwardPacket[i] = true;
+	bsId.push_back(bundle->getBsId());
+	bsId.push_back(bundle->getBsId());
 
-            if(useSimpleChannelCalc){
-				//std::cout << "Simple" << std::endl;
-                forwardPacket[i] = SimpleChannelCalc::calc(simpleChannelCalcNops, uniform(0,1), packetLoss);
-			}
-            else  {
-				//std::cout << "complex" << std::endl;
-                //complex packet loss with fading and pathloss
-                vector<double> power;
-                vector<Position> pos;
+	NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
+	for(NeighbourMap::iterator it = map->begin(); it != map->end(); it++)  {
+		if(it->first == bundle->getBsId())
+			continue; //skip the own bs; cant interfere
+		int interfererId = schedules[(it->second).first][currentRessourceBlock];
 
-                DataPacket packet = bundle->getPackets(i);
-                int ownDataStrId = neighbourIdMatching->getDataStrId(packet.getBsId());
-                channelCalc.setSenderPosition(msPositions[ownDataStrId][packet.getMsId()], 1.0);
-                channelCalc.setTargetPosition(bsPosition);
-                //channel->setSenderPosition(msPositions[ownDataStrId][packet.getMsId()], 1.0, this->getIndex());
-                //channel->setTargetPosition(bsPosition, this->getIndex());
-                
-                pos.push_back(bsPosition);
-                pos.push_back(msPositions[ownDataStrId][packet.getMsId()]);
-                power.push_back(1.0);
-                power.push_back(1.0);
-                
-                //interferer are these ms that send in the some resource block e.g. time or freq
-                NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
-                for(NeighbourMap::iterator it = map->begin(); it != map->end(); it++)  {
-                    if(it->first == packet.getBsId())
-                        continue; //skip the own bs; cant interfere
-                    int interfererId = schedules[(it->second).first][packet.getResourceBlock()];
-                    //std::cout << "Neighbour interferer Direction: " << scheduleDirection[(it->second).first] << std::endl;
-                    if(interfererId != -1)  { //skip unused slots
-                        channelCalc.addInterfererPosition(msPositions[(it->second).first][interfererId], 1.0);
-                        //channel->addInterfererPosition(msPositions[(it->second).first][interfererId], 1.0, this->getIndex());
-                        pos.push_back(msPositions[(it->second).first][interfererId]);
-                        power.push_back(1.0);
-                        //cout << "BS " << it->first << ", MS " << interfererId << " is an interferer for the packet!"  << endl;
-                    }
-                }
-                
-                // std::cout << "BS ID: " << bsId << std::endl << std::endl;
-                forwardPacket[i] = channelCalc.isPacketOK(packet.getArrivalTime(), packet.getBitLength());
-                vec sinr = channel->calcSINR(power,pos);
-                // std::vector<int> RBs;
-                // RBs.push_back(packet.getResourceBlock());
-                // cout << "SINR for RB " << packet.getResourceBlock() << " is " << channel->calcSINR(packet.getResourceBlock()) << endl;
-                // Positions: target, sender, all interferer
-                // Power: target, sender, all interferer
-                // vector<Position>
-                // vector<double>
-                // channel->clearInterfererPostitions(this->getIndex());
-                channelCalc.clearInterfererPostitions();
-            }
+		if(interfererId != -1)  { //skip unused slots
+			bsId.push_back(it->first);
 
-            if(forwardPacket[i])
-                packetsToForward++; //for forward packet bundle
-        }
+			//cout << "BS " << it->first << ", MS " << interfererId << " is an interferer for the packet!"  << endl;
+		}
+	}
+	instSINR.push_back(channel->calcSINR(currentRessourceBlock,power,pos,bsId,true,bundle->getMsId()));
 
-        if(packetsToForward > 0)  {
-            //make a new bundle with the packets that are not lost
-            DataPacketBundle *forwardBundle = new DataPacketBundle("DATA_BUNDLE");
-            forwardBundle->setMsId(bundle->getMsId());
-            forwardBundle->setBsId(bundle->getBsId());
-            forwardBundle->setPacketsArraySize(packetsToForward);
+	double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
+	//cout << "Effektive SINR (Up): " << effSINR << endl;
+	double bler = getBler(bundle->getCqi(), effSINR, this);
+	//cout << "Block Error Rate(Up): " << bler << endl;
+	vec bler_(1);
+	bler_.set(0,bler);
+	double per = getPer(bler_);
 
-            int curForwardBunldePos = 0;
-            for(unsigned int i = 0; i < bundle->getPacketsArraySize(); ++i)  {
-                if(forwardPacket[i])  { //forward the message to the ms
-                    //ev << "BsChannel sends packet " << i << " to the mac layer" << endl;
-                    forwardBundle->setPackets(curForwardBunldePos, bundle->getPackets(i));
-                }
-                else  {
-                    //ev << "Packet " << i << " is lost!" << endl;
-                }
-            }
-            sendDelayed(forwardBundle, tti - epsilon, "toPhy");
-        }
+	if(uniform(0,1) > per){
+		sendDelayed(bundle, tti - epsilon, "toPhy");
+	}else{
+		std::cout << "MS Packet recieval failed." << std::endl;
+		std::cout << "Per: " << per << std::endl;
+		std::cout << "SINR EFF: " << effSINR << std::endl;
+		delete bundle;
+	}
 
-        delete bundle;
-        * */
     }
 }
 

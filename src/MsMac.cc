@@ -227,6 +227,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 			}
             
 	    // For now, only 1 packet will be send per RB in each TTI
+	    //std::cout << "Channel Capacity: " << channel_capacity << std::endl;
             if(channel_capacity > 0)  {
                 packetBundle->setPacketsArraySize(1);
 		KoiData *packet = dynamic_cast<KoiData*>(

@@ -170,9 +170,11 @@ double getBler(int cqi, double sinr, cSimpleModule* module){
 	static string blerIn = module->par("bler_table");
 	static mat blerTable = mat(blerIn);
 	
-	//cout << blerTable.rows() << " " << blerTable.cols() << endl;
-	//cout << "CQI: " << cqi << endl;
-	//cout << "SINR: " << sinr << endl;
+	/**
+	cout << blerTable.rows() << " " << blerTable.cols() << endl;
+	cout << "CQI: " << cqi << endl;
+	cout << "SINR: " << sinr << endl;
+	**/
 	
 	double bler=0;
 	int line=0;
@@ -181,7 +183,7 @@ double getBler(int cqi, double sinr, cSimpleModule* module){
 	// w.r.t. the instRbSnr: For all avaialble modulation types...
 	for (line = 0; line < blerTable.rows(); line++) {
 		// Check if the instRbSnr is not greater than the MI threshold.
-		//	cout<<"sinr: "<<sinr<<" table Sinr: "<<blerTable(line,2*cqi)<<endl;
+		//cout<<"sinr: "<<sinr<<" table Sinr: "<<blerTable(line,2*cqi)<<endl;
 		if (!(sinr > blerTable(line,2*(cqi-1)))) {
 			// Check if the instSNR isn't to low too reach the first step in order to
 			// avoid a NULL pointer.

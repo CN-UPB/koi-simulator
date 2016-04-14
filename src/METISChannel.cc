@@ -187,7 +187,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	}
 
 	//compute initial SINR parameters
-	std::cout << "NeighbourPositions.size: " << this->neighbourPositions.size() << std::endl;
 	recomputeMETISParams(msPositions);
 
 	// There are a number of dynamically allocated member variables which 
@@ -199,7 +198,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 }
 
 void METISChannel::recomputeMETISParams(Position** msPositions){
-	std::cout << "NeighbourPositions.size: " << neighbourPositions.size() << std::endl;
     	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
 	double dist2D;
