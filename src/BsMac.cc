@@ -126,39 +126,53 @@ void BsMac::handleMessage(cMessage *msg)  {
 		delete msg;
 	}
 	else if(msg->isName("SINR_ESTIMATION")){
-		/**
-		  SINR *sinrMessage = (SINR *) msg;
-		  vec sinr_new;
-		  int msId = sinrMessage->getMsId();
-		  for(int i = 0;i < resourceBlocks; i++){
-		  sinr_new.ins(i,sinrMessage->getSINR(i));
-		  }
-		  SINR_.set_row(msId,sinr_new);
-		  if((sinr_est++) == numberOfMobileStations){
-		  sinr_est = 0;
-		  scheduler->setSINR(SINR_);
-		  scheduler->updateSINR();
-		//std::cout << "New SINR from Message: " << SINR_ << std::endl;
+		SINR *sinrMessage = (SINR *) msg;
+		vec sinr_new;
+		int msId = sinrMessage->getMsId();
+		for(int i = 0;i < resourceBlocks; i++){
+			sinr_new.ins(i,sinrMessage->getSINR(i));
 		}
-		 **/
+		SINR_.set_row(msId,sinr_new);
 		delete msg;
 	}
     else if(msg->getKind()==MessageType::streamSched)  {
 	    StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
-	    DataPacketBundle *bundle = new DataPacketBundle("DATA_BUNDLE");
-	    bundle->setMsId(sched->getDest());
-	    bundle->setBsId(bsId);
-	    bundle->setPacketsArraySize(1);
-	    KoiData *packet = dynamic_cast<KoiData*>(
-			    streamQueues[sched->getSrc()][sched->getDest()].get(
-				    sched->getPacketIndex()));
-	    streamQueues[sched->getSrc()][sched->getDest()].remove(packet);
-	    bundle->setPackets(0, *packet);
-	    delete packet;
-	    bundle->setRBsArraySize(1);
-	    bundle->setRBs(0,sched->getRb());
-	    sendDelayed(bundle, epsilon, "toPhy");
+	    DataPacketBundle *packetBundle = new DataPacketBundle("DATA_BUNDLE");
 
+	    int srcMs = sched->getSrc();
+	    int destMs = sched->getDest();
+            vector<double> sinr_values;
+	    sinr_values.push_back(SINR_(destMs,sched->getRb()));
+            
+            double channel_capacity = getChannelCapacity(sinr_values);
+	    /**
+            int cqi;
+            if(sinr_values.size() > 0){
+				cqi = SINR_to_CQI(*(std::min_element(sinr_values.begin(), sinr_values.end())));
+			}else{
+				cqi = 1;
+			}
+            **/
+	    // For now, only 1 packet will be send per RB in each TTI
+            if(channel_capacity > 0)  {
+                packetBundle->setPacketsArraySize(1);
+		KoiData *packet = dynamic_cast<KoiData*>(
+				streamQueues[srcMs][destMs].get(
+					sched->getPacketIndex()));
+		streamQueues[srcMs][destMs].remove(packet);
+		packetBundle->setPackets(0, *packet);
+		packetBundle->setRBsArraySize(1);
+		packetBundle->setRBs(0,sched->getRb());
+		// Set CQI for a fixed value until we decide on how to 
+		// compute it
+		//packetBundle->setCqi(cqi);
+		packetBundle->setCqi(15);
+		packetBundle->setMsId(destMs);
+		packetBundle->setBsId(packet->getBsId());
+		delete packet;
+            
+                sendDelayed(packetBundle, epsilon, "toPhy");
+            }
 	    delete sched;
     }
     else if(msg->isName("BS_MS_POSITIONS"))  {

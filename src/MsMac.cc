@@ -219,13 +219,14 @@ void MsMac::handleMessage(cMessage *msg)  {
 	    sinr_values.push_back(SINR_(schedule->getRb()));
             
             double channel_capacity = getChannelCapacity(sinr_values);
+	    /**
             int cqi;
             if(sinr_values.size() > 0){
 				cqi = SINR_to_CQI(*(std::min_element(sinr_values.begin(), sinr_values.end())));
 			}else{
 				cqi = 1;
 			}
-            
+            **/
 	    // For now, only 1 packet will be send per RB in each TTI
             if(channel_capacity > 0)  {
                 packetBundle->setPacketsArraySize(1);
@@ -237,7 +238,9 @@ void MsMac::handleMessage(cMessage *msg)  {
 		delete packet;
 		packetBundle->setRBsArraySize(1);
 		packetBundle->setRBs(0,schedule->getRb());
-		packetBundle->setCqi(cqi);
+		// Set CQI to a fixed value until we decide how to compute it
+		//packetBundle->setCqi(cqi);
+		packetBundle->setCqi(15);
                 sendDelayed(packetBundle, epsilon, "toPhy");
             }
         }

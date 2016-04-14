@@ -63,13 +63,6 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		vector<Position> pos;
 		vector<int> bsId_;
                 
-		//complex packet loss with fading and pathloss
-		int ownDataStrPos = neighbourIdMatching->getDataStrId(bsId);
-		
-		pos.push_back(msPosition);
-		pos.push_back(bsPositions[ownDataStrPos]);
-		power.push_back(1.0);
-		power.push_back(1.0);
 		bsId_.push_back(bsId);
 		bsId_.push_back(bsId);
 		
@@ -81,8 +74,6 @@ void MsChannel::handleMessage(cMessage *msg)  {
 				
 			//only the bss that send on the same channel are interferer
 			if(currentChannel == bsChannels[(it->second).first]){
-				pos.push_back(bsPositions[(it->second).first]);
-				power.push_back(1.0);
 				bsId_.push_back(it->first);
 			}
 		}
@@ -141,107 +132,47 @@ void MsChannel::handleMessage(cMessage *msg)  {
         //the channel receives the packet in a bundle
         DataPacketBundle *bundle = (DataPacketBundle *) msg;
 	// Just forward the packet for now, without error checking etc
-	sendDelayed(bundle, tti - epsilon, "toPhy");
 		
-		/*
-        bool forwardPacket[numberOfPackets];
-
-        for(unsigned int i = 0; i < bundle->getPacketsArraySize(); ++i)  {
-            forwardPacket[i] = true;
-
-            if(useSimpleChannelCalc)
-                forwardPacket[i] = SimpleChannelCalc::calc(simpleChannelCalcNops, uniform(0,1), packetLoss);
-            else  {
-                //complex packet loss with fading and pathloss
-                DataPacket packet = bundle->getPackets(i);
-                int ownDataStrPos = neighbourIdMatching->getDataStrId(packet.getBsId());
-                channelCalc.setSenderPosition(bsPositions[ownDataStrPos],1.0);
-                channelCalc.setTargetPosition(msPosition);
-                //interferer are all the neighbouring bs
-                NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
-                for(NeighbourMap::iterator it = map->begin(); it != map->end(); ++it)  {
-                    if(it->first == packet.getBsId())
-                        continue; //skip the own bs; cant interfere; skip unused cell connections
-                    //only the bss that send on the same channel are interferer
-                    if(currentChannel == bsChannels[(it->second).first])
-                        channelCalc.addInterfererPosition(bsPositions[(it->second).first],1.0);
-                }
-                forwardPacket[i] = channelCalc.isPacketOK(packet.getArrivalTime(), packet.getBitLength());
-                channelCalc.clearInterfererPostitions();
-            }
-
-            if(forwardPacket[i])
-                packetsToForward++; //for forward packet bundle
-        }
-        */
-
         vector<double> instSINR;
-        int ownDataStrId = neighbourIdMatching->getDataStrId(bundle->getBsId());
-        for(uint i = 0; i < bundle->getRBsArraySize(); i++){
-			int currentRessourceBlock = bundle->getRBs(i);
-		
-			vector<double> power;
-			vector<Position> pos;
-			vector<int> bsId;
-			
-			bsId.push_back(bundle->getBsId());
-			bsId.push_back(bundle->getBsId());
-			pos.push_back(msPosition);
-			pos.push_back(bsPositions[ownDataStrId]);
-			power.push_back(1.0);
-			power.push_back(1.0);
+	int currentRessourceBlock = bundle->getRBs(0);
 
-			NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
-			for(NeighbourMap::iterator it = map->begin(); it != map->end(); it++)  {
-				if(it->first == bundle->getBsId())
-					continue; //skip the own bs; cant interfere
-				
-                if(currentChannel == bsChannels[(it->second).first]){
-					pos.push_back(bsPositions[(it->second).first]);
-					power.push_back(1.0);
-					bsId.push_back(it->first);
-				}
-			}
+	vector<int> bsId;
+	vector<double> power;
+	vector<Position> pos;
 
-			instSINR.push_back(channel->calcSINR(currentRessourceBlock,power,pos,bsId,false, msId));
+	bsId.push_back(bundle->getBsId());
+	bsId.push_back(bundle->getBsId());
+
+	NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
+	for(NeighbourMap::iterator it = map->begin(); it != map->end(); it++)  {
+		if(it->first == bundle->getBsId())
+			continue; //skip the own bs; cant interfere
+
+		if(currentChannel == bsChannels[(it->second).first]){
+			pos.push_back(bsPositions[(it->second).first]);
+			power.push_back(1.0);
+			bsId.push_back(it->first);
 		}
-		//cout << "-----------------------" << endl;
-		/**
-		double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
-		double bler = getBler(bundle->getCqi(), effSINR, this);
-		vec bler_(1);
-		bler_.set(0,bler);
-		double per = getPer(bler_);
-		
-		if(uniform(0,1) > per){
-			sendDelayed(bundle, tti - epsilon, "toPhy");
-		}else{
-			delete bundle;
-		}
-		**/
 	}
-	
-	/*
-	if(packetsToForward > 0)  {
-		//make a new bundle with the packets that are not lost
-		DataPacketBundle *forwardBundle = new DataPacketBundle("DATA_BUNDLE");
-		forwardBundle->setMsId(bundle->getMsId());
-		forwardBundle->setBsId(bundle->getBsId());
-		forwardBundle->setPacketsArraySize(packetsToForward);
 
-		int curForwardBunldePos = 0;
-		for(unsigned int i = 0; i < bundle->getPacketsArraySize(); ++i)  {
-			if(forwardPacket[i])  { //forward the message to the ms
-				//ev << "MsChannel sends packet " << i << " to the mac layer" << endl;
-				forwardBundle->setPackets(curForwardBunldePos, bundle->getPackets(i));
-			}
-			else  {
-				//ev << "Packet " << i << " is lost!" << endl;
-			}
-		}
-		sendDelayed(forwardBundle, tti - epsilon, "toPhy");
-		*/
-	//}
+	instSINR.push_back(channel->calcSINR(currentRessourceBlock,power,pos,bsId,false, msId));
+	double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
+	double bler = getBler(bundle->getCqi(), effSINR, this);
+	vec bler_(1);
+	bler_.set(0,bler);
+	double per = getPer(bler_);
+
+	/**
+	if(uniform(0,1) > per){
+		sendDelayed(bundle, tti - epsilon, "toPhy");
+	}else{
+		delete bundle;
+	}
+	**/
+	// For now, all packets are received successfully
+	sendDelayed(bundle, tti - epsilon, "toPhy");
+    }
+	
 }
 
 MsChannel::~MsChannel()  {
