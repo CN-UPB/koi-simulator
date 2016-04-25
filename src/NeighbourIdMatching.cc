@@ -9,17 +9,19 @@
 
 NeighbourIdMatching::NeighbourIdMatching(int ownBsId, int maxNumberOfNeighbours, cModule *cell)  {
     setupNeighbours(ownBsId, maxNumberOfNeighbours, cell);
+    this->cell = cell;
 }
 
 void NeighbourIdMatching::setupNeighbours(int ownBsId, int maxNumberOfNeighbours, cModule *cell)  {
     //find the neighbours and store the pair (bsId, position in data structures) in a map
+    this->ownBsId = ownBsId;
     insert(ownBsId, 0, -1); //store the own bs in the map
     for(int i = 0; i < maxNumberOfNeighbours; ++i)  {
         cGate *outGate = cell->gate(cell->findGate("toCell", i));
         if(outGate->isConnected())  {
             //get the id of the other cell
             cGate *targetGate = outGate->getNextGate();
-            int bsId = targetGate->getOwnerModule()->getIndex();
+            int bsId = targetGate->getOwnerModule()->par("bsId");
             insert(bsId, numberOfNeighbours(), i);
         }
     }
@@ -39,6 +41,18 @@ int NeighbourIdMatching::getGateId(int bsId)  {
 
 NeighbourMap *NeighbourIdMatching::getNeighbourMap()  {
     return &matching;
+}
+
+int NeighbourIdMatching::getNumberOfMS(int bsId){
+	if(bsId==ownBsId){
+		return cell->par("numberOfMobileStations");
+	}
+	else{
+		int bsGate = getGateId(bsId);
+		cGate *out = cell->gate(cell->findGate("toCell",bsGate));
+		cGate *targetGate = out->getNextGate();
+		return targetGate->getOwnerModule()->par("numberOfMobileStations");
+	}
 }
 
 int NeighbourIdMatching::numberOfNeighbours()  {
