@@ -74,12 +74,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	yPos = module->par("yPos");
 	upRBs = module->par("upResourceBlocks");
 	downRBs = module->par("downResourceBlocks");
-    	bs_antenna_bearing = new double[3];
-    	bs_antenna_downtilt = new double[3];
-    	bs_antenna_slant = new double[3];
-    	ms_antenna_bearing = new double[numberOfMobileStations];
-    	ms_antenna_downtilt = new double[numberOfMobileStations];
-    	ms_antenna_slant = new double[numberOfMobileStations];
 	N_cluster_LOS = module->par("NumberOfClusters_LOS");
 	N_cluster_NLOS = module->par("NumberOfClusters_NLOS");
 	numOfRays_LOS = module->par("NumberOfRays_LOS");
@@ -87,8 +81,8 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
    	initModule = module;
     	freq_c = module->par("CarrierFrequency");
     	SINRcounter = 0;
-    	NumTxAntenna = module->par("NumTxAntenna");
-    	NumRxAntenna = module->par("NumRxAntenna");
+    	NumBsAntenna = module->par("NumBsAntenna");
+    	NumMsAntenna = module->par("NumMsAntenna");
     	heightUE = module->par("OutdoorHeightUE");
    	heightBS = module->par("BsHeight");
 	vel = module->par("Velocity");
@@ -97,7 +91,7 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	XPR_Mean_NLOS = module->par("XPR_Mean_NLOS");
 	XPR_Std_NLOS = module->par("XPR_Std_NLOS");
     
-    	TxAntennaPosition = new double**[1];
+    	OwnBsAntennaPosition = new double**[1];
     
     	// Find the neighbours and store the pair (bsId, position in data structures) in a map
     	cModule *cell = module->getParentModule()->getParentModule();
@@ -109,22 +103,22 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
     
 	// One Channel module per base station
     	// Half wavelength distance between antennas; give the position of Tx and Rx antennas in GCS
-	// For even value of NumTxAntenna, the antenna elements will be equally spaced around the center of Tx
+	// For even value of NumBsAntenna, the antenna elements will be equally spaced around the center of Tx
     	double wavelength = speedOfLight / freq_c;
     	for(int i = 0; i < 1; i++){
-		TxAntennaPosition[i] = new double*[NumTxAntenna];
-		for(int j = 0; j < (NumTxAntenna/2); j++){
-			TxAntennaPosition[i][j] = new double[3];
-			TxAntennaPosition[i][j][0] = xPos - (0.25 * wavelength * (NumTxAntenna - 1 - (j*2.0)));
-			TxAntennaPosition[i][j][1] = yPos;
-			TxAntennaPosition[i][j][2] = heightBS;
+		OwnBsAntennaPosition[i] = new double*[NumBsAntenna];
+		for(int j = 0; j < (NumBsAntenna/2); j++){
+			OwnBsAntennaPosition[i][j] = new double[3];
+			OwnBsAntennaPosition[i][j][0] = xPos - (0.25 * wavelength * (NumBsAntenna - 1 - (j*2.0)));
+			OwnBsAntennaPosition[i][j][1] = yPos;
+			OwnBsAntennaPosition[i][j][2] = heightBS;
 		}
 
-		for(int j = (NumTxAntenna/2); j < NumTxAntenna; j++){
-			TxAntennaPosition[i][j] = new double[3];
-			TxAntennaPosition[i][j][0] = TxAntennaPosition[i][j-1][0] + (0.5 * wavelength);
-			TxAntennaPosition[i][j][1] = yPos;
-			TxAntennaPosition[i][j][2] = heightBS;
+		for(int j = (NumBsAntenna/2); j < NumBsAntenna; j++){
+			OwnBsAntennaPosition[i][j] = new double[3];
+			OwnBsAntennaPosition[i][j][0] = OwnBsAntennaPosition[i][j-1][0] + (0.5 * wavelength);
+			OwnBsAntennaPosition[i][j][1] = yPos;
+			OwnBsAntennaPosition[i][j][2] = heightBS;
 		}
 
 	}
@@ -169,23 +163,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		}
 	}
 	
-    	// Initialize BS antenna parameters
-    	for(int i = 0; i < 3; i++){
-		bs_antenna_downtilt[i] = 12.0;			// "..commonly assumed to be 12 Degrees.."; page 57 METIS Document
-		bs_antenna_slant[i] = 0.0;				// "..usually Zero Degrees.."; page 57 METIS Document
-	}
-	bs_antenna_bearing[0] = 0.0;
-	bs_antenna_bearing[1] = 120.0;
-	bs_antenna_bearing[2] = 240.0;
-	
-	// Initialize MS antenna parameters
-	// (The orientation may be completely randomly generated or based on more realistic distributions.)
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		ms_antenna_bearing[i] = uniform(0.0,360.0);
-		ms_antenna_downtilt[i] = uniform(0.0,360.0);
-		ms_antenna_slant[i] = uniform(0.0,360.0);
-	}
-
 	//compute initial SINR parameters
 	recomputeMETISParams(msPositions);
 
@@ -226,20 +203,20 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	}
 
 	// Mobile stations should be randomly rotated..?
-	double ***RxAntennaPosition = new double**[numberOfMobileStations]; /*!< Position vector of Receiver antenna */
+	double ***MsAntennaPosition = new double**[numberOfMobileStations]; /*!< Position vector of Receiver antenna */
     	for(int i = 0; i < numberOfMobileStations; i++){
-		RxAntennaPosition[i] = new double*[NumRxAntenna];
-		for(int j = 0; j < (NumRxAntenna/2); j++){
-			RxAntennaPosition[i][j] = new double[3];
-			RxAntennaPosition[i][j][0] = MSPos[i].x - (0.25 * wavelength * (NumRxAntenna - 1 - (j*2.0)));
-			RxAntennaPosition[i][j][1] = MSPos[i].y;
-			RxAntennaPosition[i][j][2] = heightUE;
+		MsAntennaPosition[i] = new double*[NumMsAntenna];
+		for(int j = 0; j < (NumMsAntenna/2); j++){
+			MsAntennaPosition[i][j] = new double[3];
+			MsAntennaPosition[i][j][0] = MSPos[i].x - (0.25 * wavelength * (NumMsAntenna - 1 - (j*2.0)));
+			MsAntennaPosition[i][j][1] = MSPos[i].y;
+			MsAntennaPosition[i][j][2] = heightUE;
 		}
-		for(int j = (NumRxAntenna/2); j < NumRxAntenna ; j++){
-			RxAntennaPosition[i][j] = new double[3];
-			RxAntennaPosition[i][j][0] = RxAntennaPosition[i][j-1][0] + (0.5 * wavelength);
-			RxAntennaPosition[i][j][1] = MSPos[i].y;
-			RxAntennaPosition[i][j][2] = heightUE;
+		for(int j = (NumMsAntenna/2); j < NumMsAntenna ; j++){
+			MsAntennaPosition[i][j] = new double[3];
+			MsAntennaPosition[i][j][0] = MsAntennaPosition[i][j-1][0] + (0.5 * wavelength);
+			MsAntennaPosition[i][j][1] = MSPos[i].y;
+			MsAntennaPosition[i][j][2] = heightUE;
 		}
 	}
 
@@ -1169,9 +1146,9 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		for(int i = 0; i < (N_cluster_LOS + 4); i++){
 			raySum_LOS[m][i] = new complex<double>**[timeSamples];
 			for(int j = 0; j < timeSamples; j++){
-				raySum_LOS[m][i][j] = new complex<double>*[NumRxAntenna];
-				for(int k = 0; k < NumRxAntenna; k++){
-					raySum_LOS[m][i][j][k] = new complex<double>[NumTxAntenna]();
+				raySum_LOS[m][i][j] = new complex<double>*[NumMsAntenna];
+				for(int k = 0; k < NumMsAntenna; k++){
+					raySum_LOS[m][i][j][k] = new complex<double>[NumBsAntenna]();
 				}
 			}
 		}
@@ -1185,9 +1162,9 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			for(int i = 0; i < (N_cluster_NLOS + 4); i++){
 			raySum[m][i] = new complex<double>**[timeSamples];
 			for(int j = 0; j < timeSamples; j++){
-				raySum[m][i][j] = new complex<double>*[NumRxAntenna];
-				for(int k = 0; k < NumRxAntenna; k++){
-					raySum[m][i][j][k] = new complex<double>[NumTxAntenna]();
+				raySum[m][i][j] = new complex<double>*[NumMsAntenna];
+				for(int k = 0; k < NumMsAntenna; k++){
+					raySum[m][i][j][k] = new complex<double>[NumBsAntenna]();
 				}
 			}
 		}
@@ -1207,9 +1184,9 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 				for(int j = 0; j < (N_cluster_LOS + 4); j++){
 					raySumInterferer_LOS[m][i][j] = new complex<double>**[timeSamples];
 					for(int k = 0; k < timeSamples; k++){
-						raySumInterferer_LOS[m][i][j][k] = new complex<double>*[NumRxAntenna];
-						for(int l = 0; l < NumRxAntenna; l++){
-							raySumInterferer_LOS[m][i][j][k][l] = new complex<double>[NumTxAntenna]();
+						raySumInterferer_LOS[m][i][j][k] = new complex<double>*[NumMsAntenna];
+						for(int l = 0; l < NumMsAntenna; l++){
+							raySumInterferer_LOS[m][i][j][k][l] = new complex<double>[NumBsAntenna]();
 						}
 					}
 				}
@@ -1225,9 +1202,9 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 				for(int j = 0; j < (N_cluster_NLOS + 4); j++){
 					raySumInterferer[m][i][j] = new complex<double>**[timeSamples];
 					for(int k = 0; k < timeSamples; k++){
-						raySumInterferer[m][i][j][k] = new complex<double>*[NumRxAntenna];
-						for(int l = 0; l < NumRxAntenna; l++){
-							raySumInterferer[m][i][j][k][l] = new complex<double>[NumTxAntenna]();
+						raySumInterferer[m][i][j][k] = new complex<double>*[NumMsAntenna];
+						for(int l = 0; l < NumMsAntenna; l++){
+							raySumInterferer[m][i][j][k][l] = new complex<double>[NumBsAntenna]();
 						}
 					}
 				}
@@ -1261,9 +1238,9 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 				if(!LOSCondition[i][0]){
 					// Cycle through all Receiver antennas (MS)
 						std::cout << "NLOS" << std::endl;
-					for(int u = 0; u < NumRxAntenna; u++){
+					for(int u = 0; u < NumMsAntenna; u++){
 						// Cycle through all Transmitter antennas (BS)
-						for(int s = 0; s < NumTxAntenna; s++){
+						for(int s = 0; s < NumBsAntenna; s++){
 							// Cycle through all Paths/Clusters
 							clusterIdx = 0;
 							for(int n = 0; n < N_cluster_NLOS; n++){
@@ -1297,8 +1274,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												AoD[1] = sin(elevation_ASD[i][0][n][SC_1[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_1[m]]*pi/180);
 												AoD[2] = cos(elevation_ASD[i][0][n][SC_1[m]]*pi/180);
 										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2] )) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2] )) );
+												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 												// TODO: Include Polarization
 												// Replacement for polarization. (Below 4.14)
@@ -1342,8 +1319,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												AoD[1] = sin(elevation_ASD[i][0][n][SC_2[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_2[m]]*pi/180);
 												AoD[2] = cos(elevation_ASD[i][0][n][SC_2[m]]*pi/180);
 										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 												// TODO: Include Polarization
 												// Replacement for polarization. (Below 4.14)
@@ -1388,8 +1365,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												AoD[1] = sin(elevation_ASD[i][0][n][SC_3[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_3[m]]*pi/180);
 												AoD[2] = cos(elevation_ASD[i][0][n][SC_3[m]]*pi/180);
 										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 												// TODO: Include Polarization
 												// Replacement for polarization. (Below 4.14)
@@ -1437,8 +1414,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 											AoD[1] = sin(elevation_ASD[i][0][n][m]*pi/180) * sin(azimuth_ASD[i][0][n][m]*pi/180);
 											AoD[2] = cos(elevation_ASD[i][0][n][m]*pi/180);
 										
-											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 											// TODO: Include Polarization
 											// Replacement for polarization. (Below 4.14)
@@ -1480,9 +1457,9 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 					// LOS case, TODO: correct the computation of raySum_LOS
 					// Cycle through all Receiver antennas (MS)
 					std::cout<< "LOS" << std::endl;
-					for(int u = 0; u < NumRxAntenna; u++){
+					for(int u = 0; u < NumMsAntenna; u++){
 						// Cycle through all Transmitter antennas (BS)
-						for(int s = 0; s < NumTxAntenna; s++){
+						for(int s = 0; s < NumBsAntenna; s++){
 							// Cycle through all Paths/Clusters
 							clusterIdx_LOS = 0;
 							for(int n = 0; n < N_cluster_LOS; n++){
@@ -1516,8 +1493,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												AoD[1] = sin(elevation_ASD[i][0][n][SC_1[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_1[m]]*pi/180);
 												AoD[2] = cos(elevation_ASD[i][0][n][SC_1[m]]*pi/180);
 										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 												// TODO: Include Polarization
 												// Replacement for polarization. (Below 4.14)
@@ -1565,8 +1542,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												AoD[1] = sin(elevation_ASD[i][0][n][SC_2[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_2[m]]*pi/180);
 												AoD[2] = cos(elevation_ASD[i][0][n][SC_2[m]]*pi/180);
 										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 												// TODO: Include Polarization
 												// Replacement for polarization. (Below 4.14)
@@ -1614,8 +1591,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												AoD[1] = sin(elevation_ASD[i][0][n][SC_3[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_3[m]]*pi/180);
 												AoD[2] = cos(elevation_ASD[i][0][n][SC_3[m]]*pi/180);
 										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 												// TODO: Include Polarization
 												// Replacement for polarization. (Below 4.14)
@@ -1664,8 +1641,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 											AoD[1] = sin(elevation_ASD[i][0][n][m]*pi/180) * sin(azimuth_ASD[i][0][n][m]*pi/180);
 											AoD[2] = cos(elevation_ASD[i][0][n][m]*pi/180);
 										
-											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 											// TODO: Include Polarization
 											// Replacement for polarization. (Below 4.14)
@@ -1712,8 +1689,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 									AoD[1] = sin(ZoD_LOS_dir[i][0]) * sin(AoD_LOS_dir[i][0]);
 									AoD[2] = cos(ZoD_LOS_dir[i][0]);
 										
-									complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-									complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+									complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+									complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 									// TODO: Include Polarization in generic form
 									// Replacement for polarization. (Below 4.14)
@@ -1749,9 +1726,9 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 				// NLOS CASE:
 				if(!LOSCondition[i][idIdx]){
 					// Cycle through all Receiver antennas (MS)
-					for(int u = 0; u < NumRxAntenna; u++){
+					for(int u = 0; u < NumMsAntenna; u++){
 						// Cycle through all Transmitter antennas (BS)
-						for(int s = 0; s < NumTxAntenna; s++){
+						for(int s = 0; s < NumBsAntenna; s++){
 							// Cycle through all Paths/Clusters
 							clusterIdx = 0;
 							for(int n = 0; n < N_cluster_NLOS; n++){
@@ -1784,8 +1761,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180);
 												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180);
 										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 												// TODO: Include Polarization
 												// Replacement for polarization. (Below 4.14)
@@ -1832,8 +1809,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180);
 												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180);
 										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 												// TODO: Include Polarization
 												// Replacement for polarization. (Below 4.14)
@@ -1880,8 +1857,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180);
 												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180);
 										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 												// TODO: Include Polarization
 												// Replacement for polarization. (Below 4.14)
@@ -1929,8 +1906,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 											AoD[1] = sin(elevation_ASD[i][idIdx][n][m]*pi/180) * sin(azimuth_ASD[i][idIdx][n][m]*pi/180);
 											AoD[2] = cos(elevation_ASD[i][idIdx][n][m]*pi/180);
 										
-											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 											// TODO: Include Polarization
 											// Replacement for polarization. (Below 4.14)
@@ -1971,9 +1948,9 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 				}else{
 					// LOS case,
 					// Cycle through all Receiver antennas (MS)
-					for(int u = 0; u < NumRxAntenna; u++){
+					for(int u = 0; u < NumMsAntenna; u++){
 						// Cycle through all Transmitter antennas (BS)
-						for(int s = 0; s < NumTxAntenna; s++){
+						for(int s = 0; s < NumBsAntenna; s++){
 							// Cycle through all Paths/Clusters
 							clusterIdx_LOS = 0;
 							for(int n = 0; n < N_cluster_LOS; n++){
@@ -2006,8 +1983,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180);
 												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180);
 										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 												// TODO: Include Polarization
 												// Replacement for polarization. (Below 4.14)
@@ -2055,8 +2032,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180);
 												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180);
 										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 												// TODO: Include Polarization
 												// Replacement for polarization. (Below 4.14)
@@ -2104,8 +2081,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180);
 												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180);
 										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 												// TODO: Include Polarization
 												// Replacement for polarization. (Below 4.14)
@@ -2154,8 +2131,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 											AoD[1] = sin(elevation_ASD[i][idIdx][n][m]*pi/180) * sin(azimuth_ASD[i][idIdx][n][m]*pi/180);
 											AoD[2] = cos(elevation_ASD[i][idIdx][n][m]*pi/180);
 										
-											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 											// TODO: Include Polarization
 											// Replacement for polarization. (Below 4.14)
@@ -2202,8 +2179,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 									AoD[1] = sin(ZoD_LOS_dir[i][idIdx]) * sin(AoD_LOS_dir[i][idIdx]);
 									AoD[2] = cos(ZoD_LOS_dir[i][idIdx]);
 										
-									complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-									complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
+									complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
+									complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
 										
 									// TODO: Include Polarization in generic form
 									// Replacement for polarization. (Below 4.14)
@@ -2266,8 +2243,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 				res = complex<double>(0.0,0.0);
 				if(LOSCondition[i][0]){
 					pathloss = CalcPathloss(dist2D, dist3D, true);
-					for(int u = 0; u < NumRxAntenna; u++){
-						for(int s = 0; s < NumTxAntenna; s++){
+					for(int u = 0; u < NumMsAntenna; u++){
+						for(int s = 0; s < NumBsAntenna; s++){
 							for(int n = 0; n < N_cluster_LOS; n++){
 								if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
 									res = res + raySum_LOS[i][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][0][n]) );
@@ -2288,8 +2265,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 					//TimeFrequency << pathloss * tempRes << " ";
 				}else{
 					pathloss = CalcPathloss(dist2D, dist3D, false);
-					for(int u = 0; u < NumRxAntenna; u++){
-						for(int s = 0; s < NumTxAntenna; s++){
+					for(int u = 0; u < NumMsAntenna; u++){
+						for(int s = 0; s < NumBsAntenna; s++){
 							for(int n = 0; n < N_cluster_NLOS; n++){
 								if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
 									res = res + raySum[i][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][0][n]) );
@@ -2337,8 +2314,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 							res = complex<double>(0.0,0.0);
 							if(LOSCondition[i][idIdx+1]){
 								pathloss = CalcPathloss(dist2D, dist3D, true);
-								for(int u = 0; u < NumRxAntenna; u++){
-									for(int s = 0; s < NumTxAntenna; s++){
+								for(int u = 0; u < NumMsAntenna; u++){
+									for(int s = 0; s < NumBsAntenna; s++){
 										for(int n = 0; n < N_cluster_LOS; n++){
 											if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
 												res = res + raySumInterferer_LOS[i][idIdx][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][idIdx+1][n]) );
@@ -2359,8 +2336,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 								//TimeFrequencyInteferer << pathloss * tempRes << " ";
 							}else{
 								pathloss = CalcPathloss(dist2D, dist3D, false);
-								for(int u = 0; u < NumRxAntenna; u++){
-									for(int s = 0; s < NumTxAntenna; s++){
+								for(int u = 0; u < NumMsAntenna; u++){
+									for(int s = 0; s < NumBsAntenna; s++){
 										for(int n = 0; n < N_cluster_NLOS; n++){
 											if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
 												res = res + raySumInterferer[i][idIdx][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][idIdx+1][n]) );
@@ -2453,10 +2430,10 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		delete[] randomPhase[i];
 		delete[] randomPhase_LOS[i];
 		delete[] rayPowers[i];
-		for(int s=0; s<NumRxAntenna; s++){
-			delete[] RxAntennaPosition[i][s];
+		for(int s=0; s<NumMsAntenna; s++){
+			delete[] MsAntennaPosition[i][s];
 		}
-		delete[] RxAntennaPosition[i];
+		delete[] MsAntennaPosition[i];
 		delete[] sigma_ds_LOS[i];					
 		delete[] sigma_asD_LOS[i];					
 		delete[] sigma_asA_LOS[i];
@@ -2503,7 +2480,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	for(int m = 0; m < numberOfMobileStations; m++){
 		for(int i = 0; i < (N_cluster_LOS + 4); i++){
 			for(int j = 0; j < timeSamples; j++){
-				for(int k = 0; k < NumRxAntenna; k++){
+				for(int k = 0; k < NumMsAntenna; k++){
 					delete[] raySum_LOS[m][i][j][k];
 				}
 				delete[] raySum_LOS[m][i][j];
@@ -2513,7 +2490,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		delete[] raySum_LOS[m];
 		for(int i = 0; i < (N_cluster_NLOS + 4); i++){
 			for(int j = 0; j < timeSamples; j++){
-				for(int k = 0; k < NumRxAntenna; k++){
+				for(int k = 0; k < NumMsAntenna; k++){
 					delete[] raySum[m][i][j][k];
 				}
 				delete[] raySum[m][i][j];
@@ -2529,7 +2506,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			for(int i = 0; i < numOfInterferers; i++){
 				for(int j = 0; j < (N_cluster_LOS + 4); j++){
 					for(int k = 0; k < timeSamples; k++){
-						for(int l = 0; l < NumRxAntenna; l++){
+						for(int l = 0; l < NumMsAntenna; l++){
 							delete[] raySumInterferer_LOS[m][i][j][k][l];
 							delete[] raySumInterferer[m][i][j][k][l];
 						}
@@ -2548,7 +2525,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		delete[] raySumInterferer_LOS;
 		delete[] raySumInterferer;
 	}
-	delete[] RxAntennaPosition;
+	delete[] MsAntennaPosition;
 	delete[] sigma_ds_LOS;					
 	delete[] sigma_asD_LOS;					
 	delete[] sigma_asA_LOS;
@@ -3117,9 +3094,6 @@ METISChannel::~METISChannel(){
 		// variables uninitialized, leading to errors. Thus, they 
 		// are only freed when init has been called, as indicated by 
 		// the initialized variable.
-		delete[] bs_antenna_bearing;				
-		delete[] bs_antenna_downtilt;			
-		delete[] bs_antenna_slant;				
 		for(int i=0; i<numberOfMobileStations; i++){
 			for(int j=0; j<numOfInterferers; j++){
 				for(int k=0; k<timeSamples; k++){
@@ -3134,18 +3108,15 @@ METISChannel::~METISChannel(){
 			delete[] SINRtable[i];
 			delete[] timeVector[i];
 		}
-		delete[] ms_antenna_bearing;				
-		delete[] ms_antenna_downtilt;			
-		delete[] ms_antenna_slant;				
 		delete neighbourIdMatching; 
 		delete[] SINRneighbour;
 		delete[] SINRtable;
-		for(int i=0; i<NumTxAntenna; i++){
-			delete[] TxAntennaPosition[0][i];
+		for(int i=0; i<NumBsAntenna; i++){
+			delete[] OwnBsAntennaPosition[0][i];
 		}
 		delete[] timeVector;
-		delete[] TxAntennaPosition[0];
-		delete[] TxAntennaPosition;
+		delete[] OwnBsAntennaPosition[0];
+		delete[] OwnBsAntennaPosition;
 	
 	}
 

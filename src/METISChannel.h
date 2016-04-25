@@ -27,12 +27,6 @@ class METISChannel : public Channel{
 		static constexpr double speedOfLight = 299792458.0;					/*!< speed of light value */
 		double xPos;						/*!< BS Position x value */
 		double yPos;						/*!< BS Position y value */
-		double *bs_antenna_bearing;				/*!< bearing angles of the 3 BS sectors */
-		double *bs_antenna_downtilt;				/*!< downtilt angles of the 3 BS sectors */
-		double *bs_antenna_slant;				/*!< Slant angles of the 3 BS sectors */
-		double *ms_antenna_bearing;				/*!< bearing angle of the MS */
-		double *ms_antenna_downtilt;				/*!< downtilt angle of the MS */
-		double *ms_antenna_slant;				/*!< Slant angle of the MS */
 		int N_cluster_LOS;
 		int N_cluster_NLOS;
 		int numOfRays_LOS;
@@ -52,9 +46,9 @@ class METISChannel : public Channel{
 		int upRBs;						/*!< Number of up resource blocks*/
 		int downRBs;						/*!< Number of down resource blocks */
 		int SINRcounter;					/*!< If position resend intervall > 1, it counts the current TTI */
-		int NumTxAntenna;					/*!< Number of Transmitter Antenna */
-		int NumRxAntenna;					/*!< Number of Receiver Antenna */
-		double ***TxAntennaPosition;				/*!< Position vector of Transmitter antenna */
+		int NumBsAntenna;					/*!< Number of Base Station Antenna */
+		int NumMsAntenna;					/*!< Number of Mobile Station Antenna */
+		double ***OwnBsAntennaPosition;				/*!< Position vector of Base Station antenna */
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
 		double vel;
 		double XPR_Mean_LOS;
