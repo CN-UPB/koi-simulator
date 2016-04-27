@@ -16,7 +16,9 @@
 #include "NeighbourIdMatching.h"
 #include "Channel.h"
 #include <algorithm>
+#include <vector>
 
+using std::vector;
 
 class METISChannel : public Channel{
 	private:
@@ -61,10 +63,12 @@ class METISChannel : public Channel{
 		double CalcPathloss(double dist2D, double dist3D, bool LOS);
 		
 		//! Maps the cluster number to scaling factors for azimuth angles
-		double C_AS(int numCluster, bool LOS, int i,double **sigma_kf_LOS);
+		double C_AS(int numCluster, bool LOS, int i,
+				vector<vector<double>> sigma_kf_LOS);
 		
 		//! Maps the cluster number to scaling factors for zenith angles
-		double C_ZS(int numCluster, bool LOS,double **sigma_kf_LOS);
+		double C_ZS(int numCluster, bool LOS,
+				vector<vector<double>> sigma_kf_LOS);
 		
 		//! Calculates the probability of a link being a LOS link.
 		bool LineOfSight(double dist2D);
@@ -75,14 +79,36 @@ class METISChannel : public Channel{
 		//! Calculate the sigma of Zenith spread of departure.
 		double sigma_ZSD(double meanZSD, bool LOS);
 
+		//! Recalculate the METIS large scale params for the given Rx/Tx
+		void recomputeLargeScaleParameters(const vector<Position>& senders,
+				const vector<Position>& receivers, 
+				vector<vector<double>>& sigma_ds_LOS,
+				vector<vector<double>>& sigma_asD_LOS,
+				vector<vector<double>>& sigma_asA_LOS,
+				vector<vector<double>>& sigma_zsD_LOS,
+				vector<vector<double>>& sigma_zsA_LOS,
+				vector<vector<double>>& sigma_sf_LOS,
+				vector<vector<double>>& sigma_kf_LOS,
+				vector<vector<double>>& sigma_ds_NLOS,
+				vector<vector<double>>& sigma_asD_NLOS,
+				vector<vector<double>>& sigma_asA_NLOS,
+				vector<vector<double>>& sigma_zsD_NLOS,
+				vector<vector<double>>& sigma_zsA_NLOS,
+				vector<vector<double>>& sigma_sf_NLOS,
+				vector<vector<double>>& sigma_kf_NLOS);
+
 		//! Recalculate all position dependent values, e.g. SINR
 		void recomputeMETISParams(Position **msPositions);
 
 		//! Generate the spatial correlation between the MS for LOS links.
-		double **generateAutoCorrelation_LOS(Position *MSPos);
+		void generateAutoCorrelation_LOS(const vector<Position>& senders,
+				const vector<Position>& receivers,
+				vector<vector<vector<double>>>& correlation);
 
 		//! Generate the spatial correlation between the MS for NLOS links.
-		double **generateAutoCorrelation_NLOS(Position *MSPos);
+		void generateAutoCorrelation_NLOS(const vector<Position>& senders,
+				const vector<Position>& receivers,
+				vector<vector<vector<double>>>& correlation);
         
 	public:
 		//! Constructor of METIS Channel subclass.

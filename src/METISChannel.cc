@@ -19,6 +19,9 @@
 #include <math.h>
 #include <complex>
 #include <fstream>
+#include <vector>
+
+using std::vector;
 
 double getMSGain(double AoA, double EoA){ // Hertzian dipole; TODO: Change the return value to a vector for getting both theta and phi components
 	//return (-1.0 * sin(EoA)); 
@@ -174,6 +177,123 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	return true;
 }
 
+void METISChannel::recomputeLargeScaleParameters(const vector<Position>& senders,
+		const vector<Position>& receivers, 
+		vector<vector<double>>& sigma_ds_LOS,
+		vector<vector<double>>& sigma_asD_LOS,
+		vector<vector<double>>& sigma_asA_LOS,
+		vector<vector<double>>& sigma_zsD_LOS,
+		vector<vector<double>>& sigma_zsA_LOS,
+		vector<vector<double>>& sigma_sf_LOS,
+		vector<vector<double>>& sigma_kf_LOS,
+		vector<vector<double>>& sigma_ds_NLOS,
+		vector<vector<double>>& sigma_asD_NLOS,
+		vector<vector<double>>& sigma_asA_NLOS,
+		vector<vector<double>>& sigma_zsD_NLOS,
+		vector<vector<double>>& sigma_zsA_NLOS,
+		vector<vector<double>>& sigma_sf_NLOS,
+		vector<vector<double>>& sigma_kf_NLOS
+		){
+	double dist2D;
+	std::cout << "Before Auto Correlation!" << std::endl;
+	
+	// Generate Autocorrelation
+	vector<vector<vector<double>>> correlation;
+	generateAutoCorrelation_LOS(senders,receivers,correlation);
+	
+	std::cout << "After Auto Correlation!" << std::endl;
+       
+	//TODO: Remove hardcoded, values taken after taking the square-root of the cross_matrix using sqrtm() in MATLAB
+	double cross_matrix[7][7] = {
+		{ 0.7249,   0.2510,   0.4678,  -0.0401,   0.1106,  -0.0903,  -0.4132},
+    		{ 0.2510,   0.8598,   0.1428,   0.2893,   0.1575,  -0.2620,  -0.0143},
+  		{ 0.4678,   0.1428,   0.8526,  -0.0093,  -0.0382,  -0.1763,  -0.0343},
+  		{-0.0401,   0.2893,  -0.0093,   0.9552,  -0.0217,   0.0398,  -0.0122},
+  		{ 0.1106,   0.1575,  -0.0382,  -0.0217,   0.9798,   0.0211,   0.0221},
+ 		{-0.0903,  -0.2620,  -0.1763,   0.0398,   0.0211,   0.9086,   0.2542},
+ 		{-0.4132,  -0.0143,  -0.0343,  -0.0122,   0.0221,   0.2542,   0.8733}};
+		
+    	// Transform Normal distributed random numbers to scenario specific distributions
+    	double a = initModule->par("DS_mu_LOS"); 			// mean of delay spread
+	double b = initModule->par("DS_eps_LOS"); 			// epsilon of delay spread
+	double c = initModule->par("AoD_mu_LOS"); 			// mean of AoD
+	double d = initModule->par("AoD_eps_LOS"); 		// epsilon of AoD
+	double e = initModule->par("AoA_mu_LOS"); 			// mean of AoA
+	double f = initModule->par("AoA_eps_LOS"); 		// epsilon of AoA
+	double g = initModule->par("ZoA_mu_LOS"); 			// mean of ZoA
+	double h = initModule->par("ZoA_eps_LOS"); 		// epsilon of ZoA
+	double k = initModule->par("SF_sigma_LOS"); 		// sigma for shadow fading
+	double l = initModule->par("K_mu"); 			// mean of Ricean K-factor
+	double sigma_K = initModule->par("K_sigma");	// spread of K-factor
+	
+	// TODO: Take Square root
+	// cross_matrix = sqrt(cross_matrix)
+	for(size_t r = 0; r < receivers.size(); r++){
+		for(size_t s = 0; s < senders.size(); s++){
+			double ksi[7];
+			for(int j = 0; j < 7;j++){
+				ksi[j] = cross_matrix[j][0] * correlation[r][s][j] + cross_matrix[j][1] * correlation[r][s][j] + cross_matrix[j][2] * correlation[r][s][j] + cross_matrix[j][3] * correlation[r][s][j] + cross_matrix[j][4] * correlation[r][s][j] + cross_matrix[j][5] * correlation[r][s][j] + cross_matrix[j][6] * correlation[r][s][j];
+			}
+			sigma_ds_LOS[r][s]  = std::pow(10.0, (b*ksi[0] + a));      								// Log-Normal 
+			sigma_asD_LOS[r][s] = std::min(104.0, std::pow(10.0, (d*ksi[1] + c)));      						// Log-Normal (maximum value should be 104 degrees) 
+			sigma_asA_LOS[r][s] = std::min(104.0, std::pow(10.0, (f*ksi[2] + e)));      						// Log-Normal (maximum value should be 104 degrees) 
+			sigma_zsA_LOS[r][s] = std::min(52.0, std::pow(10.0, (h*ksi[4] + g)));							// Log-Normal (maximum value should be 52 degrees) 
+			dist2D = sqrt(pow((senders[s].x - receivers[r].x),2) + pow((senders[s].y - receivers[r].y),2));	
+			sigma_zsD_LOS[r][s] = std::min(52.0, std::pow(10.0, (ksi[3] * sigma_ZSD(mean_ZSD(dist2D, heightUE, true), true))));	// Log-Normal (maximum value should be 52 degrees) 
+			sigma_sf_LOS[r][s]  = std::pow(10.0, (0.1*k*ksi[5]));      								// Log-Normal dB
+			sigma_kf_LOS[r][s]  = std::pow(10.0, (0.1*(sigma_K*ksi[6] + l)));	   						// Log-Normal dB
+		}
+	}
+
+    	// Initialize large scale parameters (Non Line of Sight)
+	std::cout << "Before Auto Correlation (NLOS)!" << std::endl;
+	
+	// Generate Autocorrelation
+	correlation.clear();
+	generateAutoCorrelation_NLOS(senders,receivers,correlation);
+	
+	std::cout << "After Auto Correlation (NLOS)!" << std::endl;
+       
+	//TODO: Remove hardcoded, values taken after taking the square-root of the cross_matrix using sqrtm() in MATLAB 
+	double cross_matrix2[6][6] = {
+		{ 0.8302,   0.0709,   0.1949,  -0.3252,  -0.0341,  -0.4011},
+ 		{ 0.0709,   0.9079,  -0.0277,   0.3008,   0.2808,   0.0259},
+  		{ 0.1949,  -0.0277,   0.9580,   0.0352,   0.1131,  -0.1716},
+  		{-0.3252,   0.3008,   0.0352,   0.8911,  -0.0542,  -0.0741},
+  		{-0.0341,   0.2808,   0.1131,  -0.0542,   0.9509,  -0.0030},
+  		{-0.4011,   0.0259,  -0.1716,  -0.0741,  -0.0030,   0.8964}};
+		
+    	// Transform Normal distributed random numbers to scenario specific distributions
+    	a = initModule->par("DS_mu_NLOS"); 				// departure AS vs delay spread
+	b = initModule->par("DS_eps_NLOS"); 			// arrival AS vs delay spread
+	c = initModule->par("AoD_mu_NLOS"); 			// arrival AS vs shadowing std
+	d = initModule->par("AoD_eps_NLOS"); 			// departure AS vs shadoving std
+	e = initModule->par("AoA_mu_NLOS"); 			// delay spread vs shadoving std
+	f = initModule->par("AoA_eps_NLOS"); 			// departure AS vs arrival AS
+	g = initModule->par("SF_sigma_NLOS"); 			// departure AS vs k-factor
+	h = initModule->par("ZoA_mu_NLOS"); 			// arrival AS vs k-factor
+	k = initModule->par("ZoA_eps_NLOS"); 			// delay spread vs k-factor	
+	
+	// TODO: Take Square root
+	// cross_matrix = sqrt(cross_matrix)
+	for(size_t r = 0; r < receivers.size(); r++){
+		for(size_t s = 0; s < senders.size(); s++){
+				double ksi[6];
+				for(int j = 0;j < 6;j++){
+					ksi[j] = cross_matrix2[j][0] * correlation[r][s][j] + cross_matrix2[j][1] * correlation[r][s][j] + cross_matrix2[j][2] * correlation[r][s][j] + cross_matrix2[j][3] * correlation[r][s][j] + cross_matrix2[j][4] * correlation[r][s][j] + cross_matrix2[j][5] * correlation[r][s][j];
+				}
+				sigma_ds_NLOS[r][s]  = std::pow(10.0, (b*ksi[0] + a));      								// Log-Normal 
+				sigma_asD_NLOS[r][s] = std::min(104.0, std::pow(10.0, (d*ksi[1] + c)));      						// Log-Normal (maximum value should be 104 degrees)  
+				sigma_asA_NLOS[r][s] = std::min(104.0, std::pow(10.0, (f*ksi[2] + e)));      						// Log-Normal (maximum value should be 104 degrees) 
+				sigma_zsA_NLOS[r][s] = std::min(52.0, std::pow(10.0, (k*ksi[4] + h)));							// Log-Normal (maximum value should be 52 degrees) 
+				dist2D = sqrt(pow((senders[s].x - receivers[r].x),2) + pow((senders[s].y - receivers[r].y),2));
+				sigma_zsD_NLOS[r][s] = std::min(52.0, std::pow(10.0, (ksi[3] * sigma_ZSD(mean_ZSD(dist2D, heightUE, false), false))));	// Log-Normal (maximum value should be 52 degrees) 
+				sigma_sf_NLOS[r][s]  = std::pow(10.0, (0.1*g*ksi[5]));      								// Log-Normal dB
+		}
+	} 	
+
+}
+
 void METISChannel::recomputeMETISParams(Position** msPositions){
     	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
@@ -196,10 +316,16 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	}
 
     	// Copy MS Positions
-	Position *MSPos = new Position[numberOfMobileStations];	/*!< Position of the MS */
+	vector<Position> MSPos(numberOfMobileStations);	/*!< Position of the MS */
     	for(int i = 0; i < numberOfMobileStations; i++){
 		MSPos[i].x = msPositions[fromBsId][i].x;
 		MSPos[i].y = msPositions[fromBsId][i].y;
+	}
+    	// Copy BS Positions
+	vector<Position> BSPos(neighbourPositions.size());
+	for(auto it = neighbourPositions.begin(); it!=neighbourPositions.end();
+			it++){
+		BSPos[it->first] = it->second;
 	}
 
 	// Mobile stations should be randomly rotated..?
@@ -307,173 +433,51 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			}
 		}
 	}
-
-	std::cout << "Before Auto Correlation!" << std::endl;
 	
-	// Generate Autocorrelation
-	double **autoCorrelation_LOS = generateAutoCorrelation_LOS(MSPos);
-	
-	std::cout << "After Auto Correlation!" << std::endl;
-       
-	double **sigma_ds_LOS = new double*[numberOfMobileStations]; /*!< Delay Spread LOS sigma */
-	double **sigma_asD_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
-	double **sigma_asA_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
-	double **sigma_zsD_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
-	double **sigma_zsA_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
-	double **sigma_sf_LOS = new double*[numberOfMobileStations]; /*!< Shadow Fading LOS sigma */
-	double **sigma_kf_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
-	//TODO: Remove hardcoded, values taken after taking the square-root of the cross_matrix using sqrtm() in MATLAB
-	double cross_matrix[7][7] = {
-		{ 0.7249,   0.2510,   0.4678,  -0.0401,   0.1106,  -0.0903,  -0.4132},
-    		{ 0.2510,   0.8598,   0.1428,   0.2893,   0.1575,  -0.2620,  -0.0143},
-  		{ 0.4678,   0.1428,   0.8526,  -0.0093,  -0.0382,  -0.1763,  -0.0343},
-  		{-0.0401,   0.2893,  -0.0093,   0.9552,  -0.0217,   0.0398,  -0.0122},
-  		{ 0.1106,   0.1575,  -0.0382,  -0.0217,   0.9798,   0.0211,   0.0221},
- 		{-0.0903,  -0.2620,  -0.1763,   0.0398,   0.0211,   0.9086,   0.2542},
- 		{-0.4132,  -0.0143,  -0.0343,  -0.0122,   0.0221,   0.2542,   0.8733}};
-		
-    	// Transform Normal distributed random numbers to scenario specific distributions
-    	double a = initModule->par("DS_mu_LOS"); 			// mean of delay spread
-	double b = initModule->par("DS_eps_LOS"); 			// epsilon of delay spread
-	double c = initModule->par("AoD_mu_LOS"); 			// mean of AoD
-	double d = initModule->par("AoD_eps_LOS"); 		// epsilon of AoD
-	double e = initModule->par("AoA_mu_LOS"); 			// mean of AoA
-	double f = initModule->par("AoA_eps_LOS"); 		// epsilon of AoA
-	double g = initModule->par("ZoA_mu_LOS"); 			// mean of ZoA
-	double h = initModule->par("ZoA_eps_LOS"); 		// epsilon of ZoA
-	double k = initModule->par("SF_sigma_LOS"); 		// sigma for shadow fading
-	double l = initModule->par("K_mu"); 			// mean of Ricean K-factor
-	double sigma_K = initModule->par("K_sigma");	// spread of K-factor
-	
-	// TODO: Take Square root
-	// cross_matrix = sqrt(cross_matrix)
-	for(int i = 0; i < numberOfMobileStations; i++){
-		sigma_ds_LOS[i] = new double[neighbourPositions.size()];
-		sigma_asD_LOS[i] = new double[neighbourPositions.size()];
-		sigma_asA_LOS[i] = new double[neighbourPositions.size()];
-		sigma_zsD_LOS[i] = new double[neighbourPositions.size()];
-		sigma_zsA_LOS[i] = new double[neighbourPositions.size()];
-		sigma_sf_LOS[i] = new double[neighbourPositions.size()];
-		sigma_kf_LOS[i] = new double[neighbourPositions.size()];
-		int id_BS = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				double ksi[7];
-				for(int j = 0; j < 7;j++){
-					ksi[j] = cross_matrix[j][0] * autoCorrelation_LOS[j][i] + cross_matrix[j][1] * autoCorrelation_LOS[j][i] + cross_matrix[j][2] * autoCorrelation_LOS[j][i] + cross_matrix[j][3] * autoCorrelation_LOS[j][i] + cross_matrix[j][4] * autoCorrelation_LOS[j][i] + cross_matrix[j][5] * autoCorrelation_LOS[j][i] + cross_matrix[j][6] * autoCorrelation_LOS[j][i];
-				}
-				sigma_ds_LOS[i][0]  = std::pow(10.0, (b*ksi[0] + a));      								// Log-Normal 
-				sigma_asD_LOS[i][0] = std::min(104.0, std::pow(10.0, (d*ksi[1] + c)));      						// Log-Normal (maximum value should be 104 degrees) 
-				sigma_asA_LOS[i][0] = std::min(104.0, std::pow(10.0, (f*ksi[2] + e)));      						// Log-Normal (maximum value should be 104 degrees) 
-				sigma_zsA_LOS[i][0] = std::min(52.0, std::pow(10.0, (h*ksi[4] + g)));							// Log-Normal (maximum value should be 52 degrees) 
-				dist2D = sqrt(pow((xPos - MSPos[i].x),2) + pow((yPos - MSPos[i].y),2));	
-				sigma_zsD_LOS[i][0] = std::min(52.0, std::pow(10.0, (ksi[3] * sigma_ZSD(mean_ZSD(dist2D, heightUE, true), true))));	// Log-Normal (maximum value should be 52 degrees) 
-				sigma_sf_LOS[i][0]  = std::pow(10.0, (0.1*k*ksi[5]));      								// Log-Normal dB
-				sigma_kf_LOS[i][0]  = std::pow(10.0, (0.1*(sigma_K*ksi[6] + l)));	   						// Log-Normal dB
-			}else{
-				double ksi[7];
-				for(int j = 0; j < 7;j++){
-					ksi[j] = cross_matrix[j][0] * autoCorrelation_LOS[j][i] + cross_matrix[j][1] * autoCorrelation_LOS[j][i] + cross_matrix[j][2] * autoCorrelation_LOS[j][i] + cross_matrix[j][3] * autoCorrelation_LOS[j][i] + cross_matrix[j][4] * autoCorrelation_LOS[j][i] + cross_matrix[j][5] * autoCorrelation_LOS[j][i] + cross_matrix[j][6] * autoCorrelation_LOS[j][i];
-				}
-				sigma_ds_LOS[i][id_BS]  = std::pow(10.0, (b*ksi[0] + a));      								// Log-Normal 
-				sigma_asD_LOS[i][id_BS] = std::min(104.0, std::pow(10.0, (d*ksi[1] + c)));      					// Log-Normal (maximum value should be 104 degrees) 
-				sigma_asA_LOS[i][id_BS] = std::min(104.0, std::pow(10.0, (f*ksi[2] + e)));      					// Log-Normal (maximum value should be 104 degrees) 
-				sigma_zsA_LOS[i][id_BS] = std::min(52.0, std::pow(10.0, (h*ksi[4] + g)));						// Log-Normal (maximum value should be 52 degrees) 
-				dist2D = sqrt(pow((it->second.x - MSPos[i].x),2) + pow((it->second.y - MSPos[i].y),2));
-				sigma_zsD_LOS[i][id_BS] = std::min(52.0, std::pow(10.0, (ksi[3] * sigma_ZSD(mean_ZSD(dist2D, heightUE, true), true))));	// Log-Normal (maximum value should be 52 degrees) 
-				sigma_sf_LOS[i][id_BS]  = std::pow(10.0, (0.1*k*ksi[5]));      								// Log-Normal dB
-				sigma_kf_LOS[i][id_BS]  = std::pow(10.0, (0.1*(sigma_K*ksi[6] + l)));	   						// Log-Normal dB
-				id_BS++;
-			}
-		}
-	}
-
-    	// Initialize large scale parameters (Non Line of Sight)
-	std::cout << "Before Auto Correlation (NLOS)!" << std::endl;
-	
-	// Generate Autocorrelation
-	double **autoCorrelation_NLOS = generateAutoCorrelation_NLOS(MSPos);
-	
-	std::cout << "After Auto Correlation (NLOS)!" << std::endl;
-       
-	//TODO: Remove hardcoded, values taken after taking the square-root of the cross_matrix using sqrtm() in MATLAB 
-	double cross_matrix2[6][6] = {
-		{ 0.8302,   0.0709,   0.1949,  -0.3252,  -0.0341,  -0.4011},
- 		{ 0.0709,   0.9079,  -0.0277,   0.3008,   0.2808,   0.0259},
-  		{ 0.1949,  -0.0277,   0.9580,   0.0352,   0.1131,  -0.1716},
-  		{-0.3252,   0.3008,   0.0352,   0.8911,  -0.0542,  -0.0741},
-  		{-0.0341,   0.2808,   0.1131,  -0.0542,   0.9509,  -0.0030},
-  		{-0.4011,   0.0259,  -0.1716,  -0.0741,  -0.0030,   0.8964}};
-		
-    	// Transform Normal distributed random numbers to scenario specific distributions
-    	a = initModule->par("DS_mu_NLOS"); 				// departure AS vs delay spread
-	b = initModule->par("DS_eps_NLOS"); 			// arrival AS vs delay spread
-	c = initModule->par("AoD_mu_NLOS"); 			// arrival AS vs shadowing std
-	d = initModule->par("AoD_eps_NLOS"); 			// departure AS vs shadoving std
-	e = initModule->par("AoA_mu_NLOS"); 			// delay spread vs shadoving std
-	f = initModule->par("AoA_eps_NLOS"); 			// departure AS vs arrival AS
-	g = initModule->par("SF_sigma_NLOS"); 			// departure AS vs k-factor
-	h = initModule->par("ZoA_mu_NLOS"); 			// arrival AS vs k-factor
-	k = initModule->par("ZoA_eps_NLOS"); 			// delay spread vs k-factor	
-	
-	double **sigma_ds_NLOS = new double*[numberOfMobileStations];
-	double **sigma_asD_NLOS = new double*[numberOfMobileStations];
-	double **sigma_asA_NLOS = new double*[numberOfMobileStations];
-	double **sigma_zsD_NLOS = new double*[numberOfMobileStations];
-	double **sigma_zsA_NLOS = new double*[numberOfMobileStations];
-	double **sigma_sf_NLOS = new double*[numberOfMobileStations];
-
-	// TODO: Take Square root
-	// cross_matrix = sqrt(cross_matrix)
-	for(int i = 0; i < numberOfMobileStations; i++){
-		sigma_ds_NLOS[i] = new double[neighbourPositions.size()];
-		sigma_asD_NLOS[i] = new double[neighbourPositions.size()];
-		sigma_asA_NLOS[i] = new double[neighbourPositions.size()];
-		sigma_zsD_NLOS[i] = new double[neighbourPositions.size()];
-		sigma_zsA_NLOS[i] = new double[neighbourPositions.size()];
-		sigma_sf_NLOS[i] = new double[neighbourPositions.size()];
-		int it_BS = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				double ksi[6];
-				for(int j = 0;j < 6;j++){
-					ksi[j] = cross_matrix2[j][0] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][1] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][2] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][3] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][4] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][5] * autoCorrelation_NLOS[j][i];
-				}
-				sigma_ds_NLOS[i][0]  = std::pow(10.0, (b*ksi[0] + a));      								// Log-Normal 
-				sigma_asD_NLOS[i][0] = std::min(104.0, std::pow(10.0, (d*ksi[1] + c)));      						// Log-Normal (maximum value should be 104 degrees)  
-				sigma_asA_NLOS[i][0] = std::min(104.0, std::pow(10.0, (f*ksi[2] + e)));      						// Log-Normal (maximum value should be 104 degrees) 
-				sigma_zsA_NLOS[i][0] = std::min(52.0, std::pow(10.0, (k*ksi[4] + h)));							// Log-Normal (maximum value should be 52 degrees) 
-				dist2D = sqrt(pow((xPos - MSPos[i].x),2) + pow((yPos - MSPos[i].y),2));
-				sigma_zsD_NLOS[i][0] = std::min(52.0, std::pow(10.0, (ksi[3] * sigma_ZSD(mean_ZSD(dist2D, heightUE, false), false))));	// Log-Normal (maximum value should be 52 degrees) 
-				sigma_sf_NLOS[i][0]  = std::pow(10.0, (0.1*g*ksi[5]));      								// Log-Normal dB
-
-				//sigma_ds_NLOS[i]  = 7.6e-8;
-				//sigma_asD_NLOS[i] = 15;
-				//sigma_asA_NLOS[i] = 35;
-				//sigma_sf_NLOS[i]  = 1.5;
-			}else{
-				double ksi[6];
-				for(int j = 0;j < 6;j++){
-					ksi[j] = cross_matrix2[j][0] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][1] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][2] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][3] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][4] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][5] * autoCorrelation_NLOS[j][i];
-				}
-				sigma_ds_NLOS[i][it_BS]  = std::pow(10.0, (b*ksi[0] + a));      							// Log-Normal 
-				sigma_asD_NLOS[i][it_BS] = std::min(104.0, std::pow(10.0, (d*ksi[1] + c)));      					// Log-Normal (maximum value should be 104 degrees) 
-				sigma_asA_NLOS[i][it_BS] = std::min(104.0, std::pow(10.0, (f*ksi[2] + e)));      					// Log-Normal (maximum value should be 104 degrees) 
-				sigma_zsA_NLOS[i][it_BS] = std::min(52.0, std::pow(10.0, (k*ksi[4] + h)));						// Log-Normal (maximum value should be 52 degrees) 
-				dist2D = sqrt(pow((it->second.x - MSPos[i].x),2) + pow((it->second.y - MSPos[i].y),2));
-				sigma_zsD_NLOS[i][it_BS] = std::min(52.0, std::pow(10.0, (ksi[3] * sigma_ZSD(mean_ZSD(dist2D, heightUE, false), false))));// Log-Normal (maximum value should be 52 degrees) 
-				sigma_sf_NLOS[i][it_BS]  = std::pow(10.0, (0.1*g*ksi[5]));      							// Log-Normal dB
-				
-				//sigma_ds_NLOS[i]  = 7.6e-8;
-				//sigma_asD_NLOS[i] = 15;
-				//sigma_asA_NLOS[i] = 35;
-				//sigma_sf_NLOS[i]  = 1.5;
-				//sigma_kf_NLOS[i]  = 1.0;
-				it_BS++;
-			}
-		}
-	} 	
-	
+	vector<vector<double>> sigma_ds_LOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_asD_LOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_asA_LOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_zsD_LOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_zsA_LOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_sf_LOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_kf_LOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_ds_NLOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_asD_NLOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_asA_NLOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_zsD_NLOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_zsA_NLOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_sf_NLOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_kf_NLOS(MSPos.size(),
+			vector<double>(neighbourPositions.size()));
+	recomputeLargeScaleParameters(BSPos,MSPos,
+			sigma_ds_LOS,
+			sigma_asD_LOS,
+			sigma_asA_LOS,
+			sigma_zsD_LOS,
+			sigma_zsA_LOS,
+			sigma_sf_LOS,
+			sigma_kf_LOS,
+			sigma_ds_NLOS,
+			sigma_asD_NLOS,
+			sigma_asA_NLOS,
+			sigma_zsD_NLOS,
+			sigma_zsA_NLOS,
+			sigma_sf_NLOS,
+			sigma_kf_NLOS
+			);
 	std::cout << "Finished Large Scale parameter.." << std::endl;
 
     	// Begin small scale parameter generation.
@@ -1302,7 +1306,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 													raySum[i][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
 													if(m + 1 == size_SC_1){
 														raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-														//std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
+														std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
 													}
 												} // End time axis							
 											} // End cycle Rays
@@ -1348,7 +1352,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 													if(m + 1 == size_SC_2){
 														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 														raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-														//std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
+														std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
 													}
 												} // End time axis							
 											} // End cycle Rays
@@ -1394,7 +1398,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 													if(m + 1 == size_SC_3){
 														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 														raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-														//std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
+														std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
 													}
 												} // End time axis							
 											} // End cycle Rays
@@ -1443,7 +1447,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												if(m + 1 == numOfRays_NLOS){
 													//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 													raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-													//std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
+													std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
 												}
 											} // End time axis							
 										} // End cycle Rays
@@ -1523,7 +1527,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 														double K = sigma_kf_LOS[i][0]; 
 														raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-														//std::cout << "raySum_LOS[i][clusterIdx][t][u][s]: " << raySum_LOS[i][clusterIdx][t][u][s] << std::endl;
+														std::cout << "raySum_LOS[i][clusterIdx][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
 													}
 												} // End time axis							
 											} // End cycle Rays
@@ -1572,7 +1576,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 														double K = sigma_kf_LOS[i][0]; 
 														raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-														//std::cout << "raySum_LOS[i][clusterIdx_LOS][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
+														std::cout << "raySum_LOS[i][clusterIdx_LOS][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
 													}
 												} // End time axis							
 											} // End cycle Rays
@@ -1621,7 +1625,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 														double K = sigma_kf_LOS[i][0]; 
 														raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-														//std::cout << "raySum_LOS[i][clusterIdx_LOS][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
+														std::cout << "raySum_LOS[i][clusterIdx_LOS][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
 													}
 												} // End time axis							
 											} // End cycle Rays
@@ -1671,7 +1675,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 													//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 													double K = sigma_kf_LOS[i][0]; 
 													raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-													//std::cout << "raySum_LOS[i][clusterIdx_LOS][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
+													std::cout << "raySum_LOS[i][clusterIdx_LOS][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
 												}
 											} // End time axis							
 										} // End cycle Rays
@@ -2434,31 +2438,10 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			delete[] MsAntennaPosition[i][s];
 		}
 		delete[] MsAntennaPosition[i];
-		delete[] sigma_ds_LOS[i];					
-		delete[] sigma_asD_LOS[i];					
-		delete[] sigma_asA_LOS[i];
-		delete[] sigma_zsD_LOS[i];
-		delete[] sigma_zsA_LOS[i];					
-		delete[] sigma_sf_LOS[i];					
-		delete[] sigma_kf_LOS[i];					
-		delete[] sigma_ds_NLOS[i];					
-		delete[] sigma_asD_NLOS[i];					
-		delete[] sigma_asA_NLOS[i];
-		delete[] sigma_zsD_NLOS[i];
-		delete[] sigma_zsA_NLOS[i];					
-		delete[] sigma_sf_NLOS[i];						
 		delete[] Xn_m[i];
 		delete[] ZoA_LOS_dir[i];
 		delete[] ZoD_LOS_dir[i];
 	}
-	for(int i=0; i<6; i++){
-		delete[] autoCorrelation_NLOS[i];
-	}
-	delete[] autoCorrelation_NLOS;
-	for(int i=0; i<7; i++){
-		delete[] autoCorrelation_LOS[i];
-	}
-	delete[] autoCorrelation_LOS;
 	delete[] AoA_LOS_dir;
 	delete[] AoD_LOS_dir;
 	delete[] azimuth_ASA;
@@ -2471,7 +2454,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	delete[] elevation_ASA;
 	delete[] elevation_ASD;
 	delete[] LOSCondition;
-	delete[] MSPos;
 	delete[] MSVelDir;
 	delete[] MSVelMag;
 	delete[] randomPhase;
@@ -2526,19 +2508,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		delete[] raySumInterferer;
 	}
 	delete[] MsAntennaPosition;
-	delete[] sigma_ds_LOS;					
-	delete[] sigma_asD_LOS;					
-	delete[] sigma_asA_LOS;
-	delete[] sigma_zsD_LOS;
-	delete[] sigma_zsA_LOS;					
-	delete[] sigma_sf_LOS;					
-	delete[] sigma_kf_LOS;					
-	delete[] sigma_ds_NLOS;					
-	delete[] sigma_asD_NLOS;					
-	delete[] sigma_asA_NLOS;
-	delete[] sigma_zsD_NLOS;
-	delete[] sigma_zsA_NLOS;					
-	delete[] sigma_sf_NLOS;						
 	delete[] Xn_m;
 	delete[] ZoA_LOS_dir;
 	delete[] ZoD_LOS_dir;
@@ -2550,7 +2519,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 * @param LOS true iff LOS Condition, false otherwise
 * @return Scaling factor
 */
-double METISChannel::C_AS(int numCluster, bool LOS, int i,double **sigma_kf_LOS){
+double METISChannel::C_AS(int numCluster, bool LOS, int i,
+		vector<vector<double>> sigma_kf_LOS){
 	if(LOS){
 		double K = 10.0 * log10(abs(sigma_kf_LOS[i][0]));
 		double k_factor_LOS = 1.1035 - 0.028 * K - 0.002 * pow(K,2) + 0.0001 * pow(K,3);
@@ -2593,7 +2563,8 @@ double METISChannel::C_AS(int numCluster, bool LOS, int i,double **sigma_kf_LOS)
 * @param LOS true iff LOS Condition, false otherwise
 * @return Scaling factor
 */
-double METISChannel::C_ZS(int numCluster, bool LOS,double **sigma_kf_LOS){
+double METISChannel::C_ZS(int numCluster, bool LOS,
+		vector<vector<double>> sigma_kf_LOS){
 	int i = 0;
 	if(LOS){
 		double K = 10.0 * log10(abs(sigma_kf_LOS[i][0]));
@@ -2619,16 +2590,12 @@ double METISChannel::C_ZS(int numCluster, bool LOS,double **sigma_kf_LOS){
 * Function that computes the exponential auto correlation for LOS.
 * @return True if succesful. False otherwise.
 */
-double **METISChannel::generateAutoCorrelation_LOS(Position *MSPos){
+void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
+		const vector<Position>& receivers,
+		vector<vector<vector<double>>>& correlation){
 	int r = initModule->par("cellRadiusMETIS");
-	std::cout << "Radius: " << r << std::endl;
-	double **autoCorrelation_LOS = new double*[7];
-	for(int i = 0; i < 7; i++){
-		autoCorrelation_LOS[i] = new double[numberOfMobileStations];
-		for(int j = 0; j < numberOfMobileStations; j++){
-			autoCorrelation_LOS[i][j] = 0;
-		}
-	}
+	correlation.resize(receivers.size(),vector<vector<double>>(senders.size(),
+				vector<double>(7)));
 	
 	// Read in LOS Decorrelation parameters.
 	int decorr_LOS_DS = initModule->par("Decorr_LOS_DS");
@@ -2739,10 +2706,12 @@ double **METISChannel::generateAutoCorrelation_LOS(Position *MSPos){
 		
 	// For each Link generate Large scale parameters
 	double middle = (2*r + 10)/2;
-	for(int a = 0; a < numberOfMobileStations; a++){
-		for(int i = 0; i < 7; i++){
-			autoCorrelation_LOS[i][a] = tmpY[i][(int) (MSPos[a].x + middle - xPos)][(int) (MSPos[a].y + middle - yPos)];
-			//autoCorrelation_LOS[i][a] = normal(0,1);
+	for(size_t l = 0; l < receivers.size(); l++){
+		for(size_t i=0; i<senders.size(); i++){
+			for(int j=0; j<7; j++){
+				std::cout << l << " " << i << " " << j << std::endl; 
+				correlation[l][i][j] = tmpY[j][(int) (receivers[l].x + middle - senders[i].x)][(int) (receivers[l].y + middle - senders[i].y)];
+			}
 		}
 	}
 	// Clean up all local variables allocated on the heap
@@ -2762,24 +2731,18 @@ double **METISChannel::generateAutoCorrelation_LOS(Position *MSPos){
 	delete[] grid;
 	delete[] tmpX;
 	delete[] tmpY;
-
-	return autoCorrelation_LOS;
 }
 
 /**
 * Function that computes the exponential auto correlation for NLOS.
 * @return True if succesful. False otherwise.
 */
-double **METISChannel::generateAutoCorrelation_NLOS(Position *MSPos){
+void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
+		const vector<Position>& receivers,
+		vector<vector<vector<double>>>& correlation){
 	int r = initModule->par("cellRadiusMETIS");
-	std::cout << "Radius: " << r << std::endl;
-	double **autoCorrelation_NLOS = new double*[6];
-	for(int i = 0; i < 6; i++){
-		autoCorrelation_NLOS[i] = new double[numberOfMobileStations];
-		for(int j = 0; j < numberOfMobileStations; j++){
-			autoCorrelation_NLOS[i][j] = 0;
-		}
-	}
+	correlation.resize(receivers.size(),vector<vector<double>>(senders.size(),
+				vector<double>(6)));
 	
 	// Read in NLOS Decorrelation parameters.
 	int decorr_NLOS_DS = initModule->par("Decorr_NLOS_DS");
@@ -2892,10 +2855,12 @@ double **METISChannel::generateAutoCorrelation_NLOS(Position *MSPos){
 		
 	// For each Link generate Large scale parameters
 	double middle = (2*r + 10)/2;
-	for(int a = 0; a < numberOfMobileStations; a++){
-		for(int i = 0; i < 6; i++){
-			autoCorrelation_NLOS[i][a] = tmpY[i][(int) (MSPos[a].x + middle - xPos)][(int) (MSPos[a].y + middle - yPos)];
-			//autoCorrelation_NLOS[i][a] = normal(0,1);
+	for(size_t l = 0; l < receivers.size(); l++){
+		for(size_t i=0; i<senders.size(); i++){
+			for(int j=0; j<6; j++){
+				std::cout << l << " " << i << " " << j << std::endl; 
+				correlation[l][i][j] = tmpY[j][(int) (receivers[l].x + middle - senders[i].x)][(int) (receivers[l].y + middle - senders[i].y)];
+			}
 		}
 	}
 	// Clean up all local variables allocated on the heap
@@ -2921,8 +2886,6 @@ double **METISChannel::generateAutoCorrelation_NLOS(Position *MSPos){
 	}
 	delete[] filter;
 	delete[] sum;
-
-	return autoCorrelation_NLOS;
 }
 
 /**
