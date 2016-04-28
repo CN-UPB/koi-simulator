@@ -19,8 +19,6 @@
 #include <math.h>
 #include <complex>
 #include <fstream>
-#include <vector>
-#include <tuple>
 
 using std::vector;
 using std::tuple;
@@ -193,8 +191,7 @@ void METISChannel::recomputeLargeScaleParameters(const vector<Position>& senders
 		vector<vector<double>>& sigma_asA_NLOS,
 		vector<vector<double>>& sigma_zsD_NLOS,
 		vector<vector<double>>& sigma_zsA_NLOS,
-		vector<vector<double>>& sigma_sf_NLOS,
-		vector<vector<double>>& sigma_kf_NLOS
+		vector<vector<double>>& sigma_sf_NLOS
 		){
 	double dist2D;
 	std::cout << "Before Auto Correlation!" << std::endl;
@@ -314,10 +311,70 @@ vector<vector<bool>> METISChannel::genLosCond(const vector<Position>& sendPos,
 	return losCond;
 }
 
+tuple<vector<vector<vector<double>>>,vector<vector<vector<double>>>>
+METISChannel::recomputeClusterDelays(const vector<vector<bool>>& LOSCondition,
+		const vector<vector<double>>& sigmaDS_LOS,
+		const vector<vector<double>>& sigmaDS_NLOS,
+		const vector<vector<double>>& sigmaKF_LOS
+		){
+	vector<vector<vector<double>>> clusterDelays_NLOS(LOSCondition.size(),
+			vector<vector<double>>(LOSCondition[0].size(),
+				vector<double>())); 
+	vector<vector<vector<double>>> clusterDelays_LOS(LOSCondition.size(),
+			vector<vector<double>>(LOSCondition[0].size(),
+				vector<double>())); 
+    
+	int n_clusters;
+	double delayScaling;
+	double min_delay;
+	double sigma_ds;
+    	for(size_t i = 0; i < LOSCondition.size(); i++){
+		for(size_t j = 0; j<LOSCondition[i].size(); j++){
+			if(LOSCondition[i][j]){
+				// LOS Condition
+				n_clusters = N_cluster_LOS;
+				delayScaling = initModule->par("DelayScaling_LOS");
+				sigma_ds = sigmaDS_LOS[i][j];
+			}
+			else{
+				// NLOS Condition
+				n_clusters = N_cluster_NLOS;
+				delayScaling = initModule->par("DelayScaling_NLOS");
+				sigma_ds = sigmaDS_NLOS[i][j];
+			}
+			clusterDelays_LOS[i][j].resize(n_clusters,0.0);
+			clusterDelays_NLOS[i][j].resize(n_clusters,0.0);
+			for(int k = 0; k < n_clusters; k++){
+				clusterDelays_NLOS[i][j][k] = -1.0*delayScaling*sigma_ds*log(uniform(0,1));
+			}
+			min_delay = *std::min_element(clusterDelays_NLOS[i][j].cbegin(), clusterDelays_NLOS[i][j].cbegin() + n_clusters);
+			// Normalize the delays (7.39)
+			for(int k = 0; k < n_clusters; k++){
+				clusterDelays_NLOS[i][j][k] = clusterDelays_NLOS[i][j][k] - min_delay;
+			}
+			// Sort the delays (7.39)
+			std::sort(clusterDelays_NLOS[i][j].begin(), clusterDelays_NLOS[i][j].begin() + n_clusters, std::less<double>());
+			if(LOSCondition[i][j]){
+				// Apply LOS Peak compensation factor
+				// Compute LOS Peak compensation factor (7.41)
+				double K = 10.0 * log10(abs(sigmaKF_LOS[i][j]));
+				double C_DS = 0.7705 - 0.0433 * K + 0.0002 * pow(K,2) + 0.000017 * pow(K,3);
+
+				// Apply LOS compensation factor
+				for(int k = 0; k < n_clusters; k++){
+					clusterDelays_LOS[i][j][k] = clusterDelays_NLOS[i][j][k] / C_DS;
+				}	
+			}	
+		}
+	}
+	return std::make_tuple(clusterDelays_LOS,clusterDelays_NLOS);
+}
+
 void METISChannel::recomputeMETISParams(Position** msPositions){
     	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
 	double dist2D;
+	double delayScaling;
     
     	// randomly generate direction and magnitude of movement vector
 	double *MSVelMag = new double[numberOfMobileStations]; /*!< Magnitude of MS Velocity */
@@ -465,8 +522,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			vector<double>(neighbourPositions.size()));
 	vector<vector<double>> sigma_sf_NLOS(MSPos.size(),
 			vector<double>(neighbourPositions.size()));
-	vector<vector<double>> sigma_kf_NLOS(MSPos.size(),
-			vector<double>(neighbourPositions.size()));
 	recomputeLargeScaleParameters(BSPos,MSPos,
 			sigma_ds_LOS,
 			sigma_asD_LOS,
@@ -480,125 +535,21 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			sigma_asA_NLOS,
 			sigma_zsD_NLOS,
 			sigma_zsA_NLOS,
-			sigma_sf_NLOS,
-			sigma_kf_NLOS
+			sigma_sf_NLOS
 			);
 	std::cout << "Finished Large Scale parameter.." << std::endl;
 
     	// Begin small scale parameter generation.
     
     	// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
-	double ***clusterDelays = new double**[numberOfMobileStations];	/*!< The delays in seconds for each cluster [#MS]x[#BS]x[#Cluster] */
-	double ***clusterDelays_LOS = new double**[numberOfMobileStations]; /*!< The delays in seconds for each cluster in LOS case [#MS]x[#BS]x[#Cluster] */
-	double delayScaling;
-	std::cout << "N_cluster_LOS: " << N_cluster_LOS << std::endl;
-    	std::cout << "N_cluster_NLOS: " << N_cluster_NLOS << std::endl;
-    
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		clusterDelays[i] = new double*[neighbourPositions.size()];
-		clusterDelays_LOS[i] = new double*[neighbourPositions.size()];
-		int k = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					// LOS Condition
-					clusterDelays[i][0] = new double[N_cluster_LOS];
-					clusterDelays_LOS[i][0] = new double[N_cluster_LOS];
-					delayScaling = initModule->par("DelayScaling_LOS");
-					
-					for(int j = 0; j < N_cluster_LOS; j++){
-						clusterDelays[i][0][j] = -1.0*delayScaling*sigma_ds_LOS[i][0]*log(uniform(0,1));
-					}
-					
-					double min_delay = *std::min_element(clusterDelays[i][0], clusterDelays[i][0] + N_cluster_LOS);
-					// Normalize the delays (7.39)
-					for(int j = 0; j < N_cluster_LOS; j++){
-						clusterDelays[i][0][j] = clusterDelays[i][0][j] - min_delay;
-					}
-
-					// Sort the delays (7.39)
-					std::sort(clusterDelays[i][0], clusterDelays[i][0] + N_cluster_LOS, std::less<double>());
-					
-					// Compute LOS Peak compensation factor (7.41)
-					double K = 10.0 * log10(abs(sigma_kf_LOS[i][0]));
-					double C_DS = 0.7705 - 0.0433 * K + 0.0002 * pow(K,2) + 0.000017 * pow(K,3);
-					
-					// Apply LOS compensation factor
-					for(int j = 0; j < N_cluster_LOS; j++){
-						clusterDelays_LOS[i][0][j] = clusterDelays[i][0][j] / C_DS;
-					}
-					
-				}else{
-					// NLOS Condition
-					clusterDelays[i][0] = new double[N_cluster_NLOS];
-					delayScaling = initModule->par("DelayScaling_NLOS");
-					
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						clusterDelays[i][0][j] = -1.0*delayScaling*sigma_ds_NLOS[i][0]*log(uniform(0,1));
-					}
-					
-					double min_delay = *std::min_element(clusterDelays[i][0], clusterDelays[i][0] + N_cluster_NLOS);
-					// Normalize the delays (7.39)
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						clusterDelays[i][0][j] = clusterDelays[i][0][j] - min_delay;
-						//std::cout << "Delay: " << clusterDelays[i][0][j] << std::endl;
-					}
-
-					// Sort the delays (7.39)
-					std::sort(clusterDelays[i][0], clusterDelays[i][0] + N_cluster_NLOS,std::less<double>());
-					
-				}
-			}else{
-				if(LOSCondition[i][k]){
-					// LOS Condition
-					clusterDelays[i][k] = new double[N_cluster_LOS];
-					clusterDelays_LOS[i][k] = new double[N_cluster_LOS];
-					delayScaling = initModule->par("DelayScaling_LOS");
-					
-					for(int j = 0; j < N_cluster_LOS; j++){
-						clusterDelays[i][k][j] = -1.0*delayScaling*sigma_ds_LOS[i][k]*log(uniform(0,1));
-					}
-					
-					double min_delay = *std::min_element(clusterDelays[i][k], clusterDelays[i][k] + N_cluster_LOS);
-					// Normalize the delays (7.39)
-					for(int j = 0; j < N_cluster_LOS; j++){
-						clusterDelays[i][k][j] = clusterDelays[i][k][j] - min_delay;
-					}
-					
-					// Sort the delays (7.39)
-					std::sort(clusterDelays[i][k], clusterDelays[i][k] + N_cluster_LOS, std::less<double>());
-					
-					// Compute LOS Peak compensation factor (7.41)
-					double K = 10.0 * log10(abs(sigma_kf_LOS[i][k]));
-					double C_DS = 0.7705 - 0.0433 * K + 0.0002 * pow(K,2) + 0.000017 * pow(K,3);
-					
-					// Apply LOS compensation factor
-					for(int j = 0; j < N_cluster_LOS; j++){
-						clusterDelays_LOS[i][k][j] = clusterDelays[i][k][j] / C_DS;
-					}	
-				}else{
-					// NLOS Condition
-					clusterDelays[i][k] = new double[N_cluster_NLOS];
-					delayScaling = initModule->par("DelayScaling_NLOS");
-					
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						clusterDelays[i][k][j] = -1.0*delayScaling*sigma_ds_NLOS[i][k]*log(uniform(0,1));
-					}
-					
-					double min_delay = *std::min_element(clusterDelays[i][k], clusterDelays[i][k] + N_cluster_NLOS);
-					// Normalize the delays (7.39)
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						clusterDelays[i][k][j] = clusterDelays[i][k][j] - min_delay;
-						//std::cout << "Delay: " << clusterDelays[i][k][j] << std::endl;
-					}
-
-					// Sort the delays (7.39)
-					std::sort(clusterDelays[i][k], clusterDelays[i][k] + N_cluster_NLOS,std::less<double>());
-				}
-				k++;
-			}
-		}
-	}
+	vector<vector<vector<double>>> clusterDelays;
+	vector<vector<vector<double>>> clusterDelays_LOS;
+	std::tie(clusterDelays_LOS,clusterDelays) = recomputeClusterDelays(
+			LOSCondition,
+			sigma_ds_LOS,
+			sigma_ds_NLOS,
+			sigma_kf_LOS
+			);
 
 	double ***clusterPowers = new double**[numberOfMobileStations];	/*!< The cluster power distribution for each link [#MS]x[#BS]x[#Cluster] */
 	double cluster_shadowing;
@@ -2396,7 +2347,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 					delete[] randomPhase[i][s][j];
 					delete[] Xn_m[i][s][j];
 				}
-				delete[] clusterDelays_LOS[i][s];
 			}
 			else{
 				for(int j=0;j<N_cluster_NLOS;j++){
@@ -2411,7 +2361,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			}
 			delete[] azimuth_ASA[i][s];
 			delete[] azimuth_ASD[i][s];
-			delete[] clusterDelays[i][s];
 			delete[] clusterPowers[i][s];
 			for(int j=0;j<N_cluster_NLOS;j++){
 				delete[] elevation_ASA[i][s][j];
@@ -2429,8 +2378,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		delete[] azimuth_ASD[i];
 		delete[] azimuth_cluster_ASA[i];
 		delete[] azimuth_cluster_ASD[i];
-		delete[] clusterDelays[i];
-		delete[] clusterDelays_LOS[i];
 	 	delete[] clusterPowers[i];
 		delete[] elevation_ASA[i];
 		delete[] elevation_ASD[i];
@@ -2452,8 +2399,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	delete[] azimuth_ASD;
 	delete[] azimuth_cluster_ASA;
 	delete[] azimuth_cluster_ASD;
-	delete[] clusterDelays;
-	delete[] clusterDelays_LOS;
 	delete[] clusterPowers;
 	delete[] elevation_ASA;
 	delete[] elevation_ASD;

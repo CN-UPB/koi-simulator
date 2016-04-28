@@ -17,6 +17,7 @@
 #include "Channel.h"
 #include <algorithm>
 #include <vector>
+#include <tuple>
 
 using std::vector;
 
@@ -94,8 +95,7 @@ class METISChannel : public Channel{
 				vector<vector<double>>& sigma_asA_NLOS,
 				vector<vector<double>>& sigma_zsD_NLOS,
 				vector<vector<double>>& sigma_zsA_NLOS,
-				vector<vector<double>>& sigma_sf_NLOS,
-				vector<vector<double>>& sigma_kf_NLOS);
+				vector<vector<double>>& sigma_sf_NLOS);
 
 		//! Recalculate all position dependent values, e.g. SINR
 		void recomputeMETISParams(Position **msPositions);
@@ -126,6 +126,36 @@ class METISChannel : public Channel{
 		 */
 		vector<vector<bool>> genLosCond(const vector<Position>& sendPos,
 				const vector<Position>& receivePos);
+
+		/**
+		 * @brief Recompute per-cluster delays
+		 *
+		 * For each receiver/sender pair, the METIS model generates 
+		 * several rays with normal distributed path delay. See
+		 * section 7.3.12 of the METIS D1.2 document.
+		 *
+		 * @param LOSCondition A [#receivers]x[#senders] vector 
+		 * 			containing LOS conditions 
+		 * 			(see genLosCond())
+		 * @param sigmaDS_LOS The delay spread variance for line of sight 
+		 * 			(see recomputeLargeScaleParameters() 
+		 * 			and 3GPP Doc 25996)
+		 * @param sigmaDS_NLOS The delay spread variance for non line 
+		 * 			of sight (see recomputeLargeScaleParameters()
+		 * 			and 3GPP Doc 25996)
+		 * @param sigmaKF_LOS The variance of the Ricean K-factor for 
+		 * 			line of sight (see recomputeLargeScaleParameters() 
+		 * 			and 3GPP Doc 25996)
+		 * @return A pair of [#receivers]x[#senders]x[#ray clusters] vectors 
+		 * 		where the first component contains the spreads 
+		 * 		for the LOS case and second one containing those 
+		 * 		for the NLOS case.
+		 */
+		std::tuple<vector<vector<vector<double>>>,vector<vector<vector<double>>>>
+		recomputeClusterDelays(const vector<vector<bool>>& LOSCondition,
+				const vector<vector<double>>& sigmaDS_LOS,
+				const vector<vector<double>>& sigmaDS_NLOS,
+				const vector<vector<double>>& sigmaKF_LOS);
         
 	public:
 		//! Constructor of METIS Channel subclass.
