@@ -109,6 +109,23 @@ class METISChannel : public Channel{
 		void generateAutoCorrelation_NLOS(const vector<Position>& senders,
 				const vector<Position>& receivers,
 				vector<vector<vector<double>>>& correlation);
+
+		/**
+		 * @brief Compute line of sight for each sender/receiver pair
+		 *
+		 * For each pair of sender/receiver, the METIS computations 
+		 * need the information on whether there is a line of sight 
+		 * between them or not. The probabilities are taken from 
+		 * section 7.3.10 of METIS D1.2.
+		 *
+		 * @param sendPos The 2D positions of the senders
+		 * @param receivePos The 2D positions of the receivers
+		 * @return A two dimensional [#receivers]x[#senders] vector
+		 * 		where [i][j] is `TRUE` iff there is a line of 
+		 * 		sight between receiver `i` and sender `j`
+		 */
+		vector<vector<bool>> genLosCond(const vector<Position>& sendPos,
+				const vector<Position>& receivePos);
         
 	public:
 		//! Constructor of METIS Channel subclass.

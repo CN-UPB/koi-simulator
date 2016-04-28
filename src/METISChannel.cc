@@ -20,8 +20,10 @@
 #include <complex>
 #include <fstream>
 #include <vector>
+#include <tuple>
 
 using std::vector;
+using std::tuple;
 
 double getMSGain(double AoA, double EoA){ // Hertzian dipole; TODO: Change the return value to a vector for getting both theta and phi components
 	//return (-1.0 * sin(EoA)); 
@@ -294,6 +296,24 @@ void METISChannel::recomputeLargeScaleParameters(const vector<Position>& senders
 
 }
 
+/**
+ * Determines for each sender/reciever pair whether they have a line of sight
+ */
+vector<vector<bool>> METISChannel::genLosCond(const vector<Position>& sendPos,
+		const vector<Position>& receivePos){
+	vector<vector<bool>> losCond(receivePos.size(),
+			vector<bool>(sendPos.size()));
+	double dist;
+	for(size_t i = 0; i < receivePos.size(); i++){
+		for(size_t j=0; j<sendPos.size(); j++){
+			dist = sqrt(pow(sendPos[j].x - receivePos[i].x,2) 
+					+ pow(sendPos[j].y - receivePos[i].y,2));
+			losCond[i][j] = LineOfSight(dist);
+		}
+	}
+	return losCond;
+}
+
 void METISChannel::recomputeMETISParams(Position** msPositions){
     	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
@@ -417,22 +437,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	}
 	
 	//Assign LOS Conditions:
-	double MS_BS_dist;
-	bool **LOSCondition = new bool*[numberOfMobileStations]; /* Stores whether each of the links is LOS or NLOS */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		LOSCondition[i] = new bool[neighbourPositions.size()];
-		int k = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				MS_BS_dist = sqrt((xPos - MSPos[i].x)*(xPos - MSPos[i].x) + (yPos - MSPos[i].y)*(yPos - MSPos[i].y));
-				LOSCondition[i][0] = LineOfSight(MS_BS_dist);
-			}else{
-				MS_BS_dist = sqrt((it->second.x - MSPos[i].x)*(it->second.x - MSPos[i].x) + (it->second.y - MSPos[i].y)*(it->second.y - MSPos[i].y));
-				LOSCondition[i][k] = LineOfSight(MS_BS_dist);
-				k++;
-			}
-		}
-	}
+	vector<vector<bool>> LOSCondition(genLosCond(BSPos,MSPos));
 	
 	vector<vector<double>> sigma_ds_LOS(MSPos.size(),
 			vector<double>(neighbourPositions.size()));
@@ -2429,7 +2434,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	 	delete[] clusterPowers[i];
 		delete[] elevation_ASA[i];
 		delete[] elevation_ASD[i];
-		delete[] LOSCondition[i];
 		delete[] MSVelDir[i];
 		delete[] randomPhase[i];
 		delete[] randomPhase_LOS[i];
@@ -2453,7 +2457,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	delete[] clusterPowers;
 	delete[] elevation_ASA;
 	delete[] elevation_ASD;
-	delete[] LOSCondition;
 	delete[] MSVelDir;
 	delete[] MSVelMag;
 	delete[] randomPhase;
