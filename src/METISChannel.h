@@ -168,6 +168,13 @@ class METISChannel : public Channel{
 				const vector<vector<double>>& sigmaKF_LOS
 				);
 
+		/**
+		 * @brief Recompute per-ray powers
+		 */
+		vector<vector<vector<double>>> recomputeRayPowers(const vector<vector<bool>>& LOSCondition,
+				vector<vector<vector<double>>>& clusterPowers
+				);
+
 	public:
 		//! Constructor of METIS Channel subclass.
 		METISChannel(){

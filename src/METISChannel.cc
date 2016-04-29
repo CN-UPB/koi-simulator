@@ -433,6 +433,34 @@ vector<vector<vector<double>>> METISChannel::genClusterPowers(const vector<vecto
 	return clusterPowers;
 }
 
+vector<vector<vector<double>>> METISChannel::recomputeRayPowers(const vector<vector<bool>>& LOSCondition,
+		vector<vector<vector<double>>>& clusterPowers
+		){
+	size_t numReceivers = LOSCondition.size();
+	size_t numSenders = LOSCondition[0].size();
+	vector<vector<vector<double>>> rayPowers(numReceivers,
+			vector<vector<double>>(numSenders,vector<double>()));
+	int n_clusters;
+	int n_rays;
+	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j<numSenders; j++){
+			if(LOSCondition[i][j]){
+				n_clusters = N_cluster_LOS;
+				n_rays = numOfRays_LOS;
+			}
+			else{
+				n_clusters = N_cluster_NLOS;
+				n_rays = numOfRays_NLOS;
+			}
+			rayPowers[i][j].resize(n_clusters,0.0);
+			for(int k = 0; k < n_clusters; k++){
+				rayPowers[i][j][k] = clusterPowers[i][j][k] / n_rays;
+			}
+		}
+	}
+	return rayPowers;	
+}
+
 void METISChannel::recomputeMETISParams(Position** msPositions){
     	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
@@ -621,47 +649,20 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 				));
 
 	// Precompute powers per ray (7.46)
-	double ***rayPowers = new double**[numberOfMobileStations]; /*!< The ray power for each cluster */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		rayPowers[i] = new double*[neighbourPositions.size()];
-		int itIdx = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					rayPowers[i][0] = new double[N_cluster_LOS];
-					for(int j = 0; j < N_cluster_LOS; j++){
-						rayPowers[i][0][j] = clusterPowers[i][0][j] / numOfRays_LOS;
-					}
-				}else{
-					rayPowers[i][0] = new double[N_cluster_NLOS];
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						rayPowers[i][0][j] = clusterPowers[i][0][j] / numOfRays_NLOS;
-					}
-				}
-			}else{
-				if(LOSCondition[i][itIdx]){
-					rayPowers[i][itIdx] = new double[N_cluster_LOS];
-					for(int j = 0; j < N_cluster_LOS; j++){
-						rayPowers[i][itIdx][j] = clusterPowers[i][itIdx][j] / numOfRays_LOS;
-					}
-				}else{
-					rayPowers[i][itIdx] = new double[N_cluster_NLOS];
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						rayPowers[i][itIdx][j] = clusterPowers[i][itIdx][j] / numOfRays_NLOS;
-					}
-				}
-				itIdx++;
-			}
-		}
-	}
+	// While METIS D1.2 clearly states how to compute individual ray 
+	// powers in section 7.3.13, only cluster powers are used 
+	// for further computations.
+//	vector<vector<vector<double>>> rayPowers(recomputeRayPowers(
+//				LOSCondition,
+//				clusterPowers)); /*!< The ray power for each cluster */
 	
 	// Ray offset. Table 7.6
 	double ray_offset[20] = {	
-							0.0447, -0.0447, 0.1413, -0.1413, 0.2492, -0.2492, 
-							0.3715, -0.3715, 0.5129, -0.5129, 0.6797, -0.6797,
-							0.8844, -0.8844, 1.1481, -1.1481, 1.5195, -1.5195,
-							2.1551, -2.1551
-							};
+		0.0447, -0.0447, 0.1413, -0.1413, 0.2492, -0.2492, 
+		0.3715, -0.3715, 0.5129, -0.5129, 0.6797, -0.6797,
+		0.8844, -0.8844, 1.1481, -1.1481, 1.5195, -1.5195,
+		2.1551, -2.1551
+	};
 	
 	// Generate azimuth angles of arrival
 	double **azimuth_cluster_ASA = new double*[numberOfMobileStations];
@@ -2329,7 +2330,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			delete[] elevation_ASA[i][s];
 			delete[] elevation_ASD[i][s];
 			delete[] randomPhase[i][s];
-			delete[] rayPowers[i][s];
 			delete[] Xn_m[i][s];
 		}
 		delete[] AoA_LOS_dir[i];
@@ -2343,7 +2343,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		delete[] MSVelDir[i];
 		delete[] randomPhase[i];
 		delete[] randomPhase_LOS[i];
-		delete[] rayPowers[i];
 		for(int s=0; s<NumMsAntenna; s++){
 			delete[] MsAntennaPosition[i][s];
 		}
@@ -2364,7 +2363,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	delete[] MSVelMag;
 	delete[] randomPhase;
 	delete[] randomPhase_LOS;
-	delete[] rayPowers;
 	for(int m = 0; m < numberOfMobileStations; m++){
 		for(int i = 0; i < (N_cluster_LOS + 4); i++){
 			for(int j = 0; j < timeSamples; j++){
