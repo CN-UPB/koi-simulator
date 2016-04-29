@@ -370,11 +370,73 @@ METISChannel::recomputeClusterDelays(const vector<vector<bool>>& LOSCondition,
 	return std::make_tuple(clusterDelays_LOS,clusterDelays_NLOS);
 }
 
+vector<vector<vector<double>>> METISChannel::genClusterPowers(const vector<vector<bool>>& LOSCondition,
+		const vector<vector<vector<double>>>& clusterDelays,
+		const vector<vector<double>>& sigmaDS_LOS,
+		const vector<vector<double>>& sigmaDS_NLOS,
+		const vector<vector<double>>& sigmaKF_LOS
+		){
+	vector<vector<vector<double>>> clusterPowers(clusterDelays.size(),
+			vector<vector<double>>(clusterDelays[0].size(),
+				vector<double>()));
+	size_t numReceivers = clusterDelays.size();
+	size_t numSenders = clusterDelays[0].size();
+	double cluster_shadowing;
+	double sum;
+	double temp_CS;
+	int n_clusters;
+	double sigma_ds;
+	double K;
+	double P1_LOS;
+	double delayScaling;
+	
+	// Generate cluster powers. 
+	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j < numSenders; j++){
+			if(LOSCondition[i][j]){
+				temp_CS = initModule->par("PerClusterShadowing_LOS");
+				delayScaling = initModule->par("DelayScaling_LOS");
+				n_clusters = N_cluster_LOS;
+				sigma_ds = sigmaDS_LOS[i][j];
+			}
+			else{
+				temp_CS = initModule->par("PerClusterShadowing_NLOS");
+				delayScaling = initModule->par("DelayScaling_NLOS");
+				n_clusters = N_cluster_NLOS;
+				sigma_ds = sigmaDS_NLOS[i][j];
+			}
+			clusterPowers[i][j].resize(n_clusters,0.0);
+			sum = 0;
+			cluster_shadowing = pow(temp_CS,2); //METIS
+			for(int k = 0; k < n_clusters; k++){
+				// Formula 7.42
+				clusterPowers[i][j][k] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][j][k] * ((delayScaling - 1) / (delayScaling * sigma_ds)) );
+				sum += clusterPowers[i][j][k];
+			}
+			if(LOSCondition[i][j]){
+				K = sigmaKF_LOS[i][j]; 			// K-factor in linear scale
+				P1_LOS = K / (K + 1);
+				for(int k = 0; k < n_clusters; k++){
+					if (k==0){
+						clusterPowers[i][j][k] = ((1/(K+1))*clusterPowers[i][j][k]/sum) + P1_LOS;
+					}else{
+						clusterPowers[i][j][k] = (1/(K+1))*clusterPowers[i][j][k]/sum;
+					}
+				}
+			}else{
+				for(int k = 0; k < n_clusters; k++){
+					clusterPowers[i][j][k] /= sum;
+				}
+			}
+		}
+	}
+	return clusterPowers;
+}
+
 void METISChannel::recomputeMETISParams(Position** msPositions){
     	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
 	double dist2D;
-	double delayScaling;
     
     	// randomly generate direction and magnitude of movement vector
 	double *MSVelMag = new double[numberOfMobileStations]; /*!< Magnitude of MS Velocity */
@@ -551,106 +613,13 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			sigma_kf_LOS
 			);
 
-	double ***clusterPowers = new double**[numberOfMobileStations];	/*!< The cluster power distribution for each link [#MS]x[#BS]x[#Cluster] */
-	double cluster_shadowing;
-	double sum;
-	
-	// Generate cluster powers. 
-	for(int i = 0; i < numberOfMobileStations; i++){
-		clusterPowers[i] = new double*[neighbourPositions.size()];
-		int itIdx = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					//std::cout << "LOS Case!" << std::endl;
-					clusterPowers[i][0] = new double[N_cluster_LOS];
-					sum = 0;
-					double K = sigma_kf_LOS[i][0];				// K-factor in linear scale
-					
-					double P1_LOS = K / (K + 1);
-					
-					double temp_CS = initModule->par("PerClusterShadowing_LOS");
-					cluster_shadowing = pow(temp_CS,2);
-					delayScaling = initModule->par("DelayScaling_LOS");
-					for(int j = 0; j < N_cluster_LOS; j++){
-						// Formula 7.42
-						clusterPowers[i][0][j] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][0][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_LOS[i][0])) );
-						sum += clusterPowers[i][0][j];
-					}
-					
-					for(int j = 0; j < N_cluster_LOS; j++){
-						if (j==0){
-                                                        clusterPowers[i][0][j] = ((1/(K+1))*clusterPowers[i][0][j]/sum) + P1_LOS;
-                                                }else{
-						        clusterPowers[i][0][j] = (1/(K+1))*clusterPowers[i][0][j]/sum;
-						}
-					}
-				}else{
-					//std::cout << "NLOS Case!" << std::endl;
-					clusterPowers[i][0] = new double[N_cluster_NLOS];
-					sum = 0;
-					
-					double temp_CS = initModule->par("PerClusterShadowing_NLOS");
-					cluster_shadowing = pow(temp_CS,2); //METIS
-					delayScaling = initModule->par("DelayScaling_NLOS");
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						// Formula 7.42
-						clusterPowers[i][0][j] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][0][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_NLOS[i][0])) ); //METIS
-						sum += clusterPowers[i][0][j];
-					}
-					
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						clusterPowers[i][0][j] /= sum;
-					}
-				}
-			}else{
-				if(LOSCondition[i][itIdx]){
-					//std::cout << "LOS Case!" << std::endl;
-					clusterPowers[i][itIdx] = new double[N_cluster_LOS];
-					sum = 0;
-					double K = sigma_kf_LOS[i][itIdx]; 			// K-factor in linear scale
-					
-					double P1_LOS = K / (K + 1);
-					
-					double temp_CS = initModule->par("PerClusterShadowing_LOS");
-					cluster_shadowing = pow(temp_CS,2);
-					delayScaling = initModule->par("DelayScaling_LOS");
-					for(int j = 0; j < N_cluster_LOS; j++){
-						// Formula 7.42
-						clusterPowers[i][itIdx][j] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][itIdx][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_LOS[i][itIdx])) );
-						sum += clusterPowers[i][itIdx][j];
-					}
-					
-					for(int j = 0; j < N_cluster_LOS; j++){
-						if (j==0){
-                                                        clusterPowers[i][itIdx][j] = ((1/(K+1))*clusterPowers[i][itIdx][j]/sum) + P1_LOS;
-                                                }else{
-						        clusterPowers[i][itIdx][j] = (1/(K+1))*clusterPowers[i][itIdx][j]/sum;
-						}
-					}
-				}else{
-					//std::cout << "NLOS Case!" << std::endl;
-					clusterPowers[i][itIdx] = new double[N_cluster_NLOS];
-					sum = 0;
-					
-					double temp_CS = initModule->par("PerClusterShadowing_NLOS");
-					cluster_shadowing = pow(temp_CS,2); //METIS
-					delayScaling = initModule->par("DelayScaling_NLOS");
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						// Formula 7.42
-						clusterPowers[i][itIdx][j] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][itIdx][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_NLOS[i][itIdx])) ); //METIS
-						sum += clusterPowers[i][itIdx][j];
-					}
-					
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						clusterPowers[i][itIdx][j] /= sum;
-					}
-				}
-				itIdx++;
-			}
-		}
-	}
-	
+	vector<vector<vector<double>>> clusterPowers(genClusterPowers(LOSCondition,
+				clusterDelays,
+				sigma_ds_LOS,
+				sigma_ds_NLOS,
+				sigma_kf_LOS
+				));
+
 	// Precompute powers per ray (7.46)
 	double ***rayPowers = new double**[numberOfMobileStations]; /*!< The ray power for each cluster */
 	for(int i = 0; i < numberOfMobileStations; i++){
@@ -713,7 +682,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 						azimuth_ASA[i][0][j] = new double[numOfRays_LOS];
 				
 						//Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_LOS[i][0] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_LOS))) );
+						azimuth_cluster_ASA[i][j] = (sigma_asA_LOS[i][0] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0].cbegin(), clusterPowers[i][0].cbegin() + N_cluster_LOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asA_LOS[i][0] / 7.0,2)));
 				
@@ -739,7 +708,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 						azimuth_ASA[i][0][j] = new double[numOfRays_NLOS];
 				
 						// Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_NLOS[i][0] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_NLOS))) );
+						azimuth_cluster_ASA[i][j] = (sigma_asA_NLOS[i][0] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0].cbegin(), clusterPowers[i][0].cbegin() + N_cluster_NLOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asA_NLOS[i][0] / 7.0,2)));
 				
@@ -765,7 +734,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 						azimuth_ASA[i][itIdx][j] = new double[numOfRays_LOS];
 				
 						//Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_LOS[i][itIdx] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_LOS))) );
+						azimuth_cluster_ASA[i][j] = (sigma_asA_LOS[i][itIdx] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx].cbegin(), clusterPowers[i][itIdx].cbegin() + N_cluster_LOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asA_LOS[i][itIdx] / 7.0,2)));
 				
@@ -788,7 +757,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 						azimuth_ASA[i][itIdx][j] = new double[numOfRays_NLOS];
 				
 						// Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_NLOS[i][itIdx] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_NLOS))) );
+						azimuth_cluster_ASA[i][j] = (sigma_asA_NLOS[i][itIdx] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx].cbegin(), clusterPowers[i][itIdx].cbegin() + N_cluster_NLOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asA_NLOS[i][itIdx] / 7.0,2)));
 				
@@ -826,7 +795,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 						azimuth_ASD[i][0][j] = new double[numOfRays_LOS];
 				
 						//Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_LOS[i][0] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_LOS))) );
+						azimuth_cluster_ASD[i][j] = (sigma_asD_LOS[i][0] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0].cbegin(), clusterPowers[i][0].cbegin() + N_cluster_LOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asD_LOS[i][0] / 7.0,2)));
 				
@@ -852,7 +821,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 						azimuth_ASD[i][0][j] = new double[numOfRays_NLOS];
 				
 						// Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_NLOS[i][0] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_NLOS))) );
+						azimuth_cluster_ASD[i][j] = (sigma_asD_NLOS[i][0] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0].cbegin(), clusterPowers[i][0].cbegin() + N_cluster_NLOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asD_NLOS[i][0] / 7.0,2)));
 				
@@ -878,7 +847,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 						azimuth_ASD[i][itIdx][j] = new double[numOfRays_LOS];
 				
 						//Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_LOS[i][itIdx] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_LOS))) );
+						azimuth_cluster_ASD[i][j] = (sigma_asD_LOS[i][itIdx] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx].cbegin(), clusterPowers[i][itIdx].cbegin() + N_cluster_LOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asD_LOS[i][itIdx] / 7.0,2)));
 				
@@ -901,7 +870,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 						azimuth_ASD[i][itIdx][j] = new double[numOfRays_NLOS];
 				
 						// Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_NLOS[i][itIdx] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_NLOS))) );
+						azimuth_cluster_ASD[i][j] = (sigma_asD_NLOS[i][itIdx] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx].cbegin(), clusterPowers[i][itIdx].cbegin() + N_cluster_NLOS))) );
 						double X_N = uniform(-1.0,1.0);
 						double Y_N = normal(0.0, (pow(sigma_asD_NLOS[i][itIdx] / 7.0,2)));
 				
@@ -1262,7 +1231,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 													raySum[i][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
 													if(m + 1 == size_SC_1){
 														raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-														std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
 													}
 												} // End time axis							
 											} // End cycle Rays
@@ -1308,7 +1276,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 													if(m + 1 == size_SC_2){
 														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 														raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-														std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
 													}
 												} // End time axis							
 											} // End cycle Rays
@@ -1354,7 +1321,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 													if(m + 1 == size_SC_3){
 														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 														raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-														std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
 													}
 												} // End time axis							
 											} // End cycle Rays
@@ -1403,7 +1369,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 												if(m + 1 == numOfRays_NLOS){
 													//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 													raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-													std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
 												}
 											} // End time axis							
 										} // End cycle Rays
@@ -1483,7 +1448,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 														double K = sigma_kf_LOS[i][0]; 
 														raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-														std::cout << "raySum_LOS[i][clusterIdx][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
 													}
 												} // End time axis							
 											} // End cycle Rays
@@ -1532,7 +1496,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 														double K = sigma_kf_LOS[i][0]; 
 														raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-														std::cout << "raySum_LOS[i][clusterIdx_LOS][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
 													}
 												} // End time axis							
 											} // End cycle Rays
@@ -1581,7 +1544,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 														double K = sigma_kf_LOS[i][0]; 
 														raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-														std::cout << "raySum_LOS[i][clusterIdx_LOS][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
 													}
 												} // End time axis							
 											} // End cycle Rays
@@ -1631,7 +1593,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 													//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 													double K = sigma_kf_LOS[i][0]; 
 													raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-													std::cout << "raySum_LOS[i][clusterIdx_LOS][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
 												}
 											} // End time axis							
 										} // End cycle Rays
@@ -2361,7 +2322,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			}
 			delete[] azimuth_ASA[i][s];
 			delete[] azimuth_ASD[i][s];
-			delete[] clusterPowers[i][s];
 			for(int j=0;j<N_cluster_NLOS;j++){
 				delete[] elevation_ASA[i][s][j];
 				delete[] elevation_ASD[i][s][j];
@@ -2378,7 +2338,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		delete[] azimuth_ASD[i];
 		delete[] azimuth_cluster_ASA[i];
 		delete[] azimuth_cluster_ASD[i];
-	 	delete[] clusterPowers[i];
 		delete[] elevation_ASA[i];
 		delete[] elevation_ASD[i];
 		delete[] MSVelDir[i];
@@ -2399,7 +2358,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	delete[] azimuth_ASD;
 	delete[] azimuth_cluster_ASA;
 	delete[] azimuth_cluster_ASD;
-	delete[] clusterPowers;
 	delete[] elevation_ASA;
 	delete[] elevation_ASD;
 	delete[] MSVelDir;
@@ -2657,7 +2615,6 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 	for(size_t l = 0; l < receivers.size(); l++){
 		for(size_t i=0; i<senders.size(); i++){
 			for(int j=0; j<7; j++){
-				std::cout << l << " " << i << " " << j << std::endl; 
 				correlation[l][i][j] = tmpY[j][(int) (receivers[l].x + middle - senders[i].x)][(int) (receivers[l].y + middle - senders[i].y)];
 			}
 		}

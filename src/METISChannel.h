@@ -157,6 +157,17 @@ class METISChannel : public Channel{
 				const vector<vector<double>>& sigmaDS_NLOS,
 				const vector<vector<double>>& sigmaKF_LOS);
         
+		/**
+		 * @brief Recompute per-cluster powers
+		 *
+		 */
+		vector<vector<vector<double>>> genClusterPowers(const vector<vector<bool>>& LOSCondition,
+				const vector<vector<vector<double>>>& clusterDelays,
+				const vector<vector<double>>& sigmaDS_LOS,
+				const vector<vector<double>>& sigmaDS_NLOS,
+				const vector<vector<double>>& sigmaKF_LOS
+				);
+
 	public:
 		//! Constructor of METIS Channel subclass.
 		METISChannel(){
