@@ -175,6 +175,17 @@ class METISChannel : public Channel{
 				vector<vector<vector<double>>>& clusterPowers
 				);
 
+		/**
+		 * @brief Recompute angle directions
+		 */
+		tuple<vector<vector<double>>,vector<vector<double>>,vector<vector<double>>,vector<vector<double>>> 
+		recomputeAngleDirection(
+				const vector<Position>& receivers,
+				const vector<Position>& senders,
+				double heightSenders,
+				double heightReceivers
+				);
+
 	public:
 		//! Constructor of METIS Channel subclass.
 		METISChannel(){

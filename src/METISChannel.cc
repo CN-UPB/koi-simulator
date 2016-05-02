@@ -461,6 +461,60 @@ vector<vector<vector<double>>> METISChannel::recomputeRayPowers(const vector<vec
 	return rayPowers;	
 }
 
+tuple<vector<vector<double>>,vector<vector<double>>,vector<vector<double>>,vector<vector<double>>> 
+METISChannel::recomputeAngleDirection(
+		const vector<Position>& receivers,
+		const vector<Position>& senders,
+		double heightSenders,
+		double heightReceivers
+		){
+	size_t numReceivers = receivers.size();
+	size_t numSenders = senders.size();
+	vector<vector<double>> AoADir(numReceivers,
+			vector<double>(numSenders));
+	vector<vector<double>> ZoADir(numReceivers,
+			vector<double>(numSenders));
+	vector<vector<double>> AoDDir(numReceivers,
+			vector<double>(numSenders));
+	vector<vector<double>> ZoDDir(numReceivers,
+			vector<double>(numSenders));
+	double x_dir;
+	double y_dir;
+	vec cartLOS_RecToSend_Angle = zeros(3);
+	vec cartLOS_SendToRec_Angle = zeros(3);
+	vec sphLOSAngle;
+		
+	// Cycle through all mobile stations
+    	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j < numSenders; j++){
+				// Angles of Arrival
+				x_dir = receivers[i].x - senders[j].x;
+				y_dir = receivers[i].y - senders[j].y;
+
+				cartLOS_RecToSend_Angle.set(0,x_dir);
+				cartLOS_RecToSend_Angle.set(1,y_dir);
+				cartLOS_RecToSend_Angle.set(2,heightReceivers);
+				
+				sphLOSAngle = Cart_to_Sph(cartLOS_RecToSend_Angle);
+				AoADir[i][j] = sphLOSAngle.get(0);
+				ZoADir[i][j] = sphLOSAngle.get(1);
+
+				// Angles of Departure
+				x_dir = senders[j].x - receivers[i].x;
+				y_dir = senders[j].y - receivers[i].y;
+
+				cartLOS_SendToRec_Angle.set(0,x_dir);
+				cartLOS_SendToRec_Angle.set(1,y_dir);
+				cartLOS_SendToRec_Angle.set(2,heightSenders);
+				
+				sphLOSAngle = Cart_to_Sph(cartLOS_SendToRec_Angle);
+				AoDDir[i][j] = sphLOSAngle.get(0);
+				ZoDDir[i][j] = sphLOSAngle.get(1);
+		}
+	}
+	return std::make_tuple(AoADir,ZoADir,AoDDir,ZoDDir);
+}
+
 void METISChannel::recomputeMETISParams(Position** msPositions){
     	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
@@ -513,75 +567,16 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		}
 	}
 
-	double **AoA_LOS_dir = new double*[numberOfMobileStations]; /*!< azimuth angle of arrival of true geometric LOS direction */
-	double **AoD_LOS_dir = new double*[numberOfMobileStations]; /*!< azimuth angle of departure of true geometric LOS direction */
-	double **ZoA_LOS_dir = new double*[numberOfMobileStations]; /*!< zenith angle of arrival of true geometric LOS direction */
-	double **ZoD_LOS_dir = new double*[numberOfMobileStations]; /*!< zenith angle of departure of true geometric LOS direction */
-	double x_dir;
-	double y_dir;
-	vec cartLOS_BStoMS_Angle = zeros(3);
-	vec cartLOS_MStoBS_Angle = zeros(3);
-	vec sphLOSAngle;
-		
-	// Cycle through all mobile stations
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		AoA_LOS_dir[i] = new double[neighbourPositions.size()];
-		AoD_LOS_dir[i] = new double[neighbourPositions.size()];
-		ZoA_LOS_dir[i] = new double[neighbourPositions.size()];
-		ZoD_LOS_dir[i] = new double[neighbourPositions.size()];
-		
-		// Cycle through all base stations
-		int PosIt = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				x_dir = MSPos[i].x - xPos;
-				y_dir = MSPos[i].y - yPos;
-
-				cartLOS_MStoBS_Angle.set(0,x_dir);
-				cartLOS_MStoBS_Angle.set(1,y_dir);
-				cartLOS_MStoBS_Angle.set(2,heightUE);
-				
-				x_dir = xPos - MSPos[i].x;
-				y_dir = yPos - MSPos[i].y;
-				
-				cartLOS_BStoMS_Angle.set(0,x_dir);
-				cartLOS_BStoMS_Angle.set(1,y_dir);
-				cartLOS_BStoMS_Angle.set(2,heightBS);
-				
-				sphLOSAngle = Cart_to_Sph(cartLOS_MStoBS_Angle);
-				AoA_LOS_dir[i][0] = sphLOSAngle.get(0);
-				ZoA_LOS_dir[i][0] = pi/2;//sphLOSAngle.get(1);
-				
-				sphLOSAngle = Cart_to_Sph(cartLOS_BStoMS_Angle);
-				AoD_LOS_dir[i][0] = sphLOSAngle.get(0);
-				ZoD_LOS_dir[i][0] = pi/2;//sphLOSAngle.get(1);
-			}else{
-				x_dir = MSPos[i].x - it->second.x;
-				y_dir = MSPos[i].y - it->second.y;
-
-				cartLOS_MStoBS_Angle.set(0,x_dir);
-				cartLOS_MStoBS_Angle.set(1,y_dir);
-				cartLOS_MStoBS_Angle.set(2,heightUE);
-				
-				x_dir = it->second.x - MSPos[i].x;
-				y_dir = it->second.y - MSPos[i].y;
-				
-				cartLOS_BStoMS_Angle.set(0,x_dir);
-				cartLOS_BStoMS_Angle.set(1,y_dir);
-				cartLOS_BStoMS_Angle.set(2,heightBS);
-				
-				sphLOSAngle = Cart_to_Sph(cartLOS_MStoBS_Angle);
-				AoA_LOS_dir[i][PosIt] = sphLOSAngle.get(0);
-				ZoA_LOS_dir[i][PosIt] = pi/2;//sphLOSAngle.get(1);
-				
-				sphLOSAngle = Cart_to_Sph(cartLOS_BStoMS_Angle);
-				AoD_LOS_dir[i][PosIt] = sphLOSAngle.get(0);
-				ZoD_LOS_dir[i][PosIt] = pi/2;//sphLOSAngle.get(1);
-				
-				PosIt++;
-			}
-		}
-	}
+	vector<vector<double>> AoA_LOS_dir;
+	vector<vector<double>> ZoA_LOS_dir;
+	vector<vector<double>> AoD_LOS_dir;
+	vector<vector<double>> ZoD_LOS_dir;
+	std::tie(AoA_LOS_dir,ZoA_LOS_dir,AoD_LOS_dir,ZoD_LOS_dir) = recomputeAngleDirection(
+			MSPos,
+			BSPos,
+			heightBS,
+			heightUE
+			);
 	
 	//Assign LOS Conditions:
 	vector<vector<bool>> LOSCondition(genLosCond(BSPos,MSPos));
@@ -2332,8 +2327,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			delete[] randomPhase[i][s];
 			delete[] Xn_m[i][s];
 		}
-		delete[] AoA_LOS_dir[i];
-		delete[] AoD_LOS_dir[i];
 		delete[] azimuth_ASA[i];
 		delete[] azimuth_ASD[i];
 		delete[] azimuth_cluster_ASA[i];
@@ -2348,11 +2341,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		}
 		delete[] MsAntennaPosition[i];
 		delete[] Xn_m[i];
-		delete[] ZoA_LOS_dir[i];
-		delete[] ZoD_LOS_dir[i];
 	}
-	delete[] AoA_LOS_dir;
-	delete[] AoD_LOS_dir;
 	delete[] azimuth_ASA;
 	delete[] azimuth_ASD;
 	delete[] azimuth_cluster_ASA;
@@ -2413,8 +2402,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	}
 	delete[] MsAntennaPosition;
 	delete[] Xn_m;
-	delete[] ZoA_LOS_dir;
-	delete[] ZoD_LOS_dir;
 }
 
 /**
