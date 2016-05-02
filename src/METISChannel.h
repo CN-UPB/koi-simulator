@@ -220,6 +220,13 @@ class METISChannel : public Channel{
 				const vector<vector<double>>& angleDir,
 				const bool arrival
 				);
+
+		/**
+		 * @brief Generate random phases
+		 */
+		tuple<vector<vector<vector<vector<vector<double>>>>>,vector<vector<double>>>
+		genRandomPhases( const vector<vector<bool>>& LOSCondition);
+
 	public:
 		//! Constructor of METIS Channel subclass.
 		METISChannel(){

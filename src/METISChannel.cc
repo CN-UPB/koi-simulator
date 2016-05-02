@@ -643,6 +643,46 @@ vector<vector<vector<vector<double>>>> METISChannel::recomputeZenithAngles(
 	return zenithRays;
 }
 
+tuple<vector<vector<vector<vector<vector<double>>>>>,vector<vector<double>>>
+METISChannel::genRandomPhases(
+		const vector<vector<bool>>& LOSCondition
+		){
+	size_t numReceivers = LOSCondition.size();
+	size_t numSenders = LOSCondition[0].size();
+	vector<vector<vector<vector<vector<double>>>>> phases(numReceivers,
+			vector<vector<vector<vector<double>>>>(numSenders,
+				vector<vector<vector<double>>>()));
+	vector<vector<double>> phases_LOS(numReceivers,vector<double>(
+				numSenders));
+
+	int n_clusters;
+	int n_rays;
+	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j < numSenders; j++){
+			if(LOSCondition[i][j]){
+				n_clusters = N_cluster_LOS;
+				n_rays = numOfRays_LOS;
+			}
+			else{
+				n_clusters = N_cluster_NLOS;
+				n_rays = numOfRays_NLOS;
+			}
+			phases[i][j].resize(n_clusters,
+					vector<vector<double>>(n_rays,
+						vector<double>(4)));
+			phases_LOS[i][j] = uniform(-1.0*pi, pi);
+			for(int k = 0; k < n_clusters; k++){
+				for(int r = 0; r < n_rays; r++){
+					for(int l = 0; l < 4; l++){
+						phases[i][j][k][r][l] = uniform(-1.0*pi, pi);			// for the random phases of NLOS component in equation 7-61 of METIS 1.2
+					}
+				}
+			}
+		}
+	}
+	return std::make_tuple(phases,phases_LOS);
+}
+
 void METISChannel::recomputeMETISParams(Position** msPositions){
     	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
@@ -821,79 +861,9 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 				false));
 
 	// Generate random phases (7.3.17)
-	double *****randomPhase = new double****[numberOfMobileStations]; /*!< The random subpath phases uniformly from [0,2pi) */
-	double **randomPhase_LOS = new double*[numberOfMobileStations];	/*!< The random phase for the LOS component, taken uniformly from [0,2pi) */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		int itIdx = 1;
-		randomPhase[i] = new double***[neighbourPositions.size()];
-		randomPhase_LOS[i] = new double[neighbourPositions.size()];
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					randomPhase[i][0] = new double**[N_cluster_LOS];
-					randomPhase_LOS[i][0] = uniform(-1.0*pi, pi);
-			
-					for(int j = 0; j < N_cluster_LOS; j++){
-						randomPhase[i][0][j] = new double*[numOfRays_LOS];
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							randomPhase[i][0][j][k] = new double[4];
-							
-							for(int l = 0; l < 4; l++){
-								randomPhase[i][0][j][k][l] = uniform(-1.0*pi, pi);				// for the random phases of NLOS component in equation 7-61 of METIS 1.2	
-							}
-						}
-					}
-				} else {
-					randomPhase[i][0] = new double**[N_cluster_NLOS];
-			
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						randomPhase[i][0][j] = new double*[numOfRays_NLOS];
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							randomPhase[i][0][j][k] = new double[4];
-							
-							for(int l = 0; l < 4; l++){
-								randomPhase[i][0][j][k][l] = uniform(-1.0*pi, pi);				// for the random phases as in equation 7-59 of METIS 1.2 (one each for ThetaTheta, ThetaPhi, PhiTheta and PhiPhi)
-							}
-						}
-					}
-				}
-			} else {
-				if(LOSCondition[i][itIdx]){
-					randomPhase[i][itIdx] = new double**[N_cluster_LOS];
-					randomPhase_LOS[i][itIdx] = uniform(-1.0*pi, pi);
-			
-					for(int j = 0; j < N_cluster_LOS; j++){
-						randomPhase[i][itIdx][j] = new double*[numOfRays_LOS];
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							randomPhase[i][itIdx][j][k] = new double[4];
-							
-							for(int l = 0; l < 4; l++){
-								randomPhase[i][itIdx][j][k][l] = uniform(-1.0*pi, pi);			// for the random phases of NLOS component in equation 7-61 of METIS 1.2
-							}
-						}
-					}
-				}else{
-					randomPhase[i][itIdx] = new double**[N_cluster_NLOS];
-			
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						randomPhase[i][itIdx][j] = new double*[numOfRays_NLOS];
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							randomPhase[i][itIdx][j][k] = new double[4];
-							
-							for(int l = 0; l < 4; l++){
-								randomPhase[i][itIdx][j][k][l] = uniform(-1.0*pi, pi);			// for the random phases as in equation 7-59 of METIS 1.2 (one each for ThetaTheta, ThetaPhi, PhiTheta and PhiPhi)
-							}
-						}
-					}
-				}
-				itIdx++;
-			}
-		}
-	}
+	vector<vector<vector<vector<vector<double>>>>> randomPhase;
+	vector<vector<double>> randomPhase_LOS;
+	std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(LOSCondition);
 	
 	// Generate cross polarization values
 	double ****Xn_m = new double***[numberOfMobileStations]; /*!< Cross polarization values per ray */
@@ -2196,28 +2166,17 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		for(unsigned s=0; s<neighbourPositions.size(); s++){
 			if(LOSCondition[i][s]){
 				for(int j=0;j<N_cluster_LOS;j++){
-					for(int k = 0; k < numOfRays_LOS; k++){
-						delete[] randomPhase[i][0][j][k];
-					}
-					delete[] randomPhase[i][s][j];
 					delete[] Xn_m[i][s][j];
 				}
 			}
 			else{
 				for(int j=0;j<N_cluster_NLOS;j++){
-					for(int k = 0; k < numOfRays_NLOS; k++){
-						delete[] randomPhase[i][0][j][k];
-					}
-					delete[] randomPhase[i][s][j];
 					delete[] Xn_m[i][s][j];
 				}
 			}
-			delete[] randomPhase[i][s];
 			delete[] Xn_m[i][s];
 		}
 		delete[] MSVelDir[i];
-		delete[] randomPhase[i];
-		delete[] randomPhase_LOS[i];
 		for(int s=0; s<NumMsAntenna; s++){
 			delete[] MsAntennaPosition[i][s];
 		}
@@ -2226,8 +2185,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	}
 	delete[] MSVelDir;
 	delete[] MSVelMag;
-	delete[] randomPhase;
-	delete[] randomPhase_LOS;
 	for(int m = 0; m < numberOfMobileStations; m++){
 		for(int i = 0; i < (N_cluster_LOS + 4); i++){
 			for(int j = 0; j < timeSamples; j++){
