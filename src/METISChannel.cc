@@ -522,8 +522,8 @@ METISChannel::recomputeAngleDirection(
 	return std::make_tuple(AoADir,ZoADir,AoDDir,ZoDDir);
 }
 
-tuple<vector<vector<double>>,vector<vector<vector<vector<double>>>>>
-METISChannel::recomputeAzimuthAngles(const vector<vector<bool>>& LOSCondition,
+vector<vector<vector<vector<double>>>> METISChannel::recomputeAzimuthAngles(
+		const vector<vector<bool>>& LOSCondition,
 		const vector<vector<double>>& sigma_as_LOS,
 		const vector<vector<double>>& sigma_as_NLOS,
 		const vector<vector<double>>& sigma_kf,
@@ -597,7 +597,7 @@ METISChannel::recomputeAzimuthAngles(const vector<vector<bool>>& LOSCondition,
 			}
 		}
 	}
-	return std::make_tuple(azimuthCluster,azimuthRays);
+	return azimuthRays;
 }
 
 void METISChannel::recomputeMETISParams(Position** msPositions){
@@ -739,28 +739,24 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	
 	
 	// Generate azimuth angles of arrival
-	vector<vector<vector<vector<double>>>> azimuth_ASA;
-	vector<vector<double>> azimuth_cluster_ASA;
-	std::tie(azimuth_cluster_ASA,azimuth_ASA) = recomputeAzimuthAngles(
+	vector<vector<vector<vector<double>>>> azimuth_ASA(recomputeAzimuthAngles(
 			LOSCondition,
 			sigma_asA_LOS,
 			sigma_asA_NLOS,
 			sigma_kf_LOS,
 			clusterPowers,
 			AoA_LOS_dir,
-			true);
+			true));
 
 	// Generate azimuth angles of departure in the same way 
-	vector<vector<vector<vector<double>>>> azimuth_ASD;
-	vector<vector<double>> azimuth_cluster_ASD;
-	std::tie(azimuth_cluster_ASD,azimuth_ASD) = recomputeAzimuthAngles(
+	vector<vector<vector<vector<double>>>> azimuth_ASD(recomputeAzimuthAngles(
 			LOSCondition,
 			sigma_asD_LOS,
 			sigma_asD_NLOS,
 			sigma_kf_LOS,
 			clusterPowers,
 			AoD_LOS_dir,
-			false);
+			false));
 
 	// Generate Elevation angles (for 2D channel model, set all elevtaion angles to 90 deg; otherwise use the code below for elevation angle generation according to METIS 1.2 or 1.4)
 	double ****elevation_ASA = new double***[numberOfMobileStations]; /*!< The angles of arrival in azimuth plane */

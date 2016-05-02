@@ -194,7 +194,7 @@ class METISChannel : public Channel{
 		 * of departure, depending on which angle spread and angle 
 		 * direction values are provided.
 		 */
-		tuple<vector<vector<double>>,vector<vector<vector<vector<double>>>>>
+		vector<vector<vector<vector<double>>>>
 		recomputeAzimuthAngles(const vector<vector<bool>>& LOSCondition,
 				const vector<vector<double>>& sigma_as_LOS,
 				const vector<vector<double>>& sigma_as_NLOS,
