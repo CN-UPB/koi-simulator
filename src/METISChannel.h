@@ -227,6 +227,12 @@ class METISChannel : public Channel{
 		tuple<vector<vector<vector<vector<vector<double>>>>>,vector<vector<double>>>
 		genRandomPhases( const vector<vector<bool>>& LOSCondition);
 
+		/**
+		 * @brief Generate cross polarization values
+		 */
+		vector<vector<vector<vector<double>>>> genCrossPolarization(
+				vector<vector<bool>>& LOSCondition);
+
 	public:
 		//! Constructor of METIS Channel subclass.
 		METISChannel(){

@@ -683,6 +683,37 @@ METISChannel::genRandomPhases(
 	return std::make_tuple(phases,phases_LOS);
 }
 
+vector<vector<vector<vector<double>>>> METISChannel::genCrossPolarization(
+		vector<vector<bool>>& LOSCondition) {
+	size_t numReceivers = LOSCondition.size();
+	size_t numSenders = LOSCondition[0].size();
+	vector<vector<vector<vector<double>>>> xpv(numReceivers,
+			vector<vector<vector<double>>>(numSenders,
+				vector<vector<double>>()));
+
+	int n_clusters;
+	int n_rays;
+	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j < numSenders; j++){
+			if(LOSCondition[i][j]){
+				n_clusters = N_cluster_LOS;
+				n_rays = numOfRays_LOS;
+			}
+			else{
+				n_clusters = N_cluster_NLOS;
+				n_rays = numOfRays_NLOS;
+			}
+			xpv[i][j].resize(n_clusters,vector<double>(n_rays));
+			for(int k = 0; k < n_clusters; k++){
+				for(int r = 0; r < n_rays; r++){
+					xpv[i][j][k][r] = normal(XPR_Mean_LOS, pow(XPR_Std_LOS,2) );
+				}
+			}
+		}
+	}
+	return xpv;
+}
+
 void METISChannel::recomputeMETISParams(Position** msPositions){
     	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
@@ -866,55 +897,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(LOSCondition);
 	
 	// Generate cross polarization values
-	double ****Xn_m = new double***[numberOfMobileStations]; /*!< Cross polarization values per ray */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		Xn_m[i] = new double**[neighbourPositions.size()];
-		int id_BS =1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					Xn_m[i][0] = new double*[N_cluster_LOS];
-					for(int j = 0; j < N_cluster_LOS; j++){
-						Xn_m[i][0][j] = new double[numOfRays_LOS];
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							Xn_m[i][0][j][k] = normal(XPR_Mean_LOS, pow(XPR_Std_LOS,2) );
-						}
-					}
-				} else {
-					Xn_m[i][0] = new double*[N_cluster_NLOS];
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						Xn_m[i][0][j] = new double[numOfRays_NLOS];
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							Xn_m[i][0][j][k] = normal(XPR_Mean_NLOS, pow(XPR_Std_NLOS,2) );
-						}
-					}
-				}
-			} else {
-				if(LOSCondition[i][id_BS]){
-					Xn_m[i][id_BS] = new double*[N_cluster_LOS];
-					for(int j = 0; j < N_cluster_LOS; j++){
-						Xn_m[i][id_BS][j] = new double[numOfRays_LOS];
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							Xn_m[i][id_BS][j][k] = normal(XPR_Mean_LOS, pow(XPR_Std_LOS,2) );
-						}
-					}
-				} else {
-					Xn_m[i][id_BS] = new double*[N_cluster_NLOS];
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						Xn_m[i][id_BS][j] = new double[numOfRays_NLOS];
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							Xn_m[i][id_BS][j][k] = normal(XPR_Mean_NLOS, pow(XPR_Std_NLOS,2) );
-						}
-					}
-				}
-				id_BS++;
-			}
-		}
-	}
+	vector<vector<vector<vector<double>>>> Xn_m(genCrossPolarization(
+				LOSCondition));
 	
 	// Main Loop:
 	// TODO: allow Elevation Angle
@@ -2163,25 +2147,11 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	// Delete all heap allocated local variables
 
 	for(int i = 0; i < numberOfMobileStations; i++){
-		for(unsigned s=0; s<neighbourPositions.size(); s++){
-			if(LOSCondition[i][s]){
-				for(int j=0;j<N_cluster_LOS;j++){
-					delete[] Xn_m[i][s][j];
-				}
-			}
-			else{
-				for(int j=0;j<N_cluster_NLOS;j++){
-					delete[] Xn_m[i][s][j];
-				}
-			}
-			delete[] Xn_m[i][s];
-		}
 		delete[] MSVelDir[i];
 		for(int s=0; s<NumMsAntenna; s++){
 			delete[] MsAntennaPosition[i][s];
 		}
 		delete[] MsAntennaPosition[i];
-		delete[] Xn_m[i];
 	}
 	delete[] MSVelDir;
 	delete[] MSVelMag;
@@ -2234,7 +2204,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		delete[] raySumInterferer;
 	}
 	delete[] MsAntennaPosition;
-	delete[] Xn_m;
 }
 
 /**
