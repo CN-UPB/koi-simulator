@@ -188,7 +188,7 @@ class METISChannel : public Channel{
 				);
 				
 		/**
-		 * @brief Recompute ray angles
+		 * @brief Recompute ray azimuth angles
 		 *
 		 * This method works for angles of arrival as well as angles 
 		 * of departure, depending on which angle spread and angle 
@@ -198,6 +198,23 @@ class METISChannel : public Channel{
 		recomputeAzimuthAngles(const vector<vector<bool>>& LOSCondition,
 				const vector<vector<double>>& sigma_as_LOS,
 				const vector<vector<double>>& sigma_as_NLOS,
+				const vector<vector<double>>& sigma_kf,
+				const vector<vector<vector<double>>>& clusterPowers,
+				const vector<vector<double>>& angleDir,
+				const bool arrival
+				);
+
+		/**
+		 * @brief Recompute ray zenith angles
+		 *
+		 * This method works for angles of arrival as well as angles 
+		 * of departure, depending on which angle spread and angle 
+		 * direction values are provided.
+		 */
+		vector<vector<vector<vector<double>>>> recomputeZenithAngles(
+				const vector<vector<bool>>& LOSCondition,
+				const vector<vector<double>>& sigma_zs_LOS,
+				const vector<vector<double>>& sigma_zs_NLOS,
 				const vector<vector<double>>& sigma_kf,
 				const vector<vector<vector<double>>>& clusterPowers,
 				const vector<vector<double>>& angleDir,

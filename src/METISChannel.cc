@@ -600,6 +600,49 @@ vector<vector<vector<vector<double>>>> METISChannel::recomputeAzimuthAngles(
 	return azimuthRays;
 }
 
+/**
+ * ATTENTION! This implementation simply sets all angles to 90°!
+ * The computations specified in section 7.3.14.3 of METIS D1.2 are not yet 
+ * implemented!
+ */
+vector<vector<vector<vector<double>>>> METISChannel::recomputeZenithAngles(
+		const vector<vector<bool>>& LOSCondition,
+		const vector<vector<double>>& sigma_zs_LOS,
+		const vector<vector<double>>& sigma_zs_NLOS,
+		const vector<vector<double>>& sigma_kf,
+		const vector<vector<vector<double>>>& clusterPowers,
+		const vector<vector<double>>& angleDir,
+		const bool arrival
+		){
+	size_t numReceivers = LOSCondition.size();
+	size_t numSenders = LOSCondition[0].size();
+	vector<vector<vector<vector<double>>>> zenithRays(numReceivers,
+			vector<vector<vector<double>>>(numSenders,
+				vector<vector<double>>()));
+
+	int n_clusters;
+	int n_rays;
+	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j<numSenders; j++){
+			if(LOSCondition[i][j]){
+				n_clusters = N_cluster_LOS;
+				n_rays = numOfRays_LOS;
+			}
+			else{
+				n_clusters = N_cluster_NLOS;
+				n_rays = numOfRays_NLOS;
+			}
+			zenithRays[i][j].resize(n_clusters,vector<double>(n_rays));
+			for(int k = 0; k < n_clusters; k++){
+				for(int r = 0; r < n_rays; r++){
+					zenithRays[i][j][k][r] = 90;
+				}
+			}
+		}
+	} 
+	return zenithRays;
+}
+
 void METISChannel::recomputeMETISParams(Position** msPositions){
     	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
@@ -758,40 +801,24 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			AoD_LOS_dir,
 			false));
 
-	// Generate Elevation angles (for 2D channel model, set all elevtaion angles to 90 deg; otherwise use the code below for elevation angle generation according to METIS 1.2 or 1.4)
-	double ****elevation_ASA = new double***[numberOfMobileStations]; /*!< The angles of arrival in azimuth plane */
-	double ****elevation_ASD = new double***[numberOfMobileStations]; /*!< The angles of departure in azimuth plane */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		elevation_ASA[i] = new double**[neighbourPositions.size()];
-		elevation_ASD[i] = new double**[neighbourPositions.size()];
-		int itIdx = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				elevation_ASA[i][0] = new double*[N_cluster_NLOS];
-				elevation_ASD[i][0] = new double*[N_cluster_NLOS];
-				for(int j = 0; j < N_cluster_NLOS; j++){
-					elevation_ASA[i][0][j] = new double[numOfRays_NLOS];
-					elevation_ASD[i][0][j] = new double[numOfRays_NLOS];
-					for(int k = 0; k < numOfRays_NLOS; k++){
-						elevation_ASA[i][0][j][k] = 90;
-						elevation_ASD[i][0][j][k] = 90;
-					}
-				}
-			}else{
-				elevation_ASA[i][itIdx] = new double*[N_cluster_NLOS];
-				elevation_ASD[i][itIdx] = new double*[N_cluster_NLOS];
-				for(int j = 0; j < N_cluster_NLOS; j++){
-					elevation_ASA[i][itIdx][j] = new double[numOfRays_NLOS];
-					elevation_ASD[i][itIdx][j] = new double[numOfRays_NLOS];
-					for(int k = 0; k < numOfRays_NLOS; k++){
-						elevation_ASA[i][itIdx][j][k] = 90;
-						elevation_ASD[i][itIdx][j][k] = 90;
-					}
-				}
-				itIdx++;
-			}
-		}
-	} 
+	// Generate Zenith angles 
+	vector<vector<vector<vector<double>>>> elevation_ASA(recomputeZenithAngles(
+				LOSCondition,
+				sigma_zsA_LOS,
+				sigma_zsA_NLOS,
+				sigma_kf_LOS,
+				clusterPowers,
+				ZoA_LOS_dir,
+				true));
+
+	vector<vector<vector<vector<double>>>> elevation_ASD(recomputeZenithAngles(
+				LOSCondition,
+				sigma_zsD_LOS,
+				sigma_zsD_NLOS,
+				sigma_kf_LOS,
+				clusterPowers,
+				ZoD_LOS_dir,
+				false));
 
 	// Generate random phases (7.3.17)
 	double *****randomPhase = new double****[numberOfMobileStations]; /*!< The random subpath phases uniformly from [0,2pi) */
@@ -2185,17 +2212,9 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 					delete[] Xn_m[i][s][j];
 				}
 			}
-			for(int j=0;j<N_cluster_NLOS;j++){
-				delete[] elevation_ASA[i][s][j];
-				delete[] elevation_ASD[i][s][j];
-			}
-			delete[] elevation_ASA[i][s];
-			delete[] elevation_ASD[i][s];
 			delete[] randomPhase[i][s];
 			delete[] Xn_m[i][s];
 		}
-		delete[] elevation_ASA[i];
-		delete[] elevation_ASD[i];
 		delete[] MSVelDir[i];
 		delete[] randomPhase[i];
 		delete[] randomPhase_LOS[i];
@@ -2205,8 +2224,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		delete[] MsAntennaPosition[i];
 		delete[] Xn_m[i];
 	}
-	delete[] elevation_ASA;
-	delete[] elevation_ASD;
 	delete[] MSVelDir;
 	delete[] MSVelMag;
 	delete[] randomPhase;
