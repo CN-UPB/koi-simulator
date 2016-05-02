@@ -28,6 +28,7 @@ class METISChannel : public Channel{
 		double heightUE;					/*!< Height of the user equipments */
 		double heightBS;					/*!< Height of the base stations */
 		static constexpr double speedOfLight = 299792458.0;					/*!< speed of light value */
+		static double ray_offset[20];				/* Ray offset. Table 7.6 METIS D1.2 */
 		double xPos;						/*!< BS Position x value */
 		double yPos;						/*!< BS Position y value */
 		int N_cluster_LOS;
