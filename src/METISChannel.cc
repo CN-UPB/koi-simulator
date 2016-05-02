@@ -522,6 +522,84 @@ METISChannel::recomputeAngleDirection(
 	return std::make_tuple(AoADir,ZoADir,AoDDir,ZoDDir);
 }
 
+tuple<vector<vector<double>>,vector<vector<vector<vector<double>>>>>
+METISChannel::recomputeAzimuthAngles(const vector<vector<bool>>& LOSCondition,
+		const vector<vector<double>>& sigma_as_LOS,
+		const vector<vector<double>>& sigma_as_NLOS,
+		const vector<vector<double>>& sigma_kf,
+		const vector<vector<vector<double>>>& clusterPowers,
+		const vector<vector<double>>& angleDir,
+		const bool arrival
+		){
+	size_t numReceivers = LOSCondition.size();
+	size_t numSenders = LOSCondition[0].size();
+	vector<vector<double>> azimuthCluster(numReceivers,
+			vector<double>());
+	vector<vector<vector<vector<double>>>> azimuthRays(numReceivers,
+			vector<vector<vector<double>>>(numSenders,
+				vector<vector<double>>()));
+	int n_clusters;
+	int n_rays;
+	double X_1;
+	double Y_1;
+	double X_N;
+	double Y_N;
+	double sigma_angleSpread;
+	double cluster_AS;
+	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j < numSenders; j++){
+			if(LOSCondition[i][j]){
+				n_clusters = N_cluster_LOS;
+				n_rays = numOfRays_LOS;
+				sigma_angleSpread = sigma_as_LOS[i][j];
+				if(arrival){
+					cluster_AS = initModule->par("Cluster_ASA_LOS");
+				}
+				else{
+					cluster_AS = initModule->par("Cluster_ASD_LOS");
+				}
+			}
+			else{
+				n_clusters = N_cluster_NLOS;
+				n_rays = numOfRays_NLOS;
+				sigma_angleSpread = sigma_as_NLOS[i][j];
+				if(arrival){
+					cluster_AS = initModule->par("Cluster_ASA_NLOS");
+				}
+				else{
+					cluster_AS = initModule->par("Cluster_ASD_NLOS");
+				}
+			}
+			azimuthRays[i][j].resize(n_clusters,vector<double>(
+						n_rays));
+			azimuthCluster[i].resize(n_clusters);
+			X_1 = uniform(-1.0,1.0);
+			Y_1 = normal(0.0, (pow(sigma_angleSpread / 7.0,2)));
+			for(int k = 0; k < n_clusters; k++){
+		
+				//Formula 7.47
+				azimuthCluster[i][k] = (sigma_angleSpread / (0.7 * C_AS(n_clusters, LOSCondition[i][j], i, sigma_kf))) * sqrt( -1.0 * log(clusterPowers[i][j][k] / *(std::max_element(clusterPowers[i][j].cbegin(), clusterPowers[i][j].cbegin() + n_clusters))) );
+				X_N = uniform(-1.0,1.0);
+				Y_N = normal(0.0, (pow(sigma_angleSpread / 7.0,2)));
+		
+				// First Ray has geometric LOS direction?!
+				if(LOSCondition[i][j]){
+					azimuthCluster[i][k] = azimuthCluster[i][k] * (X_N - X_1) + (Y_N - Y_1) + (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
+				}
+				else{
+					azimuthCluster[i][j] = azimuthCluster[i][k] * X_N + Y_N + (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
+				}
+		
+				for(int r = 0; r < n_rays; r++){
+					// Final angle computation per ray 
+					azimuthRays[i][j][k][r] = azimuthCluster[i][k] + cluster_AS * ray_offset[r];
+				}
+			}
+		}
+	}
+	return std::make_tuple(azimuthCluster,azimuthRays);
+}
+
 void METISChannel::recomputeMETISParams(Position** msPositions){
     	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
@@ -658,240 +736,32 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 //				LOSCondition,
 //				clusterPowers)); /*!< The ray power for each cluster */
 	
-	// Ray offset. Table 7.6
-	double ray_offset[20] = {	
-		0.0447, -0.0447, 0.1413, -0.1413, 0.2492, -0.2492, 
-		0.3715, -0.3715, 0.5129, -0.5129, 0.6797, -0.6797,
-		0.8844, -0.8844, 1.1481, -1.1481, 1.5195, -1.5195,
-		2.1551, -2.1551
-	};
+	
 	
 	// Generate azimuth angles of arrival
-	double **azimuth_cluster_ASA = new double*[numberOfMobileStations];
-	double ****azimuth_ASA = new double***[numberOfMobileStations];	/*!< The angles of arrival in azimuth plane */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		azimuth_ASA[i] = new double**[neighbourPositions.size()];
-		int itIdx = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					azimuth_ASA[i][0] = new double*[N_cluster_LOS];
-					azimuth_cluster_ASA[i] = new double[N_cluster_LOS];
-			
-					double X_1 = uniform(-1.0,1.0);
-					double Y_1 = normal(0.0, (pow(sigma_asA_LOS[i][0] / 7.0,2)));
-			
-					for(int j = 0; j < N_cluster_LOS; j++){
-						azimuth_ASA[i][0][j] = new double[numOfRays_LOS];
-				
-						//Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_LOS[i][0] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0].cbegin(), clusterPowers[i][0].cbegin() + N_cluster_LOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asA_LOS[i][0] / 7.0,2)));
-				
-						// First Ray has geometric LOS direction?!
-						azimuth_cluster_ASA[i][j] = azimuth_cluster_ASA[i][j] * (X_N - X_1) + (Y_N - Y_1) + (AoA_LOS_dir[i][0]*180.0/pi);  // since AOA_LOS_dir is in radians
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							double cluster_ASA = initModule->par("Cluster_ASA_LOS");
-					
-							// Final angle computation per ray (LOS)
-							azimuth_ASA[i][0][j][k] = azimuth_cluster_ASA[i][j] + cluster_ASA * ray_offset[k];
+	vector<vector<vector<vector<double>>>> azimuth_ASA;
+	vector<vector<double>> azimuth_cluster_ASA;
+	std::tie(azimuth_cluster_ASA,azimuth_ASA) = recomputeAzimuthAngles(
+			LOSCondition,
+			sigma_asA_LOS,
+			sigma_asA_NLOS,
+			sigma_kf_LOS,
+			clusterPowers,
+			AoA_LOS_dir,
+			true);
 
-							if(azimuth_ASA[i][0][j][k] < -360.0){
-								azimuth_ASA[i][0][j][k]+=360.0;
-							}
-						}
-					}
-				}else{
-					azimuth_ASA[i][0] = new double*[N_cluster_NLOS];
-					azimuth_cluster_ASA[i] = new double[N_cluster_NLOS];
-			
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						azimuth_ASA[i][0][j] = new double[numOfRays_NLOS];
-				
-						// Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_NLOS[i][0] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0].cbegin(), clusterPowers[i][0].cbegin() + N_cluster_NLOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asA_NLOS[i][0] / 7.0,2)));
-				
-						azimuth_cluster_ASA[i][j] = azimuth_cluster_ASA[i][j] * X_N + Y_N + (AoA_LOS_dir[i][0]*180.0/pi);   // since AOA_LOS_dir is in radians
-				 
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							double cluster_ASA = initModule->par("Cluster_ASA_NLOS");
-					
-							// Final angle computation per ray (NLOS)
-							azimuth_ASA[i][0][j][k] = azimuth_cluster_ASA[i][j] + cluster_ASA * ray_offset[k];
-						}
-					}
-				}
-			}else{
-				if(LOSCondition[i][itIdx]){
-					azimuth_ASA[i][itIdx] = new double*[N_cluster_LOS];
-					azimuth_cluster_ASA[i] = new double[N_cluster_LOS];
-			
-					double X_1 = uniform(-1.0,1.0);
-					double Y_1 = normal(0.0, (pow(sigma_asA_LOS[i][itIdx] / 7.0,2)));
-			
-					for(int j = 0; j < N_cluster_LOS; j++){
-						azimuth_ASA[i][itIdx][j] = new double[numOfRays_LOS];
-				
-						//Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_LOS[i][itIdx] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx].cbegin(), clusterPowers[i][itIdx].cbegin() + N_cluster_LOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asA_LOS[i][itIdx] / 7.0,2)));
-				
-						// First Ray has geometric LOS direction?!
-						azimuth_cluster_ASA[i][j] = azimuth_cluster_ASA[i][j] * (X_N - X_1) + (Y_N - Y_1) + (AoA_LOS_dir[i][itIdx]*180.0/pi);   // since AOA_LOS_dir is in radians
-  				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							double cluster_ASA = initModule->par("Cluster_ASA_LOS");
-					
-							// Final angle computation per ray (LOS)
-							azimuth_ASA[i][itIdx][j][k] = azimuth_cluster_ASA[i][j] + cluster_ASA * ray_offset[k];
-						}
-					}
-					
-				}else{
-					azimuth_ASA[i][itIdx] = new double*[N_cluster_NLOS];
-					azimuth_cluster_ASA[i] = new double[N_cluster_NLOS];
-			
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						azimuth_ASA[i][itIdx][j] = new double[numOfRays_NLOS];
-				
-						// Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_NLOS[i][itIdx] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx].cbegin(), clusterPowers[i][itIdx].cbegin() + N_cluster_NLOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asA_NLOS[i][itIdx] / 7.0,2)));
-				
-						azimuth_cluster_ASA[i][j] = azimuth_cluster_ASA[i][j] * X_N + Y_N + (AoA_LOS_dir[i][itIdx]*180.0/pi);   // since AOA_LOS_dir is in radians
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							double cluster_ASA = initModule->par("Cluster_ASA_NLOS");
-					
-							// Final angle computation per ray (NLOS)
-							azimuth_ASA[i][itIdx][j][k] = azimuth_cluster_ASA[i][j] + cluster_ASA * ray_offset[k];
-						}
-					}
-				}
-				itIdx++;
-			}
-		}
-	}
-	
 	// Generate azimuth angles of departure in the same way 
-	double **azimuth_cluster_ASD = new double*[numberOfMobileStations];
-	double ****azimuth_ASD = new double***[numberOfMobileStations];	/*!< The angles of departure in azimuth plane */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		azimuth_ASD[i] = new double**[neighbourPositions.size()];
-		int itIdx = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					azimuth_ASD[i][0] = new double*[N_cluster_LOS];
-					azimuth_cluster_ASD[i] = new double[N_cluster_LOS];
-			
-					double X_1 = uniform(-1.0,1.0);
-					double Y_1 = normal(0.0, (pow(sigma_asD_LOS[i][0] / 7.0,2)));
-			
-					for(int j = 0; j < N_cluster_LOS; j++){
-						azimuth_ASD[i][0][j] = new double[numOfRays_LOS];
-				
-						//Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_LOS[i][0] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0].cbegin(), clusterPowers[i][0].cbegin() + N_cluster_LOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asD_LOS[i][0] / 7.0,2)));
-				
-						// First Ray has geometric LOS direction?!
-						azimuth_cluster_ASD[i][j] = azimuth_cluster_ASD[i][j] * (X_N - X_1) + (Y_N - Y_1) + (AoD_LOS_dir[i][0]*180.0/pi);   // since AOD_LOS_dir is in radians
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							double cluster_ASD = initModule->par("Cluster_ASD_LOS");
-					
-							// Final angle computation per ray (LOS)
-							azimuth_ASD[i][0][j][k] = azimuth_cluster_ASD[i][j] + cluster_ASD * ray_offset[k];
+	vector<vector<vector<vector<double>>>> azimuth_ASD;
+	vector<vector<double>> azimuth_cluster_ASD;
+	std::tie(azimuth_cluster_ASD,azimuth_ASD) = recomputeAzimuthAngles(
+			LOSCondition,
+			sigma_asD_LOS,
+			sigma_asD_NLOS,
+			sigma_kf_LOS,
+			clusterPowers,
+			AoD_LOS_dir,
+			false);
 
-							if(azimuth_ASD[i][0][j][k] < -360.0){
-								azimuth_ASD[i][0][j][k]+=360.0;
-							}
-						}
-					}
-				}else{
-					azimuth_ASD[i][0] = new double*[N_cluster_NLOS];
-					azimuth_cluster_ASD[i] = new double[N_cluster_NLOS];
-			
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						azimuth_ASD[i][0][j] = new double[numOfRays_NLOS];
-				
-						// Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_NLOS[i][0] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0].cbegin(), clusterPowers[i][0].cbegin() + N_cluster_NLOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asD_NLOS[i][0] / 7.0,2)));
-				
-						azimuth_cluster_ASD[i][j] = azimuth_cluster_ASD[i][j] * X_N + Y_N + (AoD_LOS_dir[i][0]*180.0/pi);    // since AOD_LOS_dir is in radians
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							double cluster_ASD = initModule->par("Cluster_ASD_NLOS");
-					
-							// Final angle computation per ray (NLOS)
-							azimuth_ASD[i][0][j][k] = azimuth_cluster_ASD[i][j] + cluster_ASD * ray_offset[k];
-						}
-					}
-				}
-			}else{
-				if(LOSCondition[i][itIdx]){
-					azimuth_ASD[i][itIdx] = new double*[N_cluster_LOS];
-					azimuth_cluster_ASD[i] = new double[N_cluster_LOS];
-			
-					double X_1 = uniform(-1.0,1.0);
-					double Y_1 = normal(0.0, (pow(sigma_asD_LOS[i][itIdx] / 7.0,2)));
-			
-					for(int j = 0; j < N_cluster_LOS; j++){
-						azimuth_ASD[i][itIdx][j] = new double[numOfRays_LOS];
-				
-						//Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_LOS[i][itIdx] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx].cbegin(), clusterPowers[i][itIdx].cbegin() + N_cluster_LOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asD_LOS[i][itIdx] / 7.0,2)));
-				
-						// First Ray has geometric LOS direction?!
-						azimuth_cluster_ASD[i][j] = azimuth_cluster_ASD[i][j] * (X_N - X_1) + (Y_N - Y_1) + (AoD_LOS_dir[i][itIdx]*180.0/pi);   // since AOD_LOS_dir is in radians
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							double cluster_ASD = initModule->par("Cluster_ASD_LOS");
-					
-							// Final angle computation per ray (LOS)
-							azimuth_ASD[i][itIdx][j][k] = azimuth_cluster_ASD[i][j] + cluster_ASD * ray_offset[k];
-						}
-					}
-					
-				}else{
-					azimuth_ASD[i][itIdx] = new double*[N_cluster_NLOS];
-					azimuth_cluster_ASD[i] = new double[N_cluster_NLOS];
-			
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						azimuth_ASD[i][itIdx][j] = new double[numOfRays_NLOS];
-				
-						// Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_NLOS[i][itIdx] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx].cbegin(), clusterPowers[i][itIdx].cbegin() + N_cluster_NLOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asD_NLOS[i][itIdx] / 7.0,2)));
-				
-						azimuth_cluster_ASD[i][j] = azimuth_cluster_ASD[i][j] * X_N + Y_N + (AoD_LOS_dir[i][itIdx]*180.0/pi);    // since AOD_LOS_dir is in radians
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							double cluster_ASD = initModule->par("Cluster_ASD_NLOS");
-					
-							// Final angle computation per ray (NLOS)
-							azimuth_ASD[i][itIdx][j][k] = azimuth_cluster_ASD[i][j] + cluster_ASD * ray_offset[k];
-						}
-					}
-				}
-				itIdx++;
-			}
-		}
-	}
-	
 	// Generate Elevation angles (for 2D channel model, set all elevtaion angles to 90 deg; otherwise use the code below for elevation angle generation according to METIS 1.2 or 1.4)
 	double ****elevation_ASA = new double***[numberOfMobileStations]; /*!< The angles of arrival in azimuth plane */
 	double ****elevation_ASD = new double***[numberOfMobileStations]; /*!< The angles of departure in azimuth plane */
@@ -2303,8 +2173,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		for(unsigned s=0; s<neighbourPositions.size(); s++){
 			if(LOSCondition[i][s]){
 				for(int j=0;j<N_cluster_LOS;j++){
-					delete[] azimuth_ASA[i][s][j];
-					delete[] azimuth_ASD[i][s][j];
 					for(int k = 0; k < numOfRays_LOS; k++){
 						delete[] randomPhase[i][0][j][k];
 					}
@@ -2314,8 +2182,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			}
 			else{
 				for(int j=0;j<N_cluster_NLOS;j++){
-					delete[] azimuth_ASA[i][s][j];
-					delete[] azimuth_ASD[i][s][j];
 					for(int k = 0; k < numOfRays_NLOS; k++){
 						delete[] randomPhase[i][0][j][k];
 					}
@@ -2323,8 +2189,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 					delete[] Xn_m[i][s][j];
 				}
 			}
-			delete[] azimuth_ASA[i][s];
-			delete[] azimuth_ASD[i][s];
 			for(int j=0;j<N_cluster_NLOS;j++){
 				delete[] elevation_ASA[i][s][j];
 				delete[] elevation_ASD[i][s][j];
@@ -2334,10 +2198,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			delete[] randomPhase[i][s];
 			delete[] Xn_m[i][s];
 		}
-		delete[] azimuth_ASA[i];
-		delete[] azimuth_ASD[i];
-		delete[] azimuth_cluster_ASA[i];
-		delete[] azimuth_cluster_ASD[i];
 		delete[] elevation_ASA[i];
 		delete[] elevation_ASD[i];
 		delete[] MSVelDir[i];
@@ -2349,10 +2209,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		delete[] MsAntennaPosition[i];
 		delete[] Xn_m[i];
 	}
-	delete[] azimuth_ASA;
-	delete[] azimuth_ASD;
-	delete[] azimuth_cluster_ASA;
-	delete[] azimuth_cluster_ASD;
 	delete[] elevation_ASA;
 	delete[] elevation_ASD;
 	delete[] MSVelDir;
