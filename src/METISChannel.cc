@@ -101,7 +101,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	XPR_Mean_NLOS = module->par("XPR_Mean_NLOS");
 	XPR_Std_NLOS = module->par("XPR_Std_NLOS");
     
-    	OwnBsAntennaPosition = new double**[1];
     
     	// Find the neighbours and store the pair (bsId, position in data structures) in a map
     	cModule *cell = module->getParentModule()->getParentModule();
@@ -115,20 +114,21 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
     	// Half wavelength distance between antennas; give the position of Tx and Rx antennas in GCS
 	// For even value of NumBsAntenna, the antenna elements will be equally spaced around the center of Tx
     	double wavelength = speedOfLight / freq_c;
-    	for(int i = 0; i < 1; i++){
-		OwnBsAntennaPosition[i] = new double*[NumBsAntenna];
+    	bsAntennaPositions = new double**[neighbourPositions.size()];
+    	for(size_t i = 0; i < neighbourPositions.size(); i++){
+		bsAntennaPositions[i] = new double*[NumBsAntenna];
 		for(int j = 0; j < (NumBsAntenna/2); j++){
-			OwnBsAntennaPosition[i][j] = new double[3];
-			OwnBsAntennaPosition[i][j][0] = xPos - (0.25 * wavelength * (NumBsAntenna - 1 - (j*2.0)));
-			OwnBsAntennaPosition[i][j][1] = yPos;
-			OwnBsAntennaPosition[i][j][2] = heightBS;
+			bsAntennaPositions[i][j] = new double[3];
+			bsAntennaPositions[i][j][0] = neighbourPositions[i].x - (0.25 * wavelength * (NumBsAntenna - 1 - (j*2.0)));
+			bsAntennaPositions[i][j][1] = neighbourPositions[i].y;
+			bsAntennaPositions[i][j][2] = heightBS;
 		}
 
 		for(int j = (NumBsAntenna/2); j < NumBsAntenna; j++){
-			OwnBsAntennaPosition[i][j] = new double[3];
-			OwnBsAntennaPosition[i][j][0] = OwnBsAntennaPosition[i][j-1][0] + (0.5 * wavelength);
-			OwnBsAntennaPosition[i][j][1] = yPos;
-			OwnBsAntennaPosition[i][j][2] = heightBS;
+			bsAntennaPositions[i][j] = new double[3];
+			bsAntennaPositions[i][j][0] = bsAntennaPositions[i][j-1][0] + (0.5 * wavelength);
+			bsAntennaPositions[i][j][1] = neighbourPositions[i].y;
+			bsAntennaPositions[i][j][2] = heightBS;
 		}
 
 	}
@@ -808,7 +808,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			receiverAntennaPos[i][j][2] = heightUE;
 		}
 	}
-	double ***senderAntennaPos = OwnBsAntennaPosition;
+	double ***senderAntennaPos = bsAntennaPositions;
 
 	vector<vector<double>> AoA_LOS_dir;
 	vector<vector<double>> ZoA_LOS_dir;
@@ -1933,7 +1933,7 @@ METISChannel::~METISChannel(){
 		// are only freed when init has been called, as indicated by 
 		// the initialized variable.
 		for(int i=0; i<numberOfMobileStations; i++){
-			for(int j=0; j<numOfInterferers; j++){
+			for(size_t j=0; j<neighbourPositions.size(); j++){
 				for(int k=0; k<timeSamples; k++){
 					delete[] coeffTable[i][j][k];
 				}
@@ -1944,12 +1944,14 @@ METISChannel::~METISChannel(){
 		}
 		delete neighbourIdMatching; 
 		delete[] coeffTable;
-		for(int i=0; i<NumBsAntenna; i++){
-			delete[] OwnBsAntennaPosition[0][i];
+		for(size_t j=0; j<neighbourPositions.size();j++){
+			for(int i=0; i<NumBsAntenna; i++){
+				delete[] bsAntennaPositions[j][i];
+			}
+			delete[] bsAntennaPositions[j];
 		}
 		delete[] timeVector;
-		delete[] OwnBsAntennaPosition[0];
-		delete[] OwnBsAntennaPosition;
+		delete[] bsAntennaPositions;
 	
 	}
 

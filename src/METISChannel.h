@@ -51,7 +51,7 @@ class METISChannel : public Channel{
 		int SINRcounter;					/*!< If position resend intervall > 1, it counts the current TTI */
 		int NumBsAntenna;					/*!< Number of Base Station Antenna */
 		int NumMsAntenna;					/*!< Number of Mobile Station Antenna */
-		double ***OwnBsAntennaPosition;				/*!< Position vector of Base Station antenna */
+		double ***bsAntennaPositions;				/*!< Position vector of Base Station antenna */
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
 		double vel;
 		double XPR_Mean_LOS;
