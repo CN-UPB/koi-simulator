@@ -45,8 +45,7 @@ class METISChannel : public Channel{
 		map <int,Position> neighbourPositions;			/*!< Positions of Neighbour BS */
 		NeighbourIdMatching *neighbourIdMatching;
 		cSimpleModule *initModule;				/*!< Pointer to OMNeT module for intermodule communication */
-		double ***SINRtable;					/*!< Table to save precomputed channel values (linear) */
-		double ****SINRneighbour;				/*!< Table to save precomputed neighbourvalues values (linear) */
+		double ****coeffTable;				/*!< Table to save precomputed neighbourvalues values (linear) */
 		int upRBs;						/*!< Number of up resource blocks*/
 		int downRBs;						/*!< Number of down resource blocks */
 		int SINRcounter;					/*!< If position resend intervall > 1, it counts the current TTI */
