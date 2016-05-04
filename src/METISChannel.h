@@ -233,6 +233,26 @@ class METISChannel : public Channel{
 		vector<vector<vector<vector<double>>>> genCrossPolarization(
 				vector<vector<bool>>& LOSCondition);
 
+		/**
+		 * @brief Compute ray sum for a full cluster
+		 */
+		void computeRaySumCluster(
+				size_t numRays,
+				double prefactor,
+				double k_0,
+				const vector<double>& zenithASA,
+				const vector<double>& zenithASD,
+				const vector<double>& azimuthASA,
+				const vector<double>& azimuthASD,
+				double *senderAntennaPos,
+				double *receiverAntennaPos,
+				size_t receiverAntennaIndex,
+				size_t senderAntennaIndex,
+				const vector<vector<double>>& randomPhase,
+				int *subcluster,
+				complex<double> ***raySum
+				);
+
 	public:
 		//! Constructor of METIS Channel subclass.
 		METISChannel(){

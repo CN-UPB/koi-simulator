@@ -714,6 +714,75 @@ vector<vector<vector<vector<double>>>> METISChannel::genCrossPolarization(
 	return xpv;
 }
 
+void METISChannel::computeRaySumCluster(
+		size_t numRays,
+		double prefactor,
+		double k_0,
+		const vector<double>& zenithASA,
+		const vector<double>& zenithASD,
+		const vector<double>& azimuthASA,
+		const vector<double>& azimuthASD,
+		double *senderAntennaPos,
+		double *receiverAntennaPos,
+		size_t receiverAntennaIndex,
+		size_t senderAntennaIndex,
+		const vector<vector<double>>& randomPhase,
+		int *subcluster,
+		complex<double> ***raySum
+		){
+	double AoA[3];
+	double AoD[3];
+	complex<double> exp_arrival;
+	complex<double> exp_departure;
+	double receiverGain;
+	double senderGain;
+	complex<double> pol;
+	complex<double> doppler;
+	size_t rayIdx;
+	// Cycle through all NLOS Rays
+	for(size_t m = 0; m < numRays; m++){
+		rayIdx = (subcluster!=nullptr) ? subcluster[m] : m;
+		AoA[0] = sin(zenithASA[rayIdx]*pi/180) * cos(azimuthASA[rayIdx]*pi/180);
+		AoA[1] = sin(zenithASA[rayIdx]*pi/180) * sin(azimuthASA[rayIdx]*pi/180);
+		AoA[2] = cos(zenithASA[rayIdx]*pi/180);
+
+		AoD[0] = sin(zenithASD[rayIdx]*pi/180) * cos(azimuthASD[rayIdx]*pi/180);
+		AoD[1] = sin(zenithASD[rayIdx]*pi/180) * sin(azimuthASD[rayIdx]*pi/180);
+		AoD[2] = cos(zenithASD[rayIdx]*pi/180);
+
+		exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * receiverAntennaPos[0] + AoA[1] * receiverAntennaPos[1] + AoA[2] * receiverAntennaPos[2])) );
+		exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * senderAntennaPos[0] + AoD[1] * senderAntennaPos[1] + AoD[2] * senderAntennaPos[2])) );
+
+		// TODO: Include Polarization
+		// Replacement for polarization. (Below 4.14)
+		//pol = exp( complex<double>(0,uniform(0,2*pi)));
+		receiverGain = getMSGain(azimuthASA[rayIdx]*pi/180, zenithASA[rayIdx]*pi/180);
+		senderGain = getBSGain(azimuthASD[rayIdx]*pi/180, zenithASD[rayIdx]*pi/180);
+		pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase[rayIdx][0]));
+
+		// Calculate Doppler component of final formula
+		// Formula: 
+		// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
+		// Where: 
+		// k_0 = wavenumber
+		// |v| = magnitude of velocity
+		// AoA = Azimuth Angle of Arrival
+		// AoMD = Azimuth Angle of MS Movement Direction
+		// t = time vector
+
+		// Cycle through the time axis (Formula 4.15)
+		for(int t = 0; t < timeSamples; t++){
+			// We do not have MS movement for the moment, so no doppler effect either
+			//doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][m]*pi/180 - AoMD) * timeVector[i][t] ) );
+			doppler = 1.0;
+			raySum[t][receiverAntennaIndex][senderAntennaIndex] += pol * doppler * exp_arrival * exp_departure;
+		} // End time axis							
+	} // End cycle Rays
+	for(int t = 0; t < timeSamples; t++){
+		raySum[t][receiverAntennaIndex][senderAntennaIndex] = prefactor * raySum[t][receiverAntennaIndex][senderAntennaIndex];
+	} 							
+}
+
 void METISChannel::recomputeMETISParams(Position** msPositions){
     	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
@@ -1041,187 +1110,80 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 									if (L == 3){
 										if (l == 0){ // for sub-cluster 1 of first two clusters
 											sq_P_over_M = sqrt(P_n[l] / size_SC_1);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 											// Cycle through all NLOS Ray
-											for(int m = 0; m < size_SC_1; m++){		
-												AoA[0] = sin(elevation_ASA[i][0][n][SC_1[m]]*pi/180) * cos(azimuth_ASA[i][0][n][SC_1[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][0][n][SC_1[m]]*pi/180) * sin(azimuth_ASA[i][0][n][SC_1[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][0][n][SC_1[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][0][n][SC_1[m]]*pi/180) * cos(azimuth_ASD[i][0][n][SC_1[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][0][n][SC_1[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_1[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][0][n][SC_1[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2] )) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][0][n][SC_1[m]]*pi/180, elevation_ASA[i][0][n][SC_1[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][0][n][SC_1[m]]*pi/180, elevation_ASD[i][0][n][SC_1[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][SC_1[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][SC_1[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySum[i][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_1){
-														raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-													}
-												} // End time axis							
-											} // End cycle Rays
+											computeRaySumCluster(size_SC_1,
+													sq_P_over_M,
+													k_0,
+													elevation_ASA[i][0][n],
+													elevation_ASD[i][0][n],
+													azimuth_ASA[i][0][n],
+													azimuth_ASD[i][0][n],
+													OwnBsAntennaPosition[0][s],
+													MsAntennaPosition[i][u],
+													u,
+													s,
+													randomPhase[i][0][n],
+													SC_1,
+													raySum[i][clusterIdx]
+													);
 											clusterIdx++;
 										} else if (l == 1){ // for sub-cluster 2 of first two clusters
 											sq_P_over_M = sqrt(P_n[l] / size_SC_2);
 											// Cycle through all NLOS Rays
-											for(int m = 0; m < size_SC_2; m++){		
-												AoA[0] = sin(elevation_ASA[i][0][n][SC_2[m]]*pi/180) * cos(azimuth_ASA[i][0][n][SC_2[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][0][n][SC_2[m]]*pi/180) * sin(azimuth_ASA[i][0][n][SC_2[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][0][n][SC_2[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][0][n][SC_2[m]]*pi/180) * cos(azimuth_ASD[i][0][n][SC_2[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][0][n][SC_2[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_2[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][0][n][SC_2[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][0][n][SC_2[m]]*pi/180, elevation_ASA[i][0][n][SC_2[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][0][n][SC_2[m]]*pi/180, elevation_ASD[i][0][n][SC_2[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][SC_2[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][SC_2[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySum[i][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_2){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-													}
-												} // End time axis							
-											} // End cycle Rays
+											computeRaySumCluster(size_SC_2,
+													sq_P_over_M,
+													k_0,
+													elevation_ASA[i][0][n],
+													elevation_ASD[i][0][n],
+													azimuth_ASA[i][0][n],
+													azimuth_ASD[i][0][n],
+													OwnBsAntennaPosition[0][s],
+													MsAntennaPosition[i][u],
+													u,
+													s,
+													randomPhase[i][0][n],
+													SC_2,
+													raySum[i][clusterIdx]
+													);
 											clusterIdx++;
 										} else { //for sub-cluster 3 of first two clusters
 											sq_P_over_M = sqrt(P_n[l] / size_SC_3);
 											// Cycle through all NLOS Ray
-											for(int m = 0; m < size_SC_3; m++){		
-												AoA[0] = sin(elevation_ASA[i][0][n][SC_3[m]]*pi/180) * cos(azimuth_ASA[i][0][n][SC_3[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][0][n][SC_3[m]]*pi/180) * sin(azimuth_ASA[i][0][n][SC_3[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][0][n][SC_3[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][0][n][SC_3[m]]*pi/180) * cos(azimuth_ASD[i][0][n][SC_3[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][0][n][SC_3[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_3[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][0][n][SC_3[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][0][n][SC_3[m]]*pi/180, elevation_ASA[i][0][n][SC_3[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][0][n][SC_3[m]]*pi/180, elevation_ASD[i][0][n][SC_3[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][SC_3[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][SC_3[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySum[i][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_3){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-													}
-												} // End time axis							
-											} // End cycle Rays
+											computeRaySumCluster(size_SC_3,
+													sq_P_over_M,
+													k_0,
+													elevation_ASA[i][0][n],
+													elevation_ASD[i][0][n],
+													azimuth_ASA[i][0][n],
+													azimuth_ASD[i][0][n],
+													OwnBsAntennaPosition[0][s],
+													MsAntennaPosition[i][u],
+													u,
+													s,
+													randomPhase[i][0][n],
+													SC_3,
+													raySum[i][clusterIdx]
+													);
 											clusterIdx++;
 										} //end if (for all sub-clusters)
 									}else{ // for all clusters from N = 3 onwards
 										sq_P_over_M = sqrt(P_n[l] / numOfRays_NLOS);
-										//std::cout << "P_n[i]: " << P_n[i] << std::endl;
-										//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 										// Cycle through all NLOS Rays
-										for(int m = 0; m < numOfRays_NLOS; m++){		
-											AoA[0] = sin(elevation_ASA[i][0][n][m]*pi/180) * cos(azimuth_ASA[i][0][n][m]*pi/180);
-											AoA[1] = sin(elevation_ASA[i][0][n][m]*pi/180) * sin(azimuth_ASA[i][0][n][m]*pi/180);
-											AoA[2] = cos(elevation_ASA[i][0][n][m]*pi/180);
-										
-											AoD[0] = sin(elevation_ASD[i][0][n][m]*pi/180) * cos(azimuth_ASD[i][0][n][m]*pi/180);
-											AoD[1] = sin(elevation_ASD[i][0][n][m]*pi/180) * sin(azimuth_ASD[i][0][n][m]*pi/180);
-											AoD[2] = cos(elevation_ASD[i][0][n][m]*pi/180);
-										
-											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-											// TODO: Include Polarization
-											// Replacement for polarization. (Below 4.14)
-											//pol = exp( complex<double>(0,uniform(0,2*pi)));
-											MSgain = getMSGain(azimuth_ASA[i][0][n][m]*pi/180, elevation_ASA[i][0][n][m]*pi/180);
-											BSgain = getBSGain(azimuth_ASD[i][0][n][m]*pi/180, elevation_ASD[i][0][n][m]*pi/180);
-											pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][m][0]));
-										
-											// Calculate Doppler component of final formula
-											// Formula: 
-											// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-											// Where: 
-											// k_0 = wavenumber
-											// |v| = magnitude of velocity
-											// AoA = Azimuth Angle of Arrival
-											// AoMD = Azimuth Angle of MS Movement Direction
-											// t = time vector
-										
-											// Cycle through the time axis (Formula 4.15)
-											for(int t = 0; t < timeSamples; t++){
-												//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-												doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][m]*pi/180 - AoMD) * timeVector[i][t] ) );
-												//std::cout << "Doppler: " << doppler << std::endl;
-												raySum[i][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-												if(m + 1 == numOfRays_NLOS){
-													//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-													raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-												}
-											} // End time axis							
-										} // End cycle Rays
+										computeRaySumCluster(numOfRays_NLOS,
+												sq_P_over_M,
+												k_0,
+												elevation_ASA[i][0][n],
+												elevation_ASD[i][0][n],
+												azimuth_ASA[i][0][n],
+												azimuth_ASD[i][0][n],
+												OwnBsAntennaPosition[0][s],
+												MsAntennaPosition[i][u],
+												u,
+												s,
+												randomPhase[i][0][n],
+												nullptr,
+												raySum[i][clusterIdx]
+												);
 										clusterIdx++;
 									} //End if
 								} // End cycle Subclusters
@@ -1255,197 +1217,85 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 								for(int l = 0; l < L; l++){
 									if (L == 3){
 										if (l == 0){ // for sub-cluster 1 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_1);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
+											double K = sigma_kf_LOS[i][0]; 
+											sq_P_over_M = (sqrt(1/(K + 1))) * sqrt(P_n[l] / size_SC_1);
 											// Cycle through all LOS Rays
-											for(int m = 0; m < size_SC_1; m++){		
-												AoA[0] = sin(elevation_ASA[i][0][n][SC_1[m]]*pi/180) * cos(azimuth_ASA[i][0][n][SC_1[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][0][n][SC_1[m]]*pi/180) * sin(azimuth_ASA[i][0][n][SC_1[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][0][n][SC_1[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][0][n][SC_1[m]]*pi/180) * cos(azimuth_ASD[i][0][n][SC_1[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][0][n][SC_1[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_1[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][0][n][SC_1[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][0][n][SC_1[m]]*pi/180, elevation_ASA[i][0][n][SC_1[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][0][n][SC_1[m]]*pi/180, elevation_ASD[i][0][n][SC_1[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][SC_1[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][SC_1[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySum_LOS[i][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_1){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														double K = sigma_kf_LOS[i][0]; 
-														raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-													}
-												} // End time axis							
-											} // End cycle Rays
+											computeRaySumCluster(size_SC_1,
+													sq_P_over_M,
+													k_0,
+													elevation_ASA[i][0][n],
+													elevation_ASD[i][0][n],
+													azimuth_ASA[i][0][n],
+													azimuth_ASD[i][0][n],
+													OwnBsAntennaPosition[0][s],
+													MsAntennaPosition[i][u],
+													u,
+													s,
+													randomPhase[i][0][n],
+													SC_1,
+													raySum_LOS[i][clusterIdx_LOS]
+													);
 											clusterIdx_LOS++;
 										} else if (l == 1){ // for sub-cluster 2 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_2);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
+											double K = sigma_kf_LOS[i][0]; 
+											sq_P_over_M = (sqrt(1/(K + 1))) * sqrt(P_n[l] / size_SC_2);
 											// Cycle through all LOS Rays
-											for(int m = 0; m < size_SC_2; m++){		
-												AoA[0] = sin(elevation_ASA[i][0][n][SC_2[m]]*pi/180) * cos(azimuth_ASA[i][0][n][SC_2[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][0][n][SC_2[m]]*pi/180) * sin(azimuth_ASA[i][0][n][SC_2[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][0][n][SC_2[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][0][n][SC_2[m]]*pi/180) * cos(azimuth_ASD[i][0][n][SC_2[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][0][n][SC_2[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_2[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][0][n][SC_2[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][0][n][SC_2[m]]*pi/180, elevation_ASA[i][0][n][SC_2[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][0][n][SC_2[m]]*pi/180, elevation_ASD[i][0][n][SC_2[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][SC_2[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][SC_2[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySum_LOS[i][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_2){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														double K = sigma_kf_LOS[i][0]; 
-														raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-													}
-												} // End time axis							
-											} // End cycle Rays
+											computeRaySumCluster(size_SC_2,
+													sq_P_over_M,
+													k_0,
+													elevation_ASA[i][0][n],
+													elevation_ASD[i][0][n],
+													azimuth_ASA[i][0][n],
+													azimuth_ASD[i][0][n],
+													OwnBsAntennaPosition[0][s],
+													MsAntennaPosition[i][u],
+													u,
+													s,
+													randomPhase[i][0][n],
+													SC_2,
+													raySum_LOS[i][clusterIdx_LOS]
+													);
 											clusterIdx_LOS++;
 										} else { //for sub-cluster 3 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_3);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
+											double K = sigma_kf_LOS[i][0]; 
+											sq_P_over_M = (sqrt(1/(K + 1))) * sqrt(P_n[l] / size_SC_3);
 											// Cycle through all LOS Rays
-											for(int m = 0; m < size_SC_3; m++){		
-												AoA[0] = sin(elevation_ASA[i][0][n][SC_3[m]]*pi/180) * cos(azimuth_ASA[i][0][n][SC_3[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][0][n][SC_3[m]]*pi/180) * sin(azimuth_ASA[i][0][n][SC_3[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][0][n][SC_3[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][0][n][SC_3[m]]*pi/180) * cos(azimuth_ASD[i][0][n][SC_3[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][0][n][SC_3[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_3[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][0][n][SC_3[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][0][n][SC_3[m]]*pi/180, elevation_ASA[i][0][n][SC_3[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][0][n][SC_3[m]]*pi/180, elevation_ASD[i][0][n][SC_3[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][SC_3[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][SC_3[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySum_LOS[i][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_3){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														double K = sigma_kf_LOS[i][0]; 
-														raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-													}
-												} // End time axis							
-											} // End cycle Rays
+											computeRaySumCluster(size_SC_3,
+													sq_P_over_M,
+													k_0,
+													elevation_ASA[i][0][n],
+													elevation_ASD[i][0][n],
+													azimuth_ASA[i][0][n],
+													azimuth_ASD[i][0][n],
+													OwnBsAntennaPosition[0][s],
+													MsAntennaPosition[i][u],
+													u,
+													s,
+													randomPhase[i][0][n],
+													SC_3,
+													raySum_LOS[i][clusterIdx_LOS]
+													);
 											clusterIdx_LOS++;
 										} //end if (for all sub-clusters)
 									}else{ // for all clusters from N = 3 onwards
-										sq_P_over_M = sqrt(P_n[l] / numOfRays_LOS);
-										//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-										//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
+										double K = sigma_kf_LOS[i][0]; 
+										sq_P_over_M = (sqrt(1/(K + 1))) * sqrt(P_n[l] / numOfRays_LOS);
 										// Cycle through all LOS Rays
-										for(int m = 0; m < numOfRays_LOS; m++){		
-											AoA[0] = sin(elevation_ASA[i][0][n][m]*pi/180) * cos(azimuth_ASA[i][0][n][m]*pi/180);
-											AoA[1] = sin(elevation_ASA[i][0][n][m]*pi/180) * sin(azimuth_ASA[i][0][n][m]*pi/180);
-											AoA[2] = cos(elevation_ASA[i][0][n][m]*pi/180);
-										
-											AoD[0] = sin(elevation_ASD[i][0][n][m]*pi/180) * cos(azimuth_ASD[i][0][n][m]*pi/180);
-											AoD[1] = sin(elevation_ASD[i][0][n][m]*pi/180) * sin(azimuth_ASD[i][0][n][m]*pi/180);
-											AoD[2] = cos(elevation_ASD[i][0][n][m]*pi/180);
-										
-											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-											// TODO: Include Polarization
-											// Replacement for polarization. (Below 4.14)
-											//pol = exp( complex<double>(0,uniform(0,2*pi)));
-											MSgain = getMSGain(azimuth_ASA[i][0][n][m]*pi/180, elevation_ASA[i][0][n][m]*pi/180);
-											BSgain = getBSGain(azimuth_ASD[i][0][n][m]*pi/180, elevation_ASD[i][0][n][m]*pi/180);
-											pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][m][0]));
-										
-											// Calculate Doppler component of final formula
-											// Formula: 
-											// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-											// Where: 
-											// k_0 = wavenumber
-											// |v| = magnitude of velocity
-											// AoA = Azimuth Angle of Arrival
-											// AoMD = Azimuth Angle of MS Movement Direction
-											// t = time vector
-										
-											// Cycle through the time axis (Formula 4.15)
-											for(int t = 0; t < timeSamples; t++){
-												//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-												doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][m]*pi/180 - AoMD) * timeVector[i][t] ) );
-												//std::cout << "Doppler: " << doppler << std::endl;
-												raySum_LOS[i][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-												if(m + 1 == numOfRays_LOS){
-													//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-													double K = sigma_kf_LOS[i][0]; 
-													raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-												}
-											} // End time axis							
-										} // End cycle Rays
+										computeRaySumCluster(numOfRays_LOS,
+												sq_P_over_M,
+												k_0,
+												elevation_ASA[i][0][n],
+												elevation_ASD[i][0][n],
+												azimuth_ASA[i][0][n],
+												azimuth_ASD[i][0][n],
+												OwnBsAntennaPosition[0][s],
+												MsAntennaPosition[i][u],
+												u,
+												s,
+												randomPhase[i][0][n],
+												nullptr,
+												raySum_LOS[i][clusterIdx_LOS]
+												);
 										clusterIdx_LOS++;
 									}//end if
 								} // End cycle Subclusters
@@ -1520,196 +1370,80 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 									if (L == 3){
 										if (l == 0){ // for sub-cluster 1 of first two clusters
 											sq_P_over_M = sqrt(P_n[l] / size_SC_1);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 											// Cycle through all NLOS Ray
-											for(int m = 0; m < size_SC_1; m++){		
-												AoA[0] = sin(elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180) * cos(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180) * sin(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180) * cos(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180, elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180, elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][SC_1[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_1){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] = sq_P_over_M * raySumInterferer[i][idIdx-1][clusterIdx][t][u][s];
-														//std::cout << "raySumInterferer[i][clusterIdx][t][u][s]: " << raySumInterferer[i][clusterIdx][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
+											computeRaySumCluster(size_SC_1,
+													sq_P_over_M,
+													k_0,
+													elevation_ASA[i][idIdx][n],
+													elevation_ASD[i][idIdx][n],
+													azimuth_ASA[i][idIdx][n],
+													azimuth_ASD[i][idIdx][n],
+													OwnBsAntennaPosition[idIdx][s],
+													MsAntennaPosition[i][u],
+													u,
+													s,
+													randomPhase[i][idIdx][n],
+													SC_1,
+													raySumInterferer[i][idIdx-1][clusterIdx]
+													);
 											clusterIdx++;
 										} else if (l == 1){ // for sub-cluster 2 of first two clusters
 											sq_P_over_M = sqrt(P_n[l] / size_SC_2);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 											// Cycle through all NLOS Ray
-											for(int m = 0; m < size_SC_2; m++){		
-												AoA[0] = sin(elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180) * cos(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180) * sin(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180) * cos(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180, elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180, elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][SC_2[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_2){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] = sq_P_over_M * raySumInterferer[i][idIdx-1][clusterIdx][t][u][s];
-														//std::cout << "raySumInterferer[i][clusterIdx][t][u][s]: " << raySumInterferer[i][clusterIdx][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
+											computeRaySumCluster(size_SC_2,
+													sq_P_over_M,
+													k_0,
+													elevation_ASA[i][idIdx][n],
+													elevation_ASD[i][idIdx][n],
+													azimuth_ASA[i][idIdx][n],
+													azimuth_ASD[i][idIdx][n],
+													OwnBsAntennaPosition[idIdx][s],
+													MsAntennaPosition[i][u],
+													u,
+													s,
+													randomPhase[i][idIdx][n],
+													SC_2,
+													raySumInterferer[i][idIdx-1][clusterIdx]
+													);
 											clusterIdx++;
 										} else { //for sub-cluster 3 of first two clusters
 											sq_P_over_M = sqrt(P_n[l] / size_SC_3);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 											// Cycle through all NLOS Ray
-											for(int m = 0; m < size_SC_3; m++){		
-												AoA[0] = sin(elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180) * cos(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180) * sin(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180) * cos(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180, elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180, elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][SC_3[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_3){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] = sq_P_over_M * raySumInterferer[i][idIdx-1][clusterIdx][t][u][s];
-														//std::cout << "raySumInterferer[i][clusterIdx][t][u][s]: " << raySumInterferer[i][clusterIdx][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
+											computeRaySumCluster(size_SC_3,
+													sq_P_over_M,
+													k_0,
+													elevation_ASA[i][idIdx][n],
+													elevation_ASD[i][idIdx][n],
+													azimuth_ASA[i][idIdx][n],
+													azimuth_ASD[i][idIdx][n],
+													OwnBsAntennaPosition[idIdx][s],
+													MsAntennaPosition[i][u],
+													u,
+													s,
+													randomPhase[i][idIdx][n],
+													SC_3,
+													raySumInterferer[i][idIdx-1][clusterIdx]
+													);
 											clusterIdx++;
 										} //end if (for all sub-clusters)
 									}else{ // for all clusters from N = 3 onwards
 										sq_P_over_M = sqrt(P_n[l] / numOfRays_NLOS);
-										//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-										//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
 										// Cycle through all NLOS Ray
-										for(int m = 0; m < numOfRays_NLOS; m++){		
-											AoA[0] = sin(elevation_ASA[i][idIdx][n][m]*pi/180) * cos(azimuth_ASA[i][idIdx][n][m]*pi/180);
-											AoA[1] = sin(elevation_ASA[i][idIdx][n][m]*pi/180) * sin(azimuth_ASA[i][idIdx][n][m]*pi/180);
-											AoA[2] = cos(elevation_ASA[i][idIdx][n][m]*pi/180);
-										
-											AoD[0] = sin(elevation_ASD[i][idIdx][n][m]*pi/180) * cos(azimuth_ASD[i][idIdx][n][m]*pi/180);
-											AoD[1] = sin(elevation_ASD[i][idIdx][n][m]*pi/180) * sin(azimuth_ASD[i][idIdx][n][m]*pi/180);
-											AoD[2] = cos(elevation_ASD[i][idIdx][n][m]*pi/180);
-										
-											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-											// TODO: Include Polarization
-											// Replacement for polarization. (Below 4.14)
-											//pol = exp( complex<double>(0,uniform(0,2*pi)));
-											MSgain = getMSGain(azimuth_ASA[i][idIdx][n][m]*pi/180, elevation_ASA[i][idIdx][n][m]*pi/180);
-											BSgain = getBSGain(azimuth_ASD[i][idIdx][n][m]*pi/180, elevation_ASD[i][idIdx][n][m]*pi/180);
-											pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][m][0]));
-										
-											// Calculate Doppler component of final formula
-											// Formula: 
-											// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-											// Where: 
-											// k_0 = wavenumber
-											// |v| = magnitude of velocity
-											// AoA = Azimuth Angle of Arrival
-											// AoMD = Azimuth Angle of MS Movement Direction
-											// t = time vector
-										
-											// Cycle through the time axis (Formula 4.15)
-											for(int t = 0; t < timeSamples; t++){
-												//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-												doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][m]*pi/180 - AoMD) * timeVector[i][t] ) );
-												//std::cout << "Doppler: " << doppler << std::endl;
-												raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-												if(m + 1 == numOfRays_NLOS){
-													//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-													raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] = sq_P_over_M * raySumInterferer[i][idIdx-1][clusterIdx][t][u][s];
-													//std::cout << "raySumInterferer[i][idIdx-1][clusterIdx][t][u][s]: " << raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] << std::endl;
-												}
-											} // End time axis							
-										} // End cycle Rays
+										computeRaySumCluster(numOfRays_NLOS,
+												sq_P_over_M,
+												k_0,
+												elevation_ASA[i][idIdx][n],
+												elevation_ASD[i][idIdx][n],
+												azimuth_ASA[i][idIdx][n],
+												azimuth_ASD[i][idIdx][n],
+												OwnBsAntennaPosition[idIdx][s],
+												MsAntennaPosition[i][u],
+												u,
+												s,
+												randomPhase[i][idIdx][n],
+												nullptr,
+												raySumInterferer[i][idIdx-1][clusterIdx]
+												);
 										clusterIdx++;
 									}//end if
 								} // End cycle Subclusters
@@ -1741,201 +1475,85 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 								for(int l = 0; l < L; l++){
 									if (L == 3){
 										if (l == 0){ // for sub-cluster 1 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_1);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
+											double K = sigma_kf_LOS[i][idIdx]; 
+											sq_P_over_M = (sqrt(1/(K + 1))) * sqrt(P_n[l] / size_SC_1);
 											// Cycle through all LOS Rays
-											for(int m = 0; m < size_SC_1; m++){		
-												AoA[0] = sin(elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180) * cos(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180) * sin(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180) * cos(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180, elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180, elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][SC_1[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_1){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														double K = sigma_kf_LOS[i][idIdx]; 
-														raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s];
-														//std::cout << "raySumInterferer_LOS[i][idIdx-1][clusterIdx][t][u][s]: " << raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
+											computeRaySumCluster(size_SC_1,
+													sq_P_over_M,
+													k_0,
+													elevation_ASA[i][idIdx][n],
+													elevation_ASD[i][idIdx][n],
+													azimuth_ASA[i][idIdx][n],
+													azimuth_ASD[i][idIdx][n],
+													OwnBsAntennaPosition[idIdx][s],
+													MsAntennaPosition[i][u],
+													u,
+													s,
+													randomPhase[i][idIdx][n],
+													SC_1,
+													raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS]
+													);
 											clusterIdx_LOS++;
 										} else if (l == 1){ // for sub-cluster 2 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_2);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
+											double K = sigma_kf_LOS[i][idIdx]; 
+											sq_P_over_M = (sqrt(1/(K + 1))) * sqrt(P_n[l] / size_SC_2);
 											// Cycle through all LOS Rays
-											for(int m = 0; m < size_SC_2; m++){		
-												AoA[0] = sin(elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180) * cos(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180) * sin(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180) * cos(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180, elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180, elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][SC_2[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_2){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														double K = sigma_kf_LOS[i][idIdx]; 
-														raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s];
-														//std::cout << "raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s]: " << raySumInterferer[i][idIdx-1][clusterIdx_LOS][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
+											computeRaySumCluster(size_SC_2,
+													sq_P_over_M,
+													k_0,
+													elevation_ASA[i][idIdx][n],
+													elevation_ASD[i][idIdx][n],
+													azimuth_ASA[i][idIdx][n],
+													azimuth_ASD[i][idIdx][n],
+													OwnBsAntennaPosition[idIdx][s],
+													MsAntennaPosition[i][u],
+													u,
+													s,
+													randomPhase[i][idIdx][n],
+													SC_2,
+													raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS]
+													);
 											clusterIdx_LOS++;
 										} else { //for sub-cluster 3 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_3);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
+											double K = sigma_kf_LOS[i][idIdx]; 
+											sq_P_over_M = (sqrt(1/(K + 1))) * sqrt(P_n[l] / size_SC_3);
 											// Cycle through all LOS Rays
-											for(int m = 0; m < size_SC_3; m++){		
-												AoA[0] = sin(elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180) * cos(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180) * sin(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180) * cos(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180, elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180, elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][SC_3[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_3){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														double K = sigma_kf_LOS[i][idIdx]; 
-														raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s];
-														//std::cout << "raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s]: " << raySumInterferer[i][idIdx-1][clusterIdx_LOS][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
+											computeRaySumCluster(size_SC_3,
+													sq_P_over_M,
+													k_0,
+													elevation_ASA[i][idIdx][n],
+													elevation_ASD[i][idIdx][n],
+													azimuth_ASA[i][idIdx][n],
+													azimuth_ASD[i][idIdx][n],
+													OwnBsAntennaPosition[idIdx][s],
+													MsAntennaPosition[i][u],
+													u,
+													s,
+													randomPhase[i][idIdx][n],
+													SC_3,
+													raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS]
+													);
 											clusterIdx_LOS++;
 										} //end if (for all sub-clusters)
 									}else{ // for all clusters from N = 3 onwards
-										sq_P_over_M = sqrt(P_n[l] / numOfRays_LOS);
-										//std::cout << "P_n[i]: " << P_n[i] << std::endl;
-										//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
+										double K = sigma_kf_LOS[i][idIdx]; 
+										sq_P_over_M = (sqrt(1/(K + 1))) * sqrt(P_n[l] / numOfRays_LOS);
 										// Cycle through all LOS Rays
-										for(int m = 0; m < numOfRays_LOS; m++){		
-											AoA[0] = sin(elevation_ASA[i][idIdx][n][m]*pi/180) * cos(azimuth_ASA[i][idIdx][n][m]*pi/180);
-											AoA[1] = sin(elevation_ASA[i][idIdx][n][m]*pi/180) * sin(azimuth_ASA[i][idIdx][n][m]*pi/180);
-											AoA[2] = cos(elevation_ASA[i][idIdx][n][m]*pi/180);
-										
-											AoD[0] = sin(elevation_ASD[i][idIdx][n][m]*pi/180) * cos(azimuth_ASD[i][idIdx][n][m]*pi/180);
-											AoD[1] = sin(elevation_ASD[i][idIdx][n][m]*pi/180) * sin(azimuth_ASD[i][idIdx][n][m]*pi/180);
-											AoD[2] = cos(elevation_ASD[i][idIdx][n][m]*pi/180);
-										
-											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * MsAntennaPosition[i][u][0] + AoA[1] * MsAntennaPosition[i][u][1] + AoA[2] * MsAntennaPosition[i][u][2])) );
-											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * OwnBsAntennaPosition[0][s][0] + AoD[1] * OwnBsAntennaPosition[0][s][1] + AoD[2] * OwnBsAntennaPosition[0][s][2])) );
-										
-											// TODO: Include Polarization
-											// Replacement for polarization. (Below 4.14)
-											//pol = exp( complex<double>(0,uniform(0,2*pi)));
-											MSgain = getMSGain(azimuth_ASA[i][idIdx][n][m]*pi/180, elevation_ASA[i][idIdx][n][m]*pi/180);
-											BSgain = getBSGain(azimuth_ASD[i][idIdx][n][m]*pi/180, elevation_ASD[i][idIdx][n][m]*pi/180);
-											pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][m][0]));
-										
-											// Calculate Doppler component of final formula
-											// Formula: 
-											// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-											// Where: 
-											// k_0 = wavenumber
-											// |v| = magnitude of velocity
-											// AoA = Azimuth Angle of Arrival
-											// AoMD = Azimuth Angle of MS Movement Direction
-											// t = time vector
-										
-											// Cycle through the time axis (Formula 4.15)
-											for(int t = 0; t < timeSamples; t++){
-												//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-												doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][m]*pi/180 - AoMD) * timeVector[i][t] ) );
-												//std::cout << "Doppler: " << doppler << std::endl;
-												raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-												if(m + 1 == numOfRays_LOS){
-													//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-													double K = sigma_kf_LOS[i][idIdx]; 
-													raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s];
-													//std::cout << "raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s]: " << raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] << std::endl;
-												}
-											} // End time axis							
-										} // End cycle Rays
+										computeRaySumCluster(numOfRays_LOS,
+												sq_P_over_M,
+												k_0,
+												elevation_ASA[i][idIdx][n],
+												elevation_ASD[i][idIdx][n],
+												azimuth_ASA[i][idIdx][n],
+												azimuth_ASD[i][idIdx][n],
+												OwnBsAntennaPosition[idIdx][s],
+												MsAntennaPosition[i][u],
+												u,
+												s,
+												randomPhase[i][idIdx][n],
+												nullptr,
+												raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS]
+												);
 										clusterIdx_LOS++;
 									}//end if
 								} // End cycle Subclusters
