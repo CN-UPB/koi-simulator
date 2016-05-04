@@ -776,22 +776,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
     	double wavelength = speedOfLight / freq_c;
 	double dist2D;
     
-    	// randomly generate direction and magnitude of movement vector
-	double *MSVelMag = new double[numberOfMobileStations]; /*!< Magnitude of MS Velocity */
-	double **MSVelDir = new double*[numberOfMobileStations]; /*!< Direction of MS Velocity */
-    	// TODO: sync with OMNeT++ part
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		MSVelDir[i] = new double[3];
-		MSVelMag[i] = (vel*1000)/3600; // converting velocity from km/h to m/s 
-		MSVelDir[i][0] = 1.0; // +1 for moving towards the BS, -1 for moving away from the BS
-		MSVelDir[i][1] = 0.0; // set to zero b/c MS is not moving in y or z-directions
-		MSVelDir[i][2] = 0.0; // same as above; originally all are set to uniform(-1.0,1.0)
-		double dirMag = sqrt(pow(MSVelDir[i][0],2) + pow(MSVelDir[i][1],2) + pow(MSVelDir[i][2],2));
-		MSVelDir[i][0] = MSVelDir[i][0] / dirMag;
-		MSVelDir[i][1] = MSVelDir[i][1] / dirMag;
-		MSVelDir[i][2] = MSVelDir[i][2] / dirMag;
-	}
-
     	// Copy MS Positions
 	vector<Position> MSPos(numberOfMobileStations);	/*!< Position of the MS */
     	for(int i = 0; i < numberOfMobileStations; i++){
@@ -1030,9 +1014,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	for(int i = 0; i < numberOfMobileStations; i++){
 		// Cycle through all interferer base stations
 		int clusterIdx;
-		
-		// Convert Cartesian Direction to spherical azimuth angle
-		double AoMD = atan((MSVelDir[i][1] / MSVelDir[i][0]));
 		
 		for(size_t idIdx=0; idIdx<neighbourPositions.size(); idIdx++){
 			// calculate interferer
@@ -1282,9 +1263,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 
 								// Cycle through the time axis (Formula 4.15)
 								for(int t = 0; t < timeSamples; t++){
-									//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-									doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(AoA_LOS_dir[i][idIdx] - AoMD) * timeVector[i][t] ) );
-									//std::cout << "Doppler: " << doppler << std::endl;
+									//doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(AoA_LOS_dir[i][idIdx] - AoMD) * timeVector[i][t] ) );
+									doppler = 1.0;
 									raySum_LOS[i][idIdx][0][t][u][s] += (sqrt(K / (K + 1))) * pol * doppler * exp_arrival * exp_departure;
 								} // End time axis
 							}
@@ -1305,8 +1285,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	std::cout << "START FOURIER TRANSFORM for BS: " << bsId << std::endl;
 	
 	double pathloss, dist3D;
-	ofstream TimeFrequency;
-	//ofstream TimeFrequencyInteferer;
 	
 	double delay_SC_1 = 5 * pow(10,-9); // delay for sub-cluster 1 (7-60)
 	double delay_SC_2 = 10 * pow(10,-9); // delay for sub-cluster 2 (7-60)
@@ -1378,14 +1356,11 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	// Delete all heap allocated local variables
 
 	for(int i = 0; i < numberOfMobileStations; i++){
-		delete[] MSVelDir[i];
 		for(int s=0; s<NumMsAntenna; s++){
 			delete[] MsAntennaPosition[i][s];
 		}
 		delete[] MsAntennaPosition[i];
 	}
-	delete[] MSVelDir;
-	delete[] MSVelMag;
 	for (int m = 0; m < numberOfMobileStations; m++){
 		for(size_t i = 0; i < neighbourPositions.size(); i++){
 			for(int j = 0; j < (N_cluster_LOS + 4); j++){
