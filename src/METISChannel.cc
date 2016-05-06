@@ -114,18 +114,16 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
     	// Half wavelength distance between antennas; give the position of Tx and Rx antennas in GCS
 	// For even value of NumBsAntenna, the antenna elements will be equally spaced around the center of Tx
     	double wavelength = speedOfLight / freq_c;
-    	bsAntennaPositions = new double**[neighbourPositions.size()];
+    	bsAntennaPositions.resize(neighbourPositions.size(),
+			vector<array<double,3>>(NumBsAntenna));
     	for(size_t i = 0; i < neighbourPositions.size(); i++){
-		bsAntennaPositions[i] = new double*[NumBsAntenna];
 		for(int j = 0; j < (NumBsAntenna/2); j++){
-			bsAntennaPositions[i][j] = new double[3];
 			bsAntennaPositions[i][j][0] = neighbourPositions[i].x - (0.25 * wavelength * (NumBsAntenna - 1 - (j*2.0)));
 			bsAntennaPositions[i][j][1] = neighbourPositions[i].y;
 			bsAntennaPositions[i][j][2] = heightBS;
 		}
 
 		for(int j = (NumBsAntenna/2); j < NumBsAntenna; j++){
-			bsAntennaPositions[i][j] = new double[3];
 			bsAntennaPositions[i][j][0] = bsAntennaPositions[i][j-1][0] + (0.5 * wavelength);
 			bsAntennaPositions[i][j][1] = neighbourPositions[i].y;
 			bsAntennaPositions[i][j][2] = heightBS;
@@ -710,8 +708,8 @@ void METISChannel::computeRaySumCluster(
 		const vector<double>& zenithASD,
 		const vector<double>& azimuthASA,
 		const vector<double>& azimuthASD,
-		double *senderAntennaPos,
-		double *receiverAntennaPos,
+		const array<double,3>& senderAntennaPos,
+		const array<double,3>& receiverAntennaPos,
 		size_t receiverAntennaIndex,
 		size_t senderAntennaIndex,
 		const vector<vector<double>>& randomPhase,
@@ -791,24 +789,21 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		senderPos[it->first] = it->second;
 	}
 
-	// Mobile stations should be randomly rotated..?
-	double ***receiverAntennaPos = new double**[numberOfMobileStations]; /*!< Position vector of Receiver antenna */
+	vector<vector<array<double,3>>> receiverAntennaPos(receiverPos.size(),
+			vector<array<double,3>>(numReceiverAntenna));
     	for(int i = 0; i < numberOfMobileStations; i++){
-		receiverAntennaPos[i] = new double*[numReceiverAntenna];
 		for(int j = 0; j < (numReceiverAntenna/2); j++){
-			receiverAntennaPos[i][j] = new double[3];
 			receiverAntennaPos[i][j][0] = receiverPos[i].x - (0.25 * wavelength * (numReceiverAntenna - 1 - (j*2.0)));
 			receiverAntennaPos[i][j][1] = receiverPos[i].y;
 			receiverAntennaPos[i][j][2] = heightUE;
 		}
 		for(int j = (numReceiverAntenna/2); j < numReceiverAntenna ; j++){
-			receiverAntennaPos[i][j] = new double[3];
 			receiverAntennaPos[i][j][0] = receiverAntennaPos[i][j-1][0] + (0.5 * wavelength);
 			receiverAntennaPos[i][j][1] = receiverPos[i].y;
 			receiverAntennaPos[i][j][2] = heightUE;
 		}
 	}
-	double ***senderAntennaPos = bsAntennaPositions;
+	vector<vector<array<double,3>>>& senderAntennaPos = bsAntennaPositions;
 
 	vector<vector<double>> AoA_LOS_dir;
 	vector<vector<double>> ZoA_LOS_dir;
@@ -1358,12 +1353,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	//---------------------------------------------------------------------
 	// Delete all heap allocated local variables
 
-	for(int i = 0; i < numberOfMobileStations; i++){
-		for(int s=0; s<numReceiverAntenna; s++){
-			delete[] receiverAntennaPos[i][s];
-		}
-		delete[] receiverAntennaPos[i];
-	}
 	for (int m = 0; m < numberOfMobileStations; m++){
 		for(size_t i = 0; i < neighbourPositions.size(); i++){
 			for(int j = 0; j < (N_cluster_LOS + 4); j++){
@@ -1386,7 +1375,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	}
 	delete[] raySum_LOS;
 	delete[] raySum;
-	delete[] receiverAntennaPos;
 }
 
 /**
@@ -1944,14 +1932,7 @@ METISChannel::~METISChannel(){
 		}
 		delete neighbourIdMatching; 
 		delete[] coeffTable;
-		for(size_t j=0; j<neighbourPositions.size();j++){
-			for(int i=0; i<NumBsAntenna; i++){
-				delete[] bsAntennaPositions[j][i];
-			}
-			delete[] bsAntennaPositions[j];
-		}
 		delete[] timeVector;
-		delete[] bsAntennaPositions;
 	
 	}
 

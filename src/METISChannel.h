@@ -18,8 +18,10 @@
 #include <algorithm>
 #include <vector>
 #include <tuple>
+#include <array>
 
 using std::vector;
+using std::array;
 
 class METISChannel : public Channel{
 	private:
@@ -51,7 +53,7 @@ class METISChannel : public Channel{
 		int SINRcounter;					/*!< If position resend intervall > 1, it counts the current TTI */
 		int NumBsAntenna;					/*!< Number of Base Station Antenna */
 		int NumMsAntenna;					/*!< Number of Mobile Station Antenna */
-		double ***bsAntennaPositions;				/*!< Position vector of Base Station antenna */
+		vector<vector<array<double,3>>> bsAntennaPositions;				/*!< Position vector of Base Station antenna */
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
 		double vel;
 		double XPR_Mean_LOS;
@@ -243,8 +245,8 @@ class METISChannel : public Channel{
 				const vector<double>& zenithASD,
 				const vector<double>& azimuthASA,
 				const vector<double>& azimuthASD,
-				double *senderAntennaPos,
-				double *receiverAntennaPos,
+				const array<double,3>& senderAntennaPos,
+				const array<double,3>& receiverAntennaPos,
 				size_t receiverAntennaIndex,
 				size_t senderAntennaIndex,
 				const vector<vector<double>>& randomPhase,
