@@ -250,9 +250,33 @@ class METISChannel : public Channel{
 				size_t receiverAntennaIndex,
 				size_t senderAntennaIndex,
 				const vector<vector<double>>& randomPhase,
-				int *subcluster,
-				complex<double> ***raySum
+				vector<int> *subcluster,
+				vector<vector<vector<complex<double>>>> raySum
 				);
+
+		/**
+		 * @brief Compute ray sums for given receivers/senders
+		 */
+		tuple<vector<vector<vector<vector<vector<vector<complex<double>>>>>>>,
+			vector<vector<vector<vector<vector<vector<complex<double>>>>>>>>
+				computeRaySums(vector<vector<bool>>& LOSCondition,
+						const vector<vector<double>>& sigma_kf,
+						int numReceiverAntenna,
+						int numSenderAntenna,
+						const vector<vector<vector<double>>>& clusterPowers,
+						const vector<vector<vector<vector<double>>>>& azimuth_ASA,
+						const vector<vector<vector<vector<double>>>>& azimuth_ASD,
+						const vector<vector<vector<vector<double>>>>& elevation_ASA,
+						const vector<vector<vector<vector<double>>>>& elevation_ASD,
+						const vector<vector<array<double,3>>>& receiverAntennaPos,
+						const vector<vector<array<double,3>>>& senderAntennaPos,
+						const vector<vector<vector<vector<vector<double>>>>>& randomPhase,
+						const vector<vector<double>>& randomPhase_LOS,
+						const vector<vector<double>>& AoA_LOS_dir,
+						const vector<vector<double>>& ZoA_LOS_dir,
+						const vector<vector<double>>& AoD_LOS_dir,
+						const vector<vector<double>>& ZoD_LOS_dir
+						);
 
 	public:
 		//! Constructor of METIS Channel subclass.
