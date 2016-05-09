@@ -47,7 +47,7 @@ class METISChannel : public Channel{
 		map <int,Position> neighbourPositions;			/*!< Positions of Neighbour BS */
 		NeighbourIdMatching *neighbourIdMatching;
 		cSimpleModule *initModule;				/*!< Pointer to OMNeT module for intermodule communication */
-		double ****coeffTable;				/*!< Table to save precomputed neighbourvalues values (linear) */
+		vector<vector<vector<vector<double>>>> coeffTable;				/*!< Table to save precomputed neighbourvalues values (linear) */
 		int upRBs;						/*!< Number of up resource blocks*/
 		int downRBs;						/*!< Number of down resource blocks */
 		int SINRcounter;					/*!< If position resend intervall > 1, it counts the current TTI */
@@ -277,6 +277,24 @@ class METISChannel : public Channel{
 						const vector<vector<double>>& AoD_LOS_dir,
 						const vector<vector<double>>& ZoD_LOS_dir
 						);
+
+		/**
+		 * @brief Compute coefficients for given receivers/senders
+		 */
+		vector<vector<vector<vector<double>>>> computeCoeffs(
+				const vector<vector<bool>>& LOSCondition,
+				const vector<Position>& receiverPos,
+				const vector<Position>& senderPos,
+				double heightReceivers,
+				double heightSenders,
+				int numRBs,
+				int numReceiverAntenna,
+				int numSenderAntenna,
+				const vector<vector<vector<vector<vector<vector<complex<double>>>>>>>& raySum,
+				const vector<vector<vector<vector<vector<vector<complex<double>>>>>>>& raySum_LOS,
+				const vector<vector<vector<double>>>& clusterDelays,
+				const vector<vector<vector<double>>>& clusterDelays_LOS
+				);
 
 	public:
 		//! Constructor of METIS Channel subclass.

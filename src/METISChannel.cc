@@ -144,21 +144,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		}
 	}
 	
-	// properly initialize the SINRneighbour with all zeros
-	coeffTable = new double***[numberOfMobileStations];
-	for(int i = 0; i < numberOfMobileStations; i++){
-		coeffTable[i] = new double**[neighbourPositions.size()];
-		for(size_t j = 0; j < neighbourPositions.size(); j++){
-			coeffTable[i][j] = new double*[timeSamples];
-			for(int k = 0; k < timeSamples; k++){
-				coeffTable[i][j][k] = new double[downRBs];
-				for(int s=0; s<downRBs; s++){
-					coeffTable[i][j][k][s] = 0;
-				}
-			}
-		}
-	}
-
 	//compute initial SINR parameters
 	recomputeMETISParams(msPositions);
 
@@ -961,11 +946,85 @@ METISChannel::computeRaySums(vector<vector<bool>>& LOSCondition,
 	return std::make_tuple(std::move(raySum),std::move(raySum_LOS));
 }
 
+vector<vector<vector<vector<double>>>> METISChannel::computeCoeffs(
+		const vector<vector<bool>>& LOSCondition,
+		const vector<Position>& receiverPos,
+		const vector<Position>& senderPos,
+		double heightReceivers,
+		double heightSenders,
+		int numRBs,
+		int numReceiverAntenna,
+		int numSenderAntenna,
+		const vector<vector<vector<vector<vector<vector<complex<double>>>>>>>& raySum,
+		const vector<vector<vector<vector<vector<vector<complex<double>>>>>>>& raySum_LOS,
+		const vector<vector<vector<double>>>& clusterDelays,
+		const vector<vector<vector<double>>>& clusterDelays_LOS
+		){
+	size_t numReceivers = receiverPos.size();
+	size_t numSenders = senderPos.size();
+	vector<vector<vector<vector<double>>>> coeffs(numReceivers,
+			vector<vector<vector<double>>>(
+				numSenders,vector<vector<double>>(
+					timeSamples,vector<double>(numRBs))));
+	double pathloss, dist3D, dist2D;
+	int n_clusters;
+	
+	double delay_SC_1 = 5 * pow(10,-9); // delay for sub-cluster 1 (7-60)
+	double delay_SC_2 = 10 * pow(10,-9); // delay for sub-cluster 2 (7-60)
+	const vector<double> *delays;
+	const vector<vector<vector<vector<complex<double>>>>> *sum;
+	
+	for(size_t i = 0; i < numReceivers; i++){ //TODO: Correct the implementation for each Tx-Rx antenna
+		//Fourier Transform for interferers:
+		for(size_t idIdx = 0; idIdx<numSenders; idIdx++){
+			dist2D = sqrt(pow((senderPos[idIdx].x - receiverPos[i].x),2) + pow((senderPos[idIdx].y - receiverPos[i].y),2));
+			dist3D = sqrt(pow(dist2D,2) + pow((heightSenders - heightReceivers),2));
+			complex<double> res = complex<double>(0.0,0.0);
+			pathloss = CalcPathloss(dist2D, dist3D, LOSCondition[i][idIdx]);
+			for(int t = 0; t < timeSamples; t++){
+				for(int f = 0; f < numRBs; f++){
+					double freq_ = freq_c + f*180000;
+					res = complex<double>(0.0,0.0);
+					if(LOSCondition[i][idIdx]){
+						n_clusters = N_cluster_LOS;
+						delays = &clusterDelays_LOS[i][idIdx];
+						sum = &raySum_LOS[i][idIdx];
+					}
+					else{
+						n_clusters = N_cluster_NLOS;
+						delays = &clusterDelays[i][idIdx];
+						sum = &raySum[i][idIdx];
+					}
+					for(int u = 0; u < numReceiverAntenna; u++){
+						for(int s = 0; s < numSenderAntenna; s++){
+							for(int n = 0; n < n_clusters; n++){
+								if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
+									res = res + (*sum)[n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (*delays)[n]) );
+									res = res + (*sum)[n+1][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n] + delay_SC_1)) );
+									res = res + (*sum)[n+2][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n] + delay_SC_2)) );
+									res = res + (*sum)[n+3][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (*delays)[n+1]) );
+									res = res + (*sum)[n+4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n+1] + delay_SC_1)) );
+									res = res + (*sum)[n+5][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n+1] + delay_SC_2)) );
+									n++;
+								}else{
+									res = res + (*sum)[n + 4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (*delays)[n]) );
+								}
+							}
+						}
+					}
+					double tempRes = pow(res.real(),2) + pow(res.imag(),2);
+					coeffs[i][idIdx][t][f] = pathloss * tempRes;
+				}
+			}
+
+		}
+	}
+	return coeffs;
+}
 
 void METISChannel::recomputeMETISParams(Position** msPositions){
     	int locBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
-	double dist2D;
 	int numReceiverAntenna = NumMsAntenna;
 	int numSenderAntenna = NumBsAntenna;
     
@@ -1166,70 +1225,21 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	// Apply Fourier transform, to get time/frequency domain from time/delay
 	
 	std::cout << "START FOURIER TRANSFORM for BS: " << bsId << std::endl;
-	
-	double pathloss, dist3D;
-	
-	double delay_SC_1 = 5 * pow(10,-9); // delay for sub-cluster 1 (7-60)
-	double delay_SC_2 = 10 * pow(10,-9); // delay for sub-cluster 2 (7-60)
-	
-	for(int i = 0; i < numberOfMobileStations; i++){ //TODO: Correct the implementation for each Tx-Rx antenna
-		//Fourier Transform for interferers:
-		for(size_t idIdx = 0; idIdx<neighbourPositions.size(); idIdx++){
-			dist2D = sqrt(pow((senderPos[idIdx].x - receiverPos[i].x),2) + pow((senderPos[idIdx].y - receiverPos[i].y),2));
-			dist3D = sqrt(pow(dist2D,2) + pow((heightBS - heightUE),2));
-			complex<double> res = complex<double>(0.0,0.0);
-			for(int t = 0; t < timeSamples; t++){
-				for(int f = 0; f < downRBs; f++){
-					double freq_ = freq_c + f*180000;
-					res = complex<double>(0.0,0.0);
-					if(LOSCondition[i][idIdx]){
-						pathloss = CalcPathloss(dist2D, dist3D, true);
-						for(int u = 0; u < numReceiverAntenna; u++){
-							for(int s = 0; s < numSenderAntenna; s++){
-								for(int n = 0; n < N_cluster_LOS; n++){
-									if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
-										res = res + raySum_LOS[i][idIdx][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][idIdx][n]) );
-										res = res + raySum_LOS[i][idIdx][n+1][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx][n] + delay_SC_1)) );
-										res = res + raySum_LOS[i][idIdx][n+2][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx][n] + delay_SC_2)) );
-										res = res + raySum_LOS[i][idIdx][n+3][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][idIdx][n+1]) );
-										res = res + raySum_LOS[i][idIdx][n+4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx][n+1] + delay_SC_1)) );
-										res = res + raySum_LOS[i][idIdx][n+5][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx][n+1] + delay_SC_2)) );
-										n++;
-									}else{
-										res = res + raySum_LOS[i][idIdx][n + 4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][idIdx][n]) );
-									}
-								}
-							}
-						}
-						double tempRes = pow(res.real(),2) + pow(res.imag(),2);
-						coeffTable[i][idIdx][t][f] = pathloss * tempRes;
-					}else{
-						pathloss = CalcPathloss(dist2D, dist3D, false);
-						for(int u = 0; u < numReceiverAntenna; u++){
-							for(int s = 0; s < numSenderAntenna; s++){
-								for(int n = 0; n < N_cluster_NLOS; n++){
-									if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
-										res = res + raySum[i][idIdx][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][idIdx][n]) );
-										res = res + raySum[i][idIdx][n+1][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx][n] + delay_SC_1)) );
-										res = res + raySum[i][idIdx][n+2][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx][n] + delay_SC_2)) );
-										res = res + raySum[i][idIdx][n+3][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][idIdx][n+1]) );
-										res = res + raySum[i][idIdx][n+4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx][n+1] + delay_SC_1)) );
-										res = res + raySum[i][idIdx][n+5][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx][n+1] + delay_SC_2)) );
-										n++;
-									}else{
-										res = res + raySum[i][idIdx][n + 4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][idIdx][n]) );
-									}
-								}
-							}
-						}
-						double tempRes = pow(res.real(),2) + pow(res.imag(),2);
-						coeffTable[i][idIdx][t][f] = pathloss * tempRes;
-					}
-				}
-			}
-		}
 
-	}
+	coeffTable = std::move(computeCoeffs(
+				LOSCondition,
+				receiverPos,
+				senderPos,
+				heightUE,
+				heightBS,
+				downRBs,
+				numReceiverAntenna,
+				numSenderAntenna,
+				raySum,
+				raySum_LOS,
+				clusterDelays,
+				clusterDelays_LOS
+				));
 	
 	std::cout << "FINISHED FOURIER TRANSFORM for BS: " << bsId << std::endl;
 	
@@ -1782,17 +1792,9 @@ METISChannel::~METISChannel(){
 		// are only freed when init has been called, as indicated by 
 		// the initialized variable.
 		for(int i=0; i<numberOfMobileStations; i++){
-			for(size_t j=0; j<neighbourPositions.size(); j++){
-				for(int k=0; k<timeSamples; k++){
-					delete[] coeffTable[i][j][k];
-				}
-				delete[] coeffTable[i][j];
-			}
-			delete[] coeffTable[i];
 			delete[] timeVector[i];
 		}
 		delete neighbourIdMatching; 
-		delete[] coeffTable;
 		delete[] timeVector;
 	
 	}
