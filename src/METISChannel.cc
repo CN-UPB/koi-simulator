@@ -868,7 +868,6 @@ METISChannel::computeRaySums(vector<vector<bool>>& LOSCondition,
 										);
 								clusterIdx_LOS++;
 								if(n == 0){ // for adding the additional LOS component, according to formula 7-61 in METIS 1.2
-									std::cout << "n: " << n << " LOS Computation for MS " << i << " and BS " << j << std::endl;
 									AoA[0] = sin(ZoA_LOS_dir[i][j]) * cos(AoA_LOS_dir[i][j]);
 									AoA[1] = sin(ZoA_LOS_dir[i][j]) * sin(AoA_LOS_dir[i][j]);
 									AoA[2] = cos(ZoA_LOS_dir[i][j]);
@@ -1022,24 +1021,17 @@ vector<vector<vector<vector<double>>>> METISChannel::computeCoeffs(
 	return coeffs;
 }
 
-void METISChannel::recomputeMETISParams(Position** msPositions){
+void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions,
+		const vector<Position>& bsPositions){
     	int locBsId = neighbourIdMatching->getDataStrId(bsId);
     	double wavelength = speedOfLight / freq_c;
 	int numReceiverAntenna = NumMsAntenna;
 	int numSenderAntenna = NumBsAntenna;
     
     	// Copy MS Positions
-	vector<Position> receiverPos(numberOfMobileStations);	/*!< Position of the MS */
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		receiverPos[i].x = msPositions[locBsId][i].x;
-		receiverPos[i].y = msPositions[locBsId][i].y;
-	}
+	vector<Position> receiverPos(msPositions);	/*!< Position of the MS */
     	// Copy BS Positions
-	vector<Position> senderPos(neighbourPositions.size());
-	for(auto it = neighbourPositions.begin(); it!=neighbourPositions.end();
-			it++){
-		senderPos[it->first] = it->second;
-	}
+	vector<Position> senderPos(bsPositions);
 
 	vector<vector<array<double,3>>> receiverAntennaPos(receiverPos.size(),
 			vector<array<double,3>>(numReceiverAntenna));
@@ -1226,7 +1218,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	
 	std::cout << "START FOURIER TRANSFORM for BS: " << bsId << std::endl;
 
-	coeffTable = std::move(computeCoeffs(
+	coeffDownTable = std::move(computeCoeffs(
 				LOSCondition,
 				receiverPos,
 				senderPos,
@@ -1243,9 +1235,25 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	
 	std::cout << "FINISHED FOURIER TRANSFORM for BS: " << bsId << std::endl;
 	
-	//------------------------------------------------------------------
-	
-	//---------------------------------------------------------------------
+}
+
+void METISChannel::recomputeMETISParams(Position** msPositions){
+	int numMs;
+	vector<vector<Position>> msPos(neighbourPositions.size(),
+			vector<Position>());
+	for(size_t j=0; j<neighbourPositions.size(); j++){
+		numMs = neighbourIdMatching->getNumberOfMS(j);
+		msPos[j].resize(numMs);
+		for(size_t i=0; i<numMs; i++){
+			msPos[j][i].x = msPositions[j][i].x;
+			msPos[j][i].y = msPositions[j][i].y;
+		}
+	}
+	vector<Position> bsPos(neighbourPositions.size());
+	for(size_t j=0; j<neighbourPositions.size(); j++){
+		bsPos[j] = neighbourPositions[j];
+	}
+	recomputeDownCoefficients(msPos[bsId],bsPos);
 }
 
 /**
@@ -1738,25 +1746,24 @@ void METISChannel::handleMessage(cMessage* msg){
 }
 
 double METISChannel::calcSINR(int RB, vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId){
-	NeighbourIdMatching *neighbourIdMatching;
-	cModule *cell = initModule->getParentModule()->getParentModule();
-	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
-	
 	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
-
+	double received = 0;
 	double interference = 0;
-//	for(int i = 0; i < neighbourIdMatching->numberOfNeighbours() - 1; i++){
-//		interference += SINRneighbour[msId][i][SINRCounter][RB];
-//	}
-	delete neighbourIdMatching;
+	if(!up){
+		for(int j = 0; j < neighbourPositions.size(); j++){
+			if(j!=bsId){
+				interference += coeffDownTable[msId][j][SINRCounter][RB];
+			}
+		}
+		received = coeffDownTable[msId][bsId][SINRcounter][RB];
+	}
 	interference += getTermalNoise(300,180000);
 	// Convert to db scale
 	//std::cout << 10 * log10( SINRtable[msId][SINRcounter][RB] / interference ) << std::endl;
 	//std::cout << "Gain: " << 10 * log10( SINRtable[msId][SINRcounter][RB] ) << "  MS: " << msId << std::endl;
 	//std::cout << "Interference: " << interference << "  MS: " << msId << std::endl;
 	//std::cout << "Simtime: " << simTime() << " Counter: " << std::round( simTime().dbl() *1000.0*4.0) << std::endl;
-	return 10 * log10( coeffTable[msId][0][SINRCounter][RB] / interference );
-	//return 10 * log10( SINRtable[msId][SINRcounter][RB] / getTermalNoise(300,180000) );
+	return 10 * log10( received / interference );
 }
 
 vec METISChannel::calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId){

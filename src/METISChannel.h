@@ -47,7 +47,7 @@ class METISChannel : public Channel{
 		map <int,Position> neighbourPositions;			/*!< Positions of Neighbour BS */
 		NeighbourIdMatching *neighbourIdMatching;
 		cSimpleModule *initModule;				/*!< Pointer to OMNeT module for intermodule communication */
-		vector<vector<vector<vector<double>>>> coeffTable;				/*!< Table to save precomputed neighbourvalues values (linear) */
+		vector<vector<vector<vector<double>>>> coeffDownTable;				/*!< Table to save precomputed neighbourvalues values (linear) */
 		int upRBs;						/*!< Number of up resource blocks*/
 		int downRBs;						/*!< Number of down resource blocks */
 		int SINRcounter;					/*!< If position resend intervall > 1, it counts the current TTI */
@@ -295,6 +295,16 @@ class METISChannel : public Channel{
 				const vector<vector<vector<double>>>& clusterDelays,
 				const vector<vector<vector<double>>>& clusterDelays_LOS
 				);
+
+		/**
+		 * @brief Compute the downlink (BS->MS) coefficients
+		 *
+		 * After executing this method, the coeffDown table will hold 
+		 * the coefficients for the links from all BS to the 
+		 * local MS.
+		 */
+		void recomputeDownCoefficients(const vector<Position>& msPositions,
+				const vector<Position>& bsPositions);
 
 	public:
 		//! Constructor of METIS Channel subclass.
