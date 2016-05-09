@@ -829,9 +829,10 @@ METISChannel::computeRaySums(vector<vector<bool>>& LOSCondition,
 						P_n[0] = 10.0/20.0 * clusterPowers[i][j][n];
 						P_n[1] =  6.0/20.0 * clusterPowers[i][j][n];
 						P_n[2] =  4.0/20.0 * clusterPowers[i][j][n];
+						int id_subclust = 0;
 						for(vector<int> &clust:subclusters){
 							if(!LOSCondition[i][j]){
-								sq_P_over_M = sqrt(P_n[clusterIdx] / clust.size());
+								sq_P_over_M = sqrt(P_n[id_subclust] / clust.size());
 								computeRaySumCluster(clust.size(),
 										sq_P_over_M,
 										k_0,
@@ -850,7 +851,7 @@ METISChannel::computeRaySums(vector<vector<bool>>& LOSCondition,
 								clusterIdx++;
 							}
 							else{
-								sq_P_over_M = (sqrt(1/(K + 1))) * sqrt(P_n[clusterIdx_LOS] / clust.size());
+								sq_P_over_M = (sqrt(1/(K + 1))) * sqrt(P_n[id_subclust] / clust.size());
 								computeRaySumCluster(clust.size(),
 										sq_P_over_M,
 										k_0,
@@ -891,6 +892,7 @@ METISChannel::computeRaySums(vector<vector<bool>>& LOSCondition,
 									} // End time axis
 								}
 							}
+							id_subclust++;
 						}
 					}
 					double P;
@@ -1600,7 +1602,6 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 	for(size_t l = 0; l < receivers.size(); l++){
 		for(size_t i=0; i<senders.size(); i++){
 			for(int j=0; j<6; j++){
-				std::cout << l << " " << i << " " << j << std::endl; 
 				correlation[l][i][j] = tmpY[j][(int) (receivers[l].x + middle - senders[i].x)][(int) (receivers[l].y + middle - senders[i].y)];
 			}
 		}

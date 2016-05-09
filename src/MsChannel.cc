@@ -161,6 +161,7 @@ void MsChannel::handleMessage(cMessage *msg)  {
 	vec bler_(1);
 	bler_.set(0,bler);
 	double per = getPer(bler_);
+	std::cout << "SINR DOWN:" << effSINR << std::endl;
 
 	/**
 	if(uniform(0,1) > per){
