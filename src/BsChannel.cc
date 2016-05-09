@@ -147,15 +147,6 @@ void BsChannel::handleMessage(cMessage *msg)  {
         for(unsigned int i = 0; i < msPos->getPositionsArraySize(); i++)  {
             msPositions[fromBsId][i] = msPos->getPositions(i);
         }
-        if(bsId == 3 && fromBsId == 3){
-			string out2 = "Positions.txt";
-			ofstream output2(out2);
-			for(int i = 0; i < numberOfMobileStations; i++){
-				//output2 << msPositions[fromBsId][i].x << " " << msPositions[fromBsId][i].y
-				 //<< " " <<  1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 500.0,2) + pow(msPositions[fromBsId][i].y - 500.0,2) ) ) + 28 + 20*log10(2.5)) /10) << " \t " << 1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 500.0,2) + pow(msPositions[fromBsId][i].y - 1000.0,2) ) ) + 28 + 20*log10(2.5)) /10) << " \t " << 1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 500.0,2) + pow(msPositions[fromBsId][i].y - 0.0,2) ) ) + 28 + 20*log10(2.5)) /10) << " \t " << 1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 933.0,2) + pow(msPositions[fromBsId][i].y - 750.0,2) ) ) + 28 + 20*log10(2.5)) /10) << " \t " << 1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 67.0,2) + pow(msPositions[fromBsId][i].y - 750.0,2) ) ) + 28 + 20*log10(2.5)) /10) << " \t " << 1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 933.0,2) + pow(msPositions[fromBsId][i].y - 250.0,2) ) ) + 28 + 20*log10(2.5)) /10) << " \t " << 1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 67.0,2) + pow(msPositions[fromBsId][i].y - 250.0,2) ) ) + 28 + 20*log10(2.5)) /10) << endl;
-			}
-			output2.close();
-		}
         if(simTime() >= 1 && this->getIndex()==0){
 		// The channel instance is shared among all BsChannel instances,
 		// thus only one BsChannel actually needs to call the update 
@@ -197,6 +188,7 @@ void BsChannel::handleMessage(cMessage *msg)  {
 	instSINR.push_back(channel->calcSINR(currentRessourceBlock,power,pos,bsId,true,bundle->getMsId()));
 
 	double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
+	std::cout << "SINR UP" << " At " << bundle->getBsId() << " from " << bundle->getMsId() <<": " << effSINR << std::endl;
 	//cout << "Effektive SINR (Up): " << effSINR << endl;
 	double bler = getBler(bundle->getCqi(), effSINR, this);
 	//cout << "Block Error Rate(Up): " << bler << endl;
