@@ -699,7 +699,7 @@ void METISChannel::computeRaySumCluster(
 		size_t senderAntennaIndex,
 		const vector<vector<double>>& randomPhase,
 		vector<int> *subcluster,
-		vector<vector<vector<complex<double>>>> raySum
+		vector<vector<vector<complex<double>>>>& raySum
 		){
 	double AoA[3];
 	double AoD[3];

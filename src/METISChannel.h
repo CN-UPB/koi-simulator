@@ -251,7 +251,7 @@ class METISChannel : public Channel{
 				size_t senderAntennaIndex,
 				const vector<vector<double>>& randomPhase,
 				vector<int> *subcluster,
-				vector<vector<vector<complex<double>>>> raySum
+				vector<vector<vector<complex<double>>>>& raySum
 				);
 
 		/**
