@@ -183,6 +183,7 @@ void MsMac::initialize()  {
    	tti = par("tti");
     	downResourceBlocks = par("downResourceBlocks");
     	packetLength = par("packetLength");
+	transmissionPower = par("transmissionPower");
 
         //msPosition = initMsPosition(initQuadrant, initPosAlpha, initPosBeta, initPosGamma); //for random MS positions in hexagonal cell
     	msPosition = initMsPositionLinear(); //for MS position along a straight road

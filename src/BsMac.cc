@@ -35,6 +35,7 @@ void BsMac::initialize()  {
     resourceBlocks = par("resourceBlocks");
     numberOfMobileStations = par("numberOfMobileStations");
     sinr_est = 0;
+    transmissionPower = par("transmissionPower");
 
     initOffset = par("initOffset");
     tti = par("tti");

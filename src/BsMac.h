@@ -35,6 +35,7 @@ class BsMac : public cSimpleModule  {
         int ownDataStrId; //pos in the dataStr for bsId
         vec eesm_beta_values;
         mat blerTable;
+	double transmissionPower;
 
         simtime_t tti;
         simtime_t epsilon;
