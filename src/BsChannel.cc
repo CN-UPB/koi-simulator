@@ -45,8 +45,8 @@ void BsChannel::initialize()  {
     neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
     
     // EESM Beta values for effective SINR
-	string eesm_beta = par("eesm_beta");
-	eesm_beta_values = vec(eesm_beta);
+    string eesm_beta = par("eesm_beta");
+    eesm_beta_values = vec(eesm_beta);
     
     // This counter counts how many neighbour have already transmitted all necessary VR information.
     // Initialized with one because BS knows its own VR.
@@ -58,12 +58,12 @@ void BsChannel::initialize()  {
     int ch = par("channelModel");
     
     if(ch == 0){
-		channel = new METISChannel();
-	}else if(ch == 1){
-		channel = new Cost2100Channel();
-	}else{
-		channel = new ChannelAlternative();
-	}
+	    channel = new METISChannel();
+    }else if(ch == 1){
+	    channel = new Cost2100Channel();
+    }else{
+	    channel = new ChannelAlternative();
+    }
       
     // Save the CURRENT Direction of the schedule for next TTI for all Neighbours
     scheduleDirection = new int[neighbourIdMatching->numberOfNeighbours()];
@@ -81,6 +81,9 @@ void BsChannel::initialize()  {
     for(int i = 0; i < neighbourIdMatching->numberOfNeighbours(); i++)  {
         msPositions[i] = new Position[numberOfMobileStations]; //TODO change to dynamic size per bs; when uneven partition is allowed
     }
+
+    // Prepare transmission info lists for every UP ressource block
+    transInfos.resize(upResBlocks);
 
     //the position of the base stations
     bsPosition.x = par("xPos");
@@ -138,6 +141,10 @@ void BsChannel::handleMessage(cMessage *msg)  {
         PositionExchange *bsPos = (PositionExchange *) msg;
         neighbourPositions[bsPos->getId()] = bsPos->getPosition();
         delete msg;
+    }
+    else if(msg->getKind()==MessageType::transInfoMs){
+    	TransInfoMs *info = dynamic_cast<TransInfoMs*>(msg);
+	transInfos[info->getRb()].push_front(info);
     }
     else if(msg->isName("BS_MS_POSITIONS"))  {
         //save the postitions of the mobile stations

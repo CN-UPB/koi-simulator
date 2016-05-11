@@ -305,6 +305,19 @@ void BsMac::handleMessage(cMessage *msg)  {
 	}
 	delete bundle;
     }
+    else if(msg->arrivedOn("fromMsMac")){
+	if(msg->getKind()==MessageType::transInfoMs){
+		// Forward transmission info from local MS to neighbour cells
+		sendToNeighbourCells(msg);
+	}
+    }
+    else if(msg->arrivedOn("fromCell")){
+	if(msg->getKind()==MessageType::transInfoMs){
+		// Forward transmission info from neighbouring MS to BS 
+		// channels via the BS PHY
+		send(msg,"toPhy");
+	}
+    }
 }
 
 BsMac::~BsMac()  {

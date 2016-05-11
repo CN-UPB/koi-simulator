@@ -15,6 +15,7 @@
 #include "StreamTransReq_m.h"
 #include "StreamTransSched_m.h"
 #include "SINR_m.h"
+#include "TransInfoMs_m.h"
 #include <stdlib.h>
 #include <cmath>
 
@@ -242,6 +243,12 @@ void MsMac::handleMessage(cMessage *msg)  {
 		// Set CQI to a fixed value until we decide how to compute it
 		//packetBundle->setCqi(cqi);
 		packetBundle->setCqi(15);
+		TransInfoMs *info = new TransInfoMs();
+		info->setBsId(bsId);
+		info->setMsId(msId);
+		info->setRb(schedule->getRb());
+		info->setPower(transmissionPower);
+		send(info,"toBsMac");
                 sendDelayed(packetBundle, epsilon, "toPhy");
             }
         }

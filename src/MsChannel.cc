@@ -47,7 +47,7 @@ void MsChannel::initialize()  {
     eesm_beta_values = vec(eesm_beta);
 
     // Instantiate a transmission info list for each down ressource block
-    transInfos = vector<forward_list<TransInfoBs*>>(downResourceBlocks);
+    transInfos.resize(downResourceBlocks);
     
     scheduleAt(simTime() + 1000 * tti + epsilon, new cMessage("SINR_ESTIMATION")); //originally set to 1000*tti + epsilon
 }
