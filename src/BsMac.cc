@@ -79,9 +79,6 @@ void BsMac::initialize()  {
     //exchange the bs positions one time at the sim begin
     scheduleAt(simTime(), new cMessage("BS_POSITION_INIT"));
 
-    //exchange the bs channels one time at the sim begin
-    scheduleAt(simTime(), new cMessage("BS_CHANNEL_INIT"));
-
     //every tti send transmit requests to stream scheduler
     scheduleAt(simTime() + initOffset + 2*tti-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
 }
@@ -185,6 +182,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 		info->setRb(sched->getRb());
             
 		sendToNeighbourCells(info);
+		delete info;
                 sendDelayed(packetBundle, epsilon, "toPhy");
             }
 	    delete sched;
@@ -248,16 +246,6 @@ void BsMac::handleMessage(cMessage *msg)  {
             send(bsPos, "toPhy");
 	    delete msg;
         }
-        else if(msg->isName("BS_CHANNEL_INIT"))  {
-		ChannelExchange *chnEx = new ChannelExchange("BS_CHANNEL_UPDATE");
-		chnEx->setId(bsId);
-		chnEx->setChannel(currentChannel);
-		//send the bs channel to the other cells
-		sendToNeighbourCells(chnEx);
-		// send the channel also to the own ms
-		send(chnEx, "toPhy");
-		delete msg;
-        }
 	else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
 		// Send requests for each stream to the 
 		// scheduler if that stream has packets.
@@ -291,10 +279,6 @@ void BsMac::handleMessage(cMessage *msg)  {
         //forward bs position msg from the other cells to the ms
         send(msg, "toPhy");
     }
-    else if(msg->isName("BS_CHANNEL_UPDATE"))  {
-        //forward bs channel update from the other cells to the ms
-        send(msg, "toPhy");
-    }
     //data packet
     else if(msg->arrivedOn("fromPhy"))  {
         DataPacketBundle *bundle = (DataPacketBundle *) msg;
@@ -309,6 +293,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 	if(msg->getKind()==MessageType::transInfoMs){
 		// Forward transmission info from local MS to neighbour cells
 		sendToNeighbourCells(msg);
+		delete msg;
 	}
     }
     else if(msg->arrivedOn("fromCell")){
