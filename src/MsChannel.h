@@ -11,13 +11,15 @@
 #include "Position.h"
 #include "NeighbourIdMatching.h"
 #include "Channel.h"
+#include "TransInfoBs_m.h"
+#include <vector>
+#include <forward_list>
 
 
 class MsChannel : public cSimpleModule  {
     private:
         int maxNumberOfNeighbours;
         Position *bsPositions;
-        int *bsChannels;
         bool useSimpleChannelCalc;
         int simpleChannelCalcNops;
         int currentChannel;
@@ -31,6 +33,13 @@ class MsChannel : public cSimpleModule  {
         vec eesm_beta_values;
         NeighbourIdMatching *neighbourIdMatching; //map the bsId to the pos in the data structures
         Channel* channel;
+	/**
+	 * Holds transmission information for the current TTI
+	 *
+	 * The vector holds lists of TransInfoBs messages, sorted by the resource 
+	 * block the transmission uses.
+	 */
+	std::vector<std::forward_list<TransInfoBs*>> transInfos;
 
     protected:
         virtual void initialize();

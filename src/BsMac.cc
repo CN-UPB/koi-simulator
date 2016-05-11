@@ -20,6 +20,7 @@
 #include "StreamTransReq_m.h"
 #include "StreamTransSched_m.h"
 #include "KoiData_m.h"
+#include "TransInfoBs_m.h"
 #include <algorithm>
 
 using namespace itpp;
@@ -120,6 +121,12 @@ void BsMac::handleMessage(cMessage *msg)  {
 		streamQueues[info->getSrc()][info->getDest()];
 		delete info;
 	}
+	else if(msg->getKind()==MessageType::transInfoBs){
+		for(int i = 0; i < numberOfMobileStations; ++i)  {
+			send(msg->dup(), "toMs", i);
+		}
+		delete msg;
+	}
 	else if(msg->isName("POINTER_EXCHANGE2")){
 		for(int i = 1; i < numberOfMobileStations; ++i)  {
 			send(msg->dup(), "toBsChannel", i);
@@ -171,7 +178,13 @@ void BsMac::handleMessage(cMessage *msg)  {
 		packetBundle->setMsId(destMs);
 		packetBundle->setBsId(packet->getBsId());
 		delete packet;
+
+		TransInfoBs *info = new TransInfoBs();
+		info->setBsId(bsId);
+		info->setPower(transmissionPower);
+		info->setRb(sched->getRb());
             
+		sendToNeighbourCells(info);
                 sendDelayed(packetBundle, epsilon, "toPhy");
             }
 	    delete sched;
