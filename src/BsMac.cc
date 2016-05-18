@@ -168,6 +168,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 		packetBundle->setPackets(0, *packet);
 		packetBundle->setRBsArraySize(1);
 		packetBundle->setRBs(0,sched->getRb());
+		packetBundle->setTransPower(transmissionPower);
 		// Set CQI for a fixed value until we decide on how to 
 		// compute it
 		//packetBundle->setCqi(cqi);
