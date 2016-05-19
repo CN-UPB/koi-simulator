@@ -6,15 +6,10 @@ module BaseStation
         int numberOfMobileStations;
         int maxNumberOfNeighbours;
         int bsId;
-        int playgroundSizeX = 550;
-        int halfPlaygroundSizeX = playgroundSizeX / 2;
-        int playgroundSizeY = 300;
         int currentChannel;
         
         //TTI - Transmission Time Interval
         double tti @unit(s);
-
-        @display("p=$radius,$radius;bgb=$playgroundSizeX,$playgroundSizeY;i=device/antennatower");
 
     gates:
     	//for packets through DataChannel
@@ -42,7 +37,6 @@ module BaseStation
    				bsId = bsId;
 				currentChannel = currentChannel;
 				numberOfMobileStations = numberOfMobileStations;
-   				@display("p=$halfPlaygroundSizeX,120");
    				
    			gates:
    				fromCell[maxNumberOfNeighbours];

@@ -29,6 +29,8 @@ class METISChannel : public Channel{
 		double freq_c;						/*!< center/carrier frequence */
 		double heightUE;					/*!< Height of the user equipments */
 		double heightBS;					/*!< Height of the base stations */
+		double sizeX;						/*!< Size of playground in the X dimension*/
+		double sizeY;						/*!< Size of playground in the Y dimension*/
 		static constexpr double speedOfLight = 299792458.0;					/*!< speed of light value */
 		static double ray_offset[20];				/* Ray offset. Table 7.6 METIS D1.2 */
 		double xPos;						/*!< BS Position x value */

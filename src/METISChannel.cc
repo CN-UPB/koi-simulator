@@ -105,6 +105,11 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
     	// Find the neighbours and store the pair (bsId, position in data structures) in a map
     	cModule *cell = module->getParentModule()->getParentModule();
     	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
+
+	// Get Playground size from cell module:
+	std::cout << "HERE!!!!!!!!!!!!!" << std::endl;
+	sizeX = cell->par("playgroundSizeX");
+	sizeY = cell->par("playgroundSizeY");
     
     	// Actually, this counts the own BS as well, so substract 1 
     	numOfInterferers = neighbourIdMatching->numberOfNeighbours() - 1;
@@ -1583,7 +1588,6 @@ double METISChannel::C_ZS(int numCluster, bool LOS,
 void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 		const vector<Position>& receivers,
 		vector<vector<vector<double>>>& correlation){
-	int r = initModule->par("cellRadiusMETIS");
 	correlation.resize(receivers.size(),vector<vector<double>>(senders.size(),
 				vector<double>(7)));
 	
@@ -1616,13 +1620,13 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 	}
 	
 	for(int i = 0; i < 7; i++){
-		grid[i] = new double*[2*r + 20];
-		tmpX[i] = new double*[2*r + 20];
-		tmpY[i] = new double*[2*r + 20];
-		for(int j = 0; j < 2*r + 20; j++){
-			grid[i][j] = new double[2*r + 20];
-			tmpX[i][j] = new double[2*r + 20];
-			tmpY[i][j] = new double[2*r + 20];
+		grid[i] = new double*[(int) sizeX+10];
+		tmpX[i] = new double*[(int) sizeX+10];
+		tmpY[i] = new double*[(int) sizeX+10];
+		for(int j = 0; j < (int) sizeX+10; j++){
+			grid[i][j] = new double[(int) sizeY+10];
+			tmpX[i][j] = new double[(int) sizeY+10];
+			tmpY[i][j] = new double[(int) sizeY+10];
 		}
 	}
 		
@@ -1655,8 +1659,8 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 		
 	// Generate grid of (2*r+200)*(2*r+200) iid gaussian random numbers
 	for(int i = 0; i < 7; i++){
-		for(int j = 0; j < 2*r + 20; j++){
-			for(int k = 0; k < 2*r + 20; k++){
+		for(int j = 0; j < (int) sizeX+10; j++){
+			for(int k = 0; k < (int) sizeY+10; k++){
 				grid[i][j][k] = normal(0,1);
 				tmpX[i][j][k] = 0;
 				tmpY[i][j][k] = 0;
@@ -1668,9 +1672,9 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 	// For all Large scale parameters
 	for(int i = 0; i < 7; i++){
 		// Forall x points except offset
-		for(int j = 10; j < 2*r + 10; j++){
+		for(int j = 10; j < (int) sizeX+10; j++){
 			// Forall y points except offset
-			for(int k = 10; k < 2*r + 10; k++){
+			for(int k = 10; k < (int) sizeY+10; k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
 					tmpX[i][j][k] += grid[i][j][k - l] * filter[i][l];
@@ -1683,9 +1687,9 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 	// For all Large scale parameters
 	for(int i = 0; i < 7; i++){
 		// For all x points except offset
-		for(int j = 10; j < 2*r + 10; j++){
+		for(int j = 10; j < (int) sizeY+10; j++){
 			// For all y points except offset
-			for(int k = 10; k < 2*r + 10; k++){
+			for(int k = 10; k < (int) sizeX+10; k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
 					tmpY[i][k][j] += tmpX[i][k - l][j] * filter[i][l];
@@ -1695,11 +1699,10 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 	}
 		
 	// For each Link generate Large scale parameters
-	double middle = (2*r + 10)/2;
 	for(size_t l = 0; l < receivers.size(); l++){
 		for(size_t i=0; i<senders.size(); i++){
 			for(int j=0; j<7; j++){
-				correlation[l][i][j] = tmpY[j][(int) (receivers[l].x + middle - senders[i].x)][(int) (receivers[l].y + middle - senders[i].y)];
+				correlation[l][i][j] = tmpY[j][(int) receivers[l].x ][(int) receivers[l].y];
 			}
 		}
 	}
@@ -1708,7 +1711,7 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 	// directly on the stack, instead of using entirely unnecessary 
 	// dynamic memory allocation
 	for(int i = 0; i < 7; i++){
-		for(int j = 0; j < 2*r + 20; j++){
+		for(int j = 0; j < (int) sizeX+10; j++){
 			delete[] grid[i][j];
 			delete[] tmpX[i][j];
 			delete[] tmpY[i][j];
@@ -1729,7 +1732,6 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 		const vector<Position>& receivers,
 		vector<vector<vector<double>>>& correlation){
-	int r = initModule->par("cellRadiusMETIS");
 	correlation.resize(receivers.size(),vector<vector<double>>(senders.size(),
 				vector<double>(6)));
 	
@@ -1767,13 +1769,13 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 	}
 	
 	for(int i = 0; i < 6; i++){
-		grid[i] = new double*[2*r + 20];
-		tmpX[i] = new double*[2*r + 20];
-		tmpY[i] = new double*[2*r + 20];
-		for(int j = 0; j < 2*r + 20; j++){
-			grid[i][j] = new double[2*r + 20];
-			tmpX[i][j] = new double[2*r + 20];
-			tmpY[i][j] = new double[2*r + 20];
+		grid[i] = new double*[(int) sizeX+10];
+		tmpX[i] = new double*[(int) sizeX+10];
+		tmpY[i] = new double*[(int) sizeX+10];
+		for(int j = 0; j < (int) sizeX+10; j++){
+			grid[i][j] = new double[(int) sizeY+10];
+			tmpX[i][j] = new double[(int) sizeY+10];
+			tmpY[i][j] = new double[(int) sizeY+10];
 		}
 	}
 		
@@ -1803,8 +1805,8 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 		
 	// Generate grid of (2*r+200)*(2*r+200) iid gaussian random numbers
 	for(int i = 0; i < 6; i++){
-		for(int j = 0; j < 2*r + 20; j++){
-			for(int k = 0; k < 2*r + 20; k++){
+		for(int j = 0; j < (int) sizeX+10; j++){
+			for(int k = 0; k < (int) sizeY+10; k++){
 				grid[i][j][k] = normal(0,1);
 				tmpX[i][j][k] = 0;
 				tmpY[i][j][k] = 0;
@@ -1816,9 +1818,9 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 	// Forall Large scale parameters
 	for(int i = 0; i < 6; i++){
 		// Forall x points except offset
-		for(int j = 10; j < 2*r + 10; j++){
+		for(int j = 10; j < (int) sizeX+10; j++){
 			// Forall y points except offset
-			for(int k = 10; k < 2*r + 10; k++){
+			for(int k = 10; k < (int) sizeY+10; k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
 					tmpX[i][j][k] += grid[i][j][k - l] * filter[i][l];
@@ -1831,9 +1833,9 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 	// Forall Large scale parameters
 	for(int i = 0; i < 6; i++){
 		// Forall x points except offset
-		for(int j = 10; j < 2*r + 10; j++){
+		for(int j = 10; j < (int) sizeX+10; j++){
 			// Forall y points except offset
-			for(int k = 10; k < 2*r + 10; k++){
+			for(int k = 10; k < (int) sizeY+10; k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
 					tmpY[i][k][j] += tmpX[i][k - l][j] * filter[i][l];
@@ -1843,11 +1845,10 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 	}
 		
 	// For each Link generate Large scale parameters
-	double middle = (2*r + 10)/2;
 	for(size_t l = 0; l < receivers.size(); l++){
 		for(size_t i=0; i<senders.size(); i++){
 			for(int j=0; j<6; j++){
-				correlation[l][i][j] = tmpY[j][(int) (receivers[l].x + middle - senders[i].x)][(int) (receivers[l].y + middle - senders[i].y)];
+				correlation[l][i][j] = tmpY[j][(int) receivers[l].x ][(int) receivers[l].y];
 			}
 		}
 	}
@@ -1856,7 +1857,7 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 	// directly on the stack, instead of using entirely unnecessary 
 	// dynamic memory allocation
 	for(int i = 0; i < 6; i++){
-		for(int j = 0; j < 2*r + 20; j++){
+		for(int j = 0; j < (int) sizeX+10; j++){
 			delete[] grid[i][j];
 			delete[] tmpX[i][j];
 			delete[] tmpY[i][j];
