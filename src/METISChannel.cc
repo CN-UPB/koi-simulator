@@ -107,7 +107,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
     	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
 
 	// Get Playground size from cell module:
-	std::cout << "HERE!!!!!!!!!!!!!" << std::endl;
 	sizeX = cell->par("playgroundSizeX");
 	sizeY = cell->par("playgroundSizeY");
     
@@ -565,7 +564,7 @@ vector<vector<vector<vector<double>>>> METISChannel::recomputeAzimuthAngles(
 					azimuthCluster[i][k] = azimuthCluster[i][k] * (X_N - X_1) + (Y_N - Y_1) + (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
 				}
 				else{
-					azimuthCluster[i][j] = azimuthCluster[i][k] * X_N + Y_N + (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
+					azimuthCluster[i][k] = azimuthCluster[i][k] * X_N + Y_N + (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
 				}
 		
 				for(int r = 0; r < n_rays; r++){
@@ -821,6 +820,9 @@ METISChannel::computeRaySums(vector<vector<bool>>& LOSCondition,
 			// Cycle through all Receiver antennas (MS)
 			for(int u = 0; u < numReceiverAntenna; u++){
 				// Cycle through all Transmitter antennas (BS)
+				std::cout << "Num Receivers Antenna: " << receiverAntennaPos.size() << " i: " << i << std::endl;
+				std::cout << "Num Receivers: " << numReceivers << " i: " << i << std::endl;
+				std::cout << "Num Antennas: " << receiverAntennaPos[i].size() << " u: " << u << std::endl;
 				for(int s = 0; s < numSenderAntenna; s++){
 					// Cycle through all Paths/Clusters
 					clusterIdx = 0;
@@ -1259,7 +1261,10 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 	int numReceiverAntenna = NumBsAntenna;
 	int numSenderAntenna = NumMsAntenna;
 	// Copy BS Positions
-	vector<Position> receiverPos(bsPositions);
+	// This is only the position of the local base station, because 
+	// that base station is the only receiver for the UP direction in any 
+	// given cell.
+	vector<Position> receiverPos{bsPositions[bsId]};
 	coeffUpTable = vector<vector<vector<vector<vector<double>>>>>(bsPositions.size(),
 			vector<vector<vector<vector<double>>>>(1));
 	for(size_t j=0; j<msPositions.size(); j++){
@@ -1295,6 +1300,8 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 
 		//Assign LOS Conditions:
 		vector<vector<bool>> LOSCondition(genLosCond(senderPos,receiverPos));
+		std::cout << "ReceiverPos size: " << receiverPos.size() << std::endl;
+		std::cout << "LOSCond size Dim 1: " << LOSCondition.size() << std::endl;
 
 		vector<vector<double>> sigma_ds_LOS(receiverPos.size(),
 				vector<double>(senderPos.size()));
