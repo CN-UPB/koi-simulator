@@ -24,6 +24,7 @@ simple BsMac  {
     	//TTI - Transmission Time Interval
     	double tti @unit(s);
     	double initOffset @unit(s);
+	double transmissionPower = default(1.0);
     
         @display("i=block/mac");
         

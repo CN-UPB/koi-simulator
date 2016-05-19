@@ -16,7 +16,9 @@
 #include "VisibilityRegion.h"
 #include "cluster.h"
 #include "Channel.h"
+#include "TransInfoMs_m.h"
 #include <vector>
+#include <forward_list>
 
 class BsChannel : public cSimpleModule  {
     private:
@@ -48,6 +50,12 @@ class BsChannel : public cSimpleModule  {
         std::vector<Cluster> remoteCluster;
         Channel* channel;
         vec eesm_beta_values;
+	/**
+	 * Contains transmission information from neighbouring mobile 
+	 * stations, required for SINR interference computation during 
+	 * packet receival.
+	 */ 
+	std::vector<std::forward_list<TransInfoMs*>> transInfos;
 
     protected:
         virtual void initialize();

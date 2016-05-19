@@ -9,6 +9,7 @@
 #include "DataPacket_m.h"
 #include "DataPacketBundle_m.h"
 #include "PointerExchange_m.h"
+#include "MessageTypes.h"
 
 Define_Module(BsPhy);
 
@@ -53,11 +54,12 @@ void BsPhy::handleMessage(cMessage *msg)  {
     else if(msg->isName("CLUSTER_INFO"))  {
         send(msg, "toMac");
     }
-    else if(msg->isName("BS_CHANNEL_UPDATE"))  {
-        for(int i = 0; i < numberOfMobileStations; i++)  {
-            send(msg->dup(), "toChannel", i);
-        }
-        delete msg;
+    else if(msg->getKind()==MessageType::transInfoMs){
+	    // Forward all transmission infos to all the channels
+	    for(int i = 0; i < numberOfMobileStations; i++)  {
+		    send(msg->dup(), "toChannel", i);
+	    }
+	    delete msg;
     }
     else if(msg->arrivedOn("fromMac"))  {
         assert(msg->isName("DATA_BUNDLE"));

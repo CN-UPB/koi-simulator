@@ -11,6 +11,9 @@
 #include "includes.h"
 #include <itpp/itbase.h>
 #include "Position.h"
+#include "TransInfoBs_m.h"
+#include "TransInfoMs_m.h"
+#include <forward_list>
 
 using namespace std;
 using namespace itpp;
@@ -46,6 +49,17 @@ class Channel{
 		        
 		// Store positions of sender/receiver/interferes (Id because pointer is shared)
 		void setSenderPosition(Position p, double power, int Id) { senderPosition[Id] = p; senderPower[Id] = power; }
+
+		virtual double calcUpSINR(int RB, 
+				std::forward_list<TransInfoMs*> &interferers,
+				int msId,
+				double transPower){return 0.0;}
+
+		virtual double calcDownSINR(int RB, 
+				std::forward_list<TransInfoBs*> &interferers,
+				int msId,
+				double transPower){return 0.0;}
+
         Position getSenderPosition(int Id) { return senderPosition.at(Id); }
         void setTargetPosition(Position p, int Id) { targetPosition[Id] = p; }
         Position getTargetPosition(int Id) { return targetPosition.at(Id); }

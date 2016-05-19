@@ -10,4 +10,5 @@ message DataPacketBundle  {
     KoiData packets[];
     int RBs[];
     int cqi;
+    double transPower;
 }

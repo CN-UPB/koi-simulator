@@ -17,6 +17,7 @@ simple MsMac  {
 	int PosSeed;
 	int downResourceBlocks;
 	int packetLength = default(1500b) @unit(b);
+	double transmissionPower = default(1.0);
     	
         @display("i=block/mac");
         

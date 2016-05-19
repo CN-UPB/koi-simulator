@@ -21,6 +21,8 @@ typedef std::map<int, DataGateIdPair> NeighbourMap;
 class NeighbourIdMatching  {
     private:
         NeighbourMap matching;
+	cModule *cell;
+	int ownBsId;
 
         void setupNeighbours(int ownBsId, int maxNumberOfNeighbours, cModule *cell);
 
@@ -30,6 +32,7 @@ class NeighbourIdMatching  {
         int getDataStrId(int bsId);
         int getGateId(int bsId);
         NeighbourMap *getNeighbourMap();
+	int getNumberOfMS(int bsId);
         int numberOfNeighbours();
         void showMatching();
 };

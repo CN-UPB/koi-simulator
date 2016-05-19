@@ -163,8 +163,8 @@ simple BsChannel  {
 		double XPR_Std_LOS;
 		double positionResendInterval;
 		double CarrierFrequency;
-		int NumTxAntenna;
-		int NumRxAntenna;
+		int NumBsAntenna;
+		int NumMsAntenna;
 		double BsHeight;
 		double OutdoorHeightUE;
 		double Velocity;

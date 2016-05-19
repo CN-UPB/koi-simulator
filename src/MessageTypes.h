@@ -16,6 +16,8 @@ enum MessageType: short {
 	streamInfo,
 	streamSched,
 	streamTransReq,
+	transInfoBs,
+	transInfoMs,
 	transReqList,
 	scheduleStreams,
 	scheduleRBs

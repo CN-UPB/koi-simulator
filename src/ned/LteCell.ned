@@ -6,8 +6,8 @@ module LteCell  {
 		int currentChannel;
 		double xPos;
 		double yPos;
-		double playgroundSizeX = 2 * radius;
-		double playgroundSizeY = 2 * radius;
+		double playgroundSizeX;
+		double playgroundSizeY;
 		double streamSchedPeriod @unit(s);
 		int bsId;
 

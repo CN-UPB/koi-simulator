@@ -20,6 +20,9 @@
 #include <complex>
 #include <fstream>
 
+using std::vector;
+using std::tuple;
+
 double getMSGain(double AoA, double EoA){ // Hertzian dipole; TODO: Change the return value to a vector for getting both theta and phi components
 	//return (-1.0 * sin(EoA)); 
 	return -1.0;				// For Z-oriented Hertzian dipole, F_phi is always zero and F_theta is -sin(theta), theta is in radians
@@ -56,6 +59,13 @@ inline vec Sph_to_Cart(vec const &input){
 	return output;
 }
 
+double METISChannel::ray_offset[20] = {	
+		0.0447, -0.0447, 0.1413, -0.1413, 0.2492, -0.2492, 
+		0.3715, -0.3715, 0.5129, -0.5129, 0.6797, -0.6797,
+		0.8844, -0.8844, 1.1481, -1.1481, 1.5195, -1.5195,
+		2.1551, -2.1551
+	};
+
 /**
 * Function, that initializes all large scale and small scale parameters according to METIS specifications.
 * @param module OMNeT++ module, which calls this function to allow later .ini access.
@@ -74,12 +84,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	yPos = module->par("yPos");
 	upRBs = module->par("upResourceBlocks");
 	downRBs = module->par("downResourceBlocks");
-    	bs_antenna_bearing = new double[3];
-    	bs_antenna_downtilt = new double[3];
-    	bs_antenna_slant = new double[3];
-    	ms_antenna_bearing = new double[numberOfMobileStations];
-    	ms_antenna_downtilt = new double[numberOfMobileStations];
-    	ms_antenna_slant = new double[numberOfMobileStations];
 	N_cluster_LOS = module->par("NumberOfClusters_LOS");
 	N_cluster_NLOS = module->par("NumberOfClusters_NLOS");
 	numOfRays_LOS = module->par("NumberOfRays_LOS");
@@ -87,8 +91,8 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
    	initModule = module;
     	freq_c = module->par("CarrierFrequency");
     	SINRcounter = 0;
-    	NumTxAntenna = module->par("NumTxAntenna");
-    	NumRxAntenna = module->par("NumRxAntenna");
+    	NumBsAntenna = module->par("NumBsAntenna");
+    	NumMsAntenna = module->par("NumMsAntenna");
     	heightUE = module->par("OutdoorHeightUE");
    	heightBS = module->par("BsHeight");
 	vel = module->par("Velocity");
@@ -97,11 +101,14 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	XPR_Mean_NLOS = module->par("XPR_Mean_NLOS");
 	XPR_Std_NLOS = module->par("XPR_Std_NLOS");
     
-    	TxAntennaPosition = new double**[1];
     
     	// Find the neighbours and store the pair (bsId, position in data structures) in a map
     	cModule *cell = module->getParentModule()->getParentModule();
     	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
+
+	// Get Playground size from cell module:
+	sizeX = cell->par("playgroundSizeX");
+	sizeY = cell->par("playgroundSizeY");
     
     	// Actually, this counts the own BS as well, so substract 1 
     	numOfInterferers = neighbourIdMatching->numberOfNeighbours() - 1;
@@ -109,22 +116,23 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
     
 	// One Channel module per base station
     	// Half wavelength distance between antennas; give the position of Tx and Rx antennas in GCS
-	// For even value of NumTxAntenna, the antenna elements will be equally spaced around the center of Tx
+	// For even value of NumBsAntenna, the antenna elements will be equally spaced around the center of Tx
     	double wavelength = speedOfLight / freq_c;
-    	for(int i = 0; i < 1; i++){
-		TxAntennaPosition[i] = new double*[NumTxAntenna];
-		for(int j = 0; j < (NumTxAntenna/2); j++){
-			TxAntennaPosition[i][j] = new double[3];
-			TxAntennaPosition[i][j][0] = xPos - (0.25 * wavelength * (NumTxAntenna - 1 - (j*2.0)));
-			TxAntennaPosition[i][j][1] = yPos;
-			TxAntennaPosition[i][j][2] = heightBS;
+	std::cout << neighbourPositions.size() << std::endl;
+	std::cout << NumBsAntenna << std::endl;
+    	bsAntennaPositions.resize(neighbourPositions.size(),
+			vector<array<double,3>>(NumBsAntenna));
+    	for(size_t i = 0; i < neighbourPositions.size(); i++){
+		for(int j = 0; j < (NumBsAntenna/2); j++){
+			bsAntennaPositions[i][j][0] = neighbourPositions[i].x - (0.25 * wavelength * (NumBsAntenna - 1 - (j*2.0)));
+			bsAntennaPositions[i][j][1] = neighbourPositions[i].y;
+			bsAntennaPositions[i][j][2] = heightBS;
 		}
 
-		for(int j = (NumTxAntenna/2); j < NumTxAntenna; j++){
-			TxAntennaPosition[i][j] = new double[3];
-			TxAntennaPosition[i][j][0] = TxAntennaPosition[i][j-1][0] + (0.5 * wavelength);
-			TxAntennaPosition[i][j][1] = yPos;
-			TxAntennaPosition[i][j][2] = heightBS;
+		for(int j = (NumBsAntenna/2); j < NumBsAntenna; j++){
+			bsAntennaPositions[i][j][0] = bsAntennaPositions[i][j-1][0] + (0.5 * wavelength);
+			bsAntennaPositions[i][j][1] = neighbourPositions[i].y;
+			bsAntennaPositions[i][j][2] = heightBS;
 		}
 
 	}
@@ -142,50 +150,6 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 		}
 	}
 	
-	// properly initialize the SINRtable with all zeros
-	SINRtable = new double**[numberOfMobileStations];
-	for(int i = 0; i < numberOfMobileStations; i++){
-		SINRtable[i] = new double*[timeSamples];
-		for(int j = 0; j < timeSamples; j++){
-			SINRtable[i][j] = new double[downRBs];
-			for(int k=0; k<downRBs; k++){
-				SINRtable[i][j][k] = 0;
-			}
-		}
-	}
-
-	// properly initialize the SINRneighbour with all zeros
-	SINRneighbour = new double***[numberOfMobileStations];
-	for(int i = 0; i < numberOfMobileStations; i++){
-		SINRneighbour[i] = new double**[numOfInterferers];
-		for(int j = 0; j < numOfInterferers; j++){
-			SINRneighbour[i][j] = new double*[timeSamples];
-			for(int k = 0; k < timeSamples; k++){
-				SINRneighbour[i][j][k] = new double[downRBs];
-				for(int s=0; s<downRBs; s++){
-					SINRneighbour[i][j][k][s] = 0;
-				}
-			}
-		}
-	}
-	
-    	// Initialize BS antenna parameters
-    	for(int i = 0; i < 3; i++){
-		bs_antenna_downtilt[i] = 12.0;			// "..commonly assumed to be 12 Degrees.."; page 57 METIS Document
-		bs_antenna_slant[i] = 0.0;				// "..usually Zero Degrees.."; page 57 METIS Document
-	}
-	bs_antenna_bearing[0] = 0.0;
-	bs_antenna_bearing[1] = 120.0;
-	bs_antenna_bearing[2] = 240.0;
-	
-	// Initialize MS antenna parameters
-	// (The orientation may be completely randomly generated or based on more realistic distributions.)
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		ms_antenna_bearing[i] = uniform(0.0,360.0);
-		ms_antenna_downtilt[i] = uniform(0.0,360.0);
-		ms_antenna_slant[i] = uniform(0.0,360.0);
-	}
-
 	//compute initial SINR parameters
 	recomputeMETISParams(msPositions);
 
@@ -197,154 +161,31 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
 	return true;
 }
 
-void METISChannel::recomputeMETISParams(Position** msPositions){
-    	int fromBsId = neighbourIdMatching->getDataStrId(bsId);
-    	double wavelength = speedOfLight / freq_c;
+void METISChannel::recomputeLargeScaleParameters(const vector<Position>& senders,
+		const vector<Position>& receivers, 
+		vector<vector<double>>& sigma_ds_LOS,
+		vector<vector<double>>& sigma_asD_LOS,
+		vector<vector<double>>& sigma_asA_LOS,
+		vector<vector<double>>& sigma_zsD_LOS,
+		vector<vector<double>>& sigma_zsA_LOS,
+		vector<vector<double>>& sigma_sf_LOS,
+		vector<vector<double>>& sigma_kf_LOS,
+		vector<vector<double>>& sigma_ds_NLOS,
+		vector<vector<double>>& sigma_asD_NLOS,
+		vector<vector<double>>& sigma_asA_NLOS,
+		vector<vector<double>>& sigma_zsD_NLOS,
+		vector<vector<double>>& sigma_zsA_NLOS,
+		vector<vector<double>>& sigma_sf_NLOS
+		){
 	double dist2D;
-    
-    	// randomly generate direction and magnitude of movement vector
-	double *MSVelMag = new double[numberOfMobileStations]; /*!< Magnitude of MS Velocity */
-	double **MSVelDir = new double*[numberOfMobileStations]; /*!< Direction of MS Velocity */
-    	// TODO: sync with OMNeT++ part
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		MSVelDir[i] = new double[3];
-		MSVelMag[i] = (vel*1000)/3600; // converting velocity from km/h to m/s 
-		MSVelDir[i][0] = 1.0; // +1 for moving towards the BS, -1 for moving away from the BS
-		MSVelDir[i][1] = 0.0; // set to zero b/c MS is not moving in y or z-directions
-		MSVelDir[i][2] = 0.0; // same as above; originally all are set to uniform(-1.0,1.0)
-		double dirMag = sqrt(pow(MSVelDir[i][0],2) + pow(MSVelDir[i][1],2) + pow(MSVelDir[i][2],2));
-		MSVelDir[i][0] = MSVelDir[i][0] / dirMag;
-		MSVelDir[i][1] = MSVelDir[i][1] / dirMag;
-		MSVelDir[i][2] = MSVelDir[i][2] / dirMag;
-	}
-
-    	// Copy MS Positions
-	Position *MSPos = new Position[numberOfMobileStations];	/*!< Position of the MS */
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		MSPos[i].x = msPositions[fromBsId][i].x;
-		MSPos[i].y = msPositions[fromBsId][i].y;
-	}
-
-	// Mobile stations should be randomly rotated..?
-	double ***RxAntennaPosition = new double**[numberOfMobileStations]; /*!< Position vector of Receiver antenna */
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		RxAntennaPosition[i] = new double*[NumRxAntenna];
-		for(int j = 0; j < (NumRxAntenna/2); j++){
-			RxAntennaPosition[i][j] = new double[3];
-			RxAntennaPosition[i][j][0] = MSPos[i].x - (0.25 * wavelength * (NumRxAntenna - 1 - (j*2.0)));
-			RxAntennaPosition[i][j][1] = MSPos[i].y;
-			RxAntennaPosition[i][j][2] = heightUE;
-		}
-		for(int j = (NumRxAntenna/2); j < NumRxAntenna ; j++){
-			RxAntennaPosition[i][j] = new double[3];
-			RxAntennaPosition[i][j][0] = RxAntennaPosition[i][j-1][0] + (0.5 * wavelength);
-			RxAntennaPosition[i][j][1] = MSPos[i].y;
-			RxAntennaPosition[i][j][2] = heightUE;
-		}
-	}
-
-	double **AoA_LOS_dir = new double*[numberOfMobileStations]; /*!< azimuth angle of arrival of true geometric LOS direction */
-	double **AoD_LOS_dir = new double*[numberOfMobileStations]; /*!< azimuth angle of departure of true geometric LOS direction */
-	double **ZoA_LOS_dir = new double*[numberOfMobileStations]; /*!< zenith angle of arrival of true geometric LOS direction */
-	double **ZoD_LOS_dir = new double*[numberOfMobileStations]; /*!< zenith angle of departure of true geometric LOS direction */
-	double x_dir;
-	double y_dir;
-	vec cartLOS_BStoMS_Angle = zeros(3);
-	vec cartLOS_MStoBS_Angle = zeros(3);
-	vec sphLOSAngle;
-		
-	// Cycle through all mobile stations
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		AoA_LOS_dir[i] = new double[neighbourPositions.size()];
-		AoD_LOS_dir[i] = new double[neighbourPositions.size()];
-		ZoA_LOS_dir[i] = new double[neighbourPositions.size()];
-		ZoD_LOS_dir[i] = new double[neighbourPositions.size()];
-		
-		// Cycle through all base stations
-		int PosIt = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				x_dir = MSPos[i].x - xPos;
-				y_dir = MSPos[i].y - yPos;
-
-				cartLOS_MStoBS_Angle.set(0,x_dir);
-				cartLOS_MStoBS_Angle.set(1,y_dir);
-				cartLOS_MStoBS_Angle.set(2,heightUE);
-				
-				x_dir = xPos - MSPos[i].x;
-				y_dir = yPos - MSPos[i].y;
-				
-				cartLOS_BStoMS_Angle.set(0,x_dir);
-				cartLOS_BStoMS_Angle.set(1,y_dir);
-				cartLOS_BStoMS_Angle.set(2,heightBS);
-				
-				sphLOSAngle = Cart_to_Sph(cartLOS_MStoBS_Angle);
-				AoA_LOS_dir[i][0] = sphLOSAngle.get(0);
-				ZoA_LOS_dir[i][0] = pi/2;//sphLOSAngle.get(1);
-				
-				sphLOSAngle = Cart_to_Sph(cartLOS_BStoMS_Angle);
-				AoD_LOS_dir[i][0] = sphLOSAngle.get(0);
-				ZoD_LOS_dir[i][0] = pi/2;//sphLOSAngle.get(1);
-			}else{
-				x_dir = MSPos[i].x - it->second.x;
-				y_dir = MSPos[i].y - it->second.y;
-
-				cartLOS_MStoBS_Angle.set(0,x_dir);
-				cartLOS_MStoBS_Angle.set(1,y_dir);
-				cartLOS_MStoBS_Angle.set(2,heightUE);
-				
-				x_dir = it->second.x - MSPos[i].x;
-				y_dir = it->second.y - MSPos[i].y;
-				
-				cartLOS_BStoMS_Angle.set(0,x_dir);
-				cartLOS_BStoMS_Angle.set(1,y_dir);
-				cartLOS_BStoMS_Angle.set(2,heightBS);
-				
-				sphLOSAngle = Cart_to_Sph(cartLOS_MStoBS_Angle);
-				AoA_LOS_dir[i][PosIt] = sphLOSAngle.get(0);
-				ZoA_LOS_dir[i][PosIt] = pi/2;//sphLOSAngle.get(1);
-				
-				sphLOSAngle = Cart_to_Sph(cartLOS_BStoMS_Angle);
-				AoD_LOS_dir[i][PosIt] = sphLOSAngle.get(0);
-				ZoD_LOS_dir[i][PosIt] = pi/2;//sphLOSAngle.get(1);
-				
-				PosIt++;
-			}
-		}
-	}
-	
-	//Assign LOS Conditions:
-	double MS_BS_dist;
-	bool **LOSCondition = new bool*[numberOfMobileStations]; /* Stores whether each of the links is LOS or NLOS */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		LOSCondition[i] = new bool[neighbourPositions.size()];
-		int k = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				MS_BS_dist = sqrt((xPos - MSPos[i].x)*(xPos - MSPos[i].x) + (yPos - MSPos[i].y)*(yPos - MSPos[i].y));
-				LOSCondition[i][0] = LineOfSight(MS_BS_dist);
-			}else{
-				MS_BS_dist = sqrt((it->second.x - MSPos[i].x)*(it->second.x - MSPos[i].x) + (it->second.y - MSPos[i].y)*(it->second.y - MSPos[i].y));
-				LOSCondition[i][k] = LineOfSight(MS_BS_dist);
-				k++;
-			}
-		}
-	}
-
 	std::cout << "Before Auto Correlation!" << std::endl;
 	
 	// Generate Autocorrelation
-	double **autoCorrelation_LOS = generateAutoCorrelation_LOS(MSPos);
+	vector<vector<vector<double>>> correlation;
+	generateAutoCorrelation_LOS(senders,receivers,correlation);
 	
 	std::cout << "After Auto Correlation!" << std::endl;
        
-	double **sigma_ds_LOS = new double*[numberOfMobileStations]; /*!< Delay Spread LOS sigma */
-	double **sigma_asD_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
-	double **sigma_asA_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
-	double **sigma_zsD_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
-	double **sigma_zsA_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
-	double **sigma_sf_LOS = new double*[numberOfMobileStations]; /*!< Shadow Fading LOS sigma */
-	double **sigma_kf_LOS = new double*[numberOfMobileStations]; /*!< an integer value */
 	//TODO: Remove hardcoded, values taken after taking the square-root of the cross_matrix using sqrtm() in MATLAB
 	double cross_matrix[7][7] = {
 		{ 0.7249,   0.2510,   0.4678,  -0.0401,   0.1106,  -0.0903,  -0.4132},
@@ -370,44 +211,20 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	
 	// TODO: Take Square root
 	// cross_matrix = sqrt(cross_matrix)
-	for(int i = 0; i < numberOfMobileStations; i++){
-		sigma_ds_LOS[i] = new double[neighbourPositions.size()];
-		sigma_asD_LOS[i] = new double[neighbourPositions.size()];
-		sigma_asA_LOS[i] = new double[neighbourPositions.size()];
-		sigma_zsD_LOS[i] = new double[neighbourPositions.size()];
-		sigma_zsA_LOS[i] = new double[neighbourPositions.size()];
-		sigma_sf_LOS[i] = new double[neighbourPositions.size()];
-		sigma_kf_LOS[i] = new double[neighbourPositions.size()];
-		int id_BS = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				double ksi[7];
-				for(int j = 0; j < 7;j++){
-					ksi[j] = cross_matrix[j][0] * autoCorrelation_LOS[j][i] + cross_matrix[j][1] * autoCorrelation_LOS[j][i] + cross_matrix[j][2] * autoCorrelation_LOS[j][i] + cross_matrix[j][3] * autoCorrelation_LOS[j][i] + cross_matrix[j][4] * autoCorrelation_LOS[j][i] + cross_matrix[j][5] * autoCorrelation_LOS[j][i] + cross_matrix[j][6] * autoCorrelation_LOS[j][i];
-				}
-				sigma_ds_LOS[i][0]  = std::pow(10.0, (b*ksi[0] + a));      								// Log-Normal 
-				sigma_asD_LOS[i][0] = std::min(104.0, std::pow(10.0, (d*ksi[1] + c)));      						// Log-Normal (maximum value should be 104 degrees) 
-				sigma_asA_LOS[i][0] = std::min(104.0, std::pow(10.0, (f*ksi[2] + e)));      						// Log-Normal (maximum value should be 104 degrees) 
-				sigma_zsA_LOS[i][0] = std::min(52.0, std::pow(10.0, (h*ksi[4] + g)));							// Log-Normal (maximum value should be 52 degrees) 
-				dist2D = sqrt(pow((xPos - MSPos[i].x),2) + pow((yPos - MSPos[i].y),2));	
-				sigma_zsD_LOS[i][0] = std::min(52.0, std::pow(10.0, (ksi[3] * sigma_ZSD(mean_ZSD(dist2D, heightUE, true), true))));	// Log-Normal (maximum value should be 52 degrees) 
-				sigma_sf_LOS[i][0]  = std::pow(10.0, (0.1*k*ksi[5]));      								// Log-Normal dB
-				sigma_kf_LOS[i][0]  = std::pow(10.0, (0.1*(sigma_K*ksi[6] + l)));	   						// Log-Normal dB
-			}else{
-				double ksi[7];
-				for(int j = 0; j < 7;j++){
-					ksi[j] = cross_matrix[j][0] * autoCorrelation_LOS[j][i] + cross_matrix[j][1] * autoCorrelation_LOS[j][i] + cross_matrix[j][2] * autoCorrelation_LOS[j][i] + cross_matrix[j][3] * autoCorrelation_LOS[j][i] + cross_matrix[j][4] * autoCorrelation_LOS[j][i] + cross_matrix[j][5] * autoCorrelation_LOS[j][i] + cross_matrix[j][6] * autoCorrelation_LOS[j][i];
-				}
-				sigma_ds_LOS[i][id_BS]  = std::pow(10.0, (b*ksi[0] + a));      								// Log-Normal 
-				sigma_asD_LOS[i][id_BS] = std::min(104.0, std::pow(10.0, (d*ksi[1] + c)));      					// Log-Normal (maximum value should be 104 degrees) 
-				sigma_asA_LOS[i][id_BS] = std::min(104.0, std::pow(10.0, (f*ksi[2] + e)));      					// Log-Normal (maximum value should be 104 degrees) 
-				sigma_zsA_LOS[i][id_BS] = std::min(52.0, std::pow(10.0, (h*ksi[4] + g)));						// Log-Normal (maximum value should be 52 degrees) 
-				dist2D = sqrt(pow((it->second.x - MSPos[i].x),2) + pow((it->second.y - MSPos[i].y),2));
-				sigma_zsD_LOS[i][id_BS] = std::min(52.0, std::pow(10.0, (ksi[3] * sigma_ZSD(mean_ZSD(dist2D, heightUE, true), true))));	// Log-Normal (maximum value should be 52 degrees) 
-				sigma_sf_LOS[i][id_BS]  = std::pow(10.0, (0.1*k*ksi[5]));      								// Log-Normal dB
-				sigma_kf_LOS[i][id_BS]  = std::pow(10.0, (0.1*(sigma_K*ksi[6] + l)));	   						// Log-Normal dB
-				id_BS++;
+	for(size_t r = 0; r < receivers.size(); r++){
+		for(size_t s = 0; s < senders.size(); s++){
+			double ksi[7];
+			for(int j = 0; j < 7;j++){
+				ksi[j] = cross_matrix[j][0] * correlation[r][s][j] + cross_matrix[j][1] * correlation[r][s][j] + cross_matrix[j][2] * correlation[r][s][j] + cross_matrix[j][3] * correlation[r][s][j] + cross_matrix[j][4] * correlation[r][s][j] + cross_matrix[j][5] * correlation[r][s][j] + cross_matrix[j][6] * correlation[r][s][j];
 			}
+			sigma_ds_LOS[r][s]  = std::pow(10.0, (b*ksi[0] + a));      								// Log-Normal 
+			sigma_asD_LOS[r][s] = std::min(104.0, std::pow(10.0, (d*ksi[1] + c)));      						// Log-Normal (maximum value should be 104 degrees) 
+			sigma_asA_LOS[r][s] = std::min(104.0, std::pow(10.0, (f*ksi[2] + e)));      						// Log-Normal (maximum value should be 104 degrees) 
+			sigma_zsA_LOS[r][s] = std::min(52.0, std::pow(10.0, (h*ksi[4] + g)));							// Log-Normal (maximum value should be 52 degrees) 
+			dist2D = sqrt(pow((senders[s].x - receivers[r].x),2) + pow((senders[s].y - receivers[r].y),2));	
+			sigma_zsD_LOS[r][s] = std::min(52.0, std::pow(10.0, (ksi[3] * sigma_ZSD(mean_ZSD(dist2D, heightUE, true), true))));	// Log-Normal (maximum value should be 52 degrees) 
+			sigma_sf_LOS[r][s]  = std::pow(10.0, (0.1*k*ksi[5]));      								// Log-Normal dB
+			sigma_kf_LOS[r][s]  = std::pow(10.0, (0.1*(sigma_K*ksi[6] + l)));	   						// Log-Normal dB
 		}
 	}
 
@@ -415,7 +232,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	std::cout << "Before Auto Correlation (NLOS)!" << std::endl;
 	
 	// Generate Autocorrelation
-	double **autoCorrelation_NLOS = generateAutoCorrelation_NLOS(MSPos);
+	correlation.clear();
+	generateAutoCorrelation_NLOS(senders,receivers,correlation);
 	
 	std::cout << "After Auto Correlation (NLOS)!" << std::endl;
        
@@ -439,1805 +257,972 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	h = initModule->par("ZoA_mu_NLOS"); 			// arrival AS vs k-factor
 	k = initModule->par("ZoA_eps_NLOS"); 			// delay spread vs k-factor	
 	
-	double **sigma_ds_NLOS = new double*[numberOfMobileStations];
-	double **sigma_asD_NLOS = new double*[numberOfMobileStations];
-	double **sigma_asA_NLOS = new double*[numberOfMobileStations];
-	double **sigma_zsD_NLOS = new double*[numberOfMobileStations];
-	double **sigma_zsA_NLOS = new double*[numberOfMobileStations];
-	double **sigma_sf_NLOS = new double*[numberOfMobileStations];
-
 	// TODO: Take Square root
 	// cross_matrix = sqrt(cross_matrix)
-	for(int i = 0; i < numberOfMobileStations; i++){
-		sigma_ds_NLOS[i] = new double[neighbourPositions.size()];
-		sigma_asD_NLOS[i] = new double[neighbourPositions.size()];
-		sigma_asA_NLOS[i] = new double[neighbourPositions.size()];
-		sigma_zsD_NLOS[i] = new double[neighbourPositions.size()];
-		sigma_zsA_NLOS[i] = new double[neighbourPositions.size()];
-		sigma_sf_NLOS[i] = new double[neighbourPositions.size()];
-		int it_BS = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
+	for(size_t r = 0; r < receivers.size(); r++){
+		for(size_t s = 0; s < senders.size(); s++){
 				double ksi[6];
 				for(int j = 0;j < 6;j++){
-					ksi[j] = cross_matrix2[j][0] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][1] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][2] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][3] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][4] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][5] * autoCorrelation_NLOS[j][i];
+					ksi[j] = cross_matrix2[j][0] * correlation[r][s][j] + cross_matrix2[j][1] * correlation[r][s][j] + cross_matrix2[j][2] * correlation[r][s][j] + cross_matrix2[j][3] * correlation[r][s][j] + cross_matrix2[j][4] * correlation[r][s][j] + cross_matrix2[j][5] * correlation[r][s][j];
 				}
-				sigma_ds_NLOS[i][0]  = std::pow(10.0, (b*ksi[0] + a));      								// Log-Normal 
-				sigma_asD_NLOS[i][0] = std::min(104.0, std::pow(10.0, (d*ksi[1] + c)));      						// Log-Normal (maximum value should be 104 degrees)  
-				sigma_asA_NLOS[i][0] = std::min(104.0, std::pow(10.0, (f*ksi[2] + e)));      						// Log-Normal (maximum value should be 104 degrees) 
-				sigma_zsA_NLOS[i][0] = std::min(52.0, std::pow(10.0, (k*ksi[4] + h)));							// Log-Normal (maximum value should be 52 degrees) 
-				dist2D = sqrt(pow((xPos - MSPos[i].x),2) + pow((yPos - MSPos[i].y),2));
-				sigma_zsD_NLOS[i][0] = std::min(52.0, std::pow(10.0, (ksi[3] * sigma_ZSD(mean_ZSD(dist2D, heightUE, false), false))));	// Log-Normal (maximum value should be 52 degrees) 
-				sigma_sf_NLOS[i][0]  = std::pow(10.0, (0.1*g*ksi[5]));      								// Log-Normal dB
-
-				//sigma_ds_NLOS[i]  = 7.6e-8;
-				//sigma_asD_NLOS[i] = 15;
-				//sigma_asA_NLOS[i] = 35;
-				//sigma_sf_NLOS[i]  = 1.5;
-			}else{
-				double ksi[6];
-				for(int j = 0;j < 6;j++){
-					ksi[j] = cross_matrix2[j][0] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][1] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][2] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][3] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][4] * autoCorrelation_NLOS[j][i] + cross_matrix2[j][5] * autoCorrelation_NLOS[j][i];
-				}
-				sigma_ds_NLOS[i][it_BS]  = std::pow(10.0, (b*ksi[0] + a));      							// Log-Normal 
-				sigma_asD_NLOS[i][it_BS] = std::min(104.0, std::pow(10.0, (d*ksi[1] + c)));      					// Log-Normal (maximum value should be 104 degrees) 
-				sigma_asA_NLOS[i][it_BS] = std::min(104.0, std::pow(10.0, (f*ksi[2] + e)));      					// Log-Normal (maximum value should be 104 degrees) 
-				sigma_zsA_NLOS[i][it_BS] = std::min(52.0, std::pow(10.0, (k*ksi[4] + h)));						// Log-Normal (maximum value should be 52 degrees) 
-				dist2D = sqrt(pow((it->second.x - MSPos[i].x),2) + pow((it->second.y - MSPos[i].y),2));
-				sigma_zsD_NLOS[i][it_BS] = std::min(52.0, std::pow(10.0, (ksi[3] * sigma_ZSD(mean_ZSD(dist2D, heightUE, false), false))));// Log-Normal (maximum value should be 52 degrees) 
-				sigma_sf_NLOS[i][it_BS]  = std::pow(10.0, (0.1*g*ksi[5]));      							// Log-Normal dB
-				
-				//sigma_ds_NLOS[i]  = 7.6e-8;
-				//sigma_asD_NLOS[i] = 15;
-				//sigma_asA_NLOS[i] = 35;
-				//sigma_sf_NLOS[i]  = 1.5;
-				//sigma_kf_NLOS[i]  = 1.0;
-				it_BS++;
-			}
+				sigma_ds_NLOS[r][s]  = std::pow(10.0, (b*ksi[0] + a));      								// Log-Normal 
+				sigma_asD_NLOS[r][s] = std::min(104.0, std::pow(10.0, (d*ksi[1] + c)));      						// Log-Normal (maximum value should be 104 degrees)  
+				sigma_asA_NLOS[r][s] = std::min(104.0, std::pow(10.0, (f*ksi[2] + e)));      						// Log-Normal (maximum value should be 104 degrees) 
+				sigma_zsA_NLOS[r][s] = std::min(52.0, std::pow(10.0, (k*ksi[4] + h)));							// Log-Normal (maximum value should be 52 degrees) 
+				dist2D = sqrt(pow((senders[s].x - receivers[r].x),2) + pow((senders[s].y - receivers[r].y),2));
+				sigma_zsD_NLOS[r][s] = std::min(52.0, std::pow(10.0, (ksi[3] * sigma_ZSD(mean_ZSD(dist2D, heightUE, false), false))));	// Log-Normal (maximum value should be 52 degrees) 
+				sigma_sf_NLOS[r][s]  = std::pow(10.0, (0.1*g*ksi[5]));      								// Log-Normal dB
 		}
 	} 	
-	
-	std::cout << "Finished Large Scale parameter.." << std::endl;
 
-    	// Begin small scale parameter generation.
-    
-    	// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
-	double ***clusterDelays = new double**[numberOfMobileStations];	/*!< The delays in seconds for each cluster [#MS]x[#BS]x[#Cluster] */
-	double ***clusterDelays_LOS = new double**[numberOfMobileStations]; /*!< The delays in seconds for each cluster in LOS case [#MS]x[#BS]x[#Cluster] */
-	double delayScaling;
-	std::cout << "N_cluster_LOS: " << N_cluster_LOS << std::endl;
-    	std::cout << "N_cluster_NLOS: " << N_cluster_NLOS << std::endl;
-    
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		clusterDelays[i] = new double*[neighbourPositions.size()];
-		clusterDelays_LOS[i] = new double*[neighbourPositions.size()];
-		int k = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					// LOS Condition
-					clusterDelays[i][0] = new double[N_cluster_LOS];
-					clusterDelays_LOS[i][0] = new double[N_cluster_LOS];
-					delayScaling = initModule->par("DelayScaling_LOS");
-					
-					for(int j = 0; j < N_cluster_LOS; j++){
-						clusterDelays[i][0][j] = -1.0*delayScaling*sigma_ds_LOS[i][0]*log(uniform(0,1));
-					}
-					
-					double min_delay = *std::min_element(clusterDelays[i][0], clusterDelays[i][0] + N_cluster_LOS);
-					// Normalize the delays (7.39)
-					for(int j = 0; j < N_cluster_LOS; j++){
-						clusterDelays[i][0][j] = clusterDelays[i][0][j] - min_delay;
-					}
+}
 
-					// Sort the delays (7.39)
-					std::sort(clusterDelays[i][0], clusterDelays[i][0] + N_cluster_LOS, std::less<double>());
-					
-					// Compute LOS Peak compensation factor (7.41)
-					double K = 10.0 * log10(abs(sigma_kf_LOS[i][0]));
-					double C_DS = 0.7705 - 0.0433 * K + 0.0002 * pow(K,2) + 0.000017 * pow(K,3);
-					
-					// Apply LOS compensation factor
-					for(int j = 0; j < N_cluster_LOS; j++){
-						clusterDelays_LOS[i][0][j] = clusterDelays[i][0][j] / C_DS;
-					}
-					
-				}else{
-					// NLOS Condition
-					clusterDelays[i][0] = new double[N_cluster_NLOS];
-					delayScaling = initModule->par("DelayScaling_NLOS");
-					
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						clusterDelays[i][0][j] = -1.0*delayScaling*sigma_ds_NLOS[i][0]*log(uniform(0,1));
-					}
-					
-					double min_delay = *std::min_element(clusterDelays[i][0], clusterDelays[i][0] + N_cluster_NLOS);
-					// Normalize the delays (7.39)
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						clusterDelays[i][0][j] = clusterDelays[i][0][j] - min_delay;
-						//std::cout << "Delay: " << clusterDelays[i][0][j] << std::endl;
-					}
-
-					// Sort the delays (7.39)
-					std::sort(clusterDelays[i][0], clusterDelays[i][0] + N_cluster_NLOS,std::less<double>());
-					
-				}
-			}else{
-				if(LOSCondition[i][k]){
-					// LOS Condition
-					clusterDelays[i][k] = new double[N_cluster_LOS];
-					clusterDelays_LOS[i][k] = new double[N_cluster_LOS];
-					delayScaling = initModule->par("DelayScaling_LOS");
-					
-					for(int j = 0; j < N_cluster_LOS; j++){
-						clusterDelays[i][k][j] = -1.0*delayScaling*sigma_ds_LOS[i][k]*log(uniform(0,1));
-					}
-					
-					double min_delay = *std::min_element(clusterDelays[i][k], clusterDelays[i][k] + N_cluster_LOS);
-					// Normalize the delays (7.39)
-					for(int j = 0; j < N_cluster_LOS; j++){
-						clusterDelays[i][k][j] = clusterDelays[i][k][j] - min_delay;
-					}
-					
-					// Sort the delays (7.39)
-					std::sort(clusterDelays[i][k], clusterDelays[i][k] + N_cluster_LOS, std::less<double>());
-					
-					// Compute LOS Peak compensation factor (7.41)
-					double K = 10.0 * log10(abs(sigma_kf_LOS[i][k]));
-					double C_DS = 0.7705 - 0.0433 * K + 0.0002 * pow(K,2) + 0.000017 * pow(K,3);
-					
-					// Apply LOS compensation factor
-					for(int j = 0; j < N_cluster_LOS; j++){
-						clusterDelays_LOS[i][k][j] = clusterDelays[i][k][j] / C_DS;
-					}	
-				}else{
-					// NLOS Condition
-					clusterDelays[i][k] = new double[N_cluster_NLOS];
-					delayScaling = initModule->par("DelayScaling_NLOS");
-					
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						clusterDelays[i][k][j] = -1.0*delayScaling*sigma_ds_NLOS[i][k]*log(uniform(0,1));
-					}
-					
-					double min_delay = *std::min_element(clusterDelays[i][k], clusterDelays[i][k] + N_cluster_NLOS);
-					// Normalize the delays (7.39)
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						clusterDelays[i][k][j] = clusterDelays[i][k][j] - min_delay;
-						//std::cout << "Delay: " << clusterDelays[i][k][j] << std::endl;
-					}
-
-					// Sort the delays (7.39)
-					std::sort(clusterDelays[i][k], clusterDelays[i][k] + N_cluster_NLOS,std::less<double>());
-				}
-				k++;
-			}
+/**
+ * Determines for each sender/reciever pair whether they have a line of sight
+ */
+vector<vector<bool>> METISChannel::genLosCond(const vector<Position>& sendPos,
+		const vector<Position>& receivePos){
+	vector<vector<bool>> losCond(receivePos.size(),
+			vector<bool>(sendPos.size()));
+	double dist;
+	for(size_t i = 0; i < receivePos.size(); i++){
+		for(size_t j=0; j<sendPos.size(); j++){
+			dist = sqrt(pow(sendPos[j].x - receivePos[i].x,2) 
+					+ pow(sendPos[j].y - receivePos[i].y,2));
+			losCond[i][j] = LineOfSight(dist);
 		}
 	}
+	return losCond;
+}
 
-	double ***clusterPowers = new double**[numberOfMobileStations];	/*!< The cluster power distribution for each link [#MS]x[#BS]x[#Cluster] */
+tuple<vector<vector<vector<double>>>,vector<vector<vector<double>>>>
+METISChannel::recomputeClusterDelays(const vector<vector<bool>>& LOSCondition,
+		const vector<vector<double>>& sigmaDS_LOS,
+		const vector<vector<double>>& sigmaDS_NLOS,
+		const vector<vector<double>>& sigmaKF_LOS
+		){
+	vector<vector<vector<double>>> clusterDelays_NLOS(LOSCondition.size(),
+			vector<vector<double>>(LOSCondition[0].size(),
+				vector<double>())); 
+	vector<vector<vector<double>>> clusterDelays_LOS(LOSCondition.size(),
+			vector<vector<double>>(LOSCondition[0].size(),
+				vector<double>())); 
+    
+	int n_clusters;
+	double delayScaling;
+	double min_delay;
+	double sigma_ds;
+    	for(size_t i = 0; i < LOSCondition.size(); i++){
+		for(size_t j = 0; j<LOSCondition[i].size(); j++){
+			if(LOSCondition[i][j]){
+				// LOS Condition
+				n_clusters = N_cluster_LOS;
+				delayScaling = initModule->par("DelayScaling_LOS");
+				sigma_ds = sigmaDS_LOS[i][j];
+			}
+			else{
+				// NLOS Condition
+				n_clusters = N_cluster_NLOS;
+				delayScaling = initModule->par("DelayScaling_NLOS");
+				sigma_ds = sigmaDS_NLOS[i][j];
+			}
+			clusterDelays_LOS[i][j].resize(n_clusters,0.0);
+			clusterDelays_NLOS[i][j].resize(n_clusters,0.0);
+			for(int k = 0; k < n_clusters; k++){
+				clusterDelays_NLOS[i][j][k] = -1.0*delayScaling*sigma_ds*log(uniform(0,1));
+			}
+			min_delay = *std::min_element(clusterDelays_NLOS[i][j].cbegin(), clusterDelays_NLOS[i][j].cbegin() + n_clusters);
+			// Normalize the delays (7.39)
+			for(int k = 0; k < n_clusters; k++){
+				clusterDelays_NLOS[i][j][k] = clusterDelays_NLOS[i][j][k] - min_delay;
+			}
+			// Sort the delays (7.39)
+			std::sort(clusterDelays_NLOS[i][j].begin(), clusterDelays_NLOS[i][j].begin() + n_clusters, std::less<double>());
+			if(LOSCondition[i][j]){
+				// Apply LOS Peak compensation factor
+				// Compute LOS Peak compensation factor (7.41)
+				double K = 10.0 * log10(abs(sigmaKF_LOS[i][j]));
+				double C_DS = 0.7705 - 0.0433 * K + 0.0002 * pow(K,2) + 0.000017 * pow(K,3);
+
+				// Apply LOS compensation factor
+				for(int k = 0; k < n_clusters; k++){
+					clusterDelays_LOS[i][j][k] = clusterDelays_NLOS[i][j][k] / C_DS;
+				}	
+			}	
+		}
+	}
+	return std::make_tuple(clusterDelays_LOS,clusterDelays_NLOS);
+}
+
+vector<vector<vector<double>>> METISChannel::genClusterPowers(const vector<vector<bool>>& LOSCondition,
+		const vector<vector<vector<double>>>& clusterDelays,
+		const vector<vector<double>>& sigmaDS_LOS,
+		const vector<vector<double>>& sigmaDS_NLOS,
+		const vector<vector<double>>& sigmaKF_LOS
+		){
+	vector<vector<vector<double>>> clusterPowers(clusterDelays.size(),
+			vector<vector<double>>(clusterDelays[0].size(),
+				vector<double>()));
+	size_t numReceivers = clusterDelays.size();
+	size_t numSenders = clusterDelays[0].size();
 	double cluster_shadowing;
 	double sum;
+	double temp_CS;
+	int n_clusters;
+	double sigma_ds;
+	double K;
+	double P1_LOS;
+	double delayScaling;
 	
 	// Generate cluster powers. 
-	for(int i = 0; i < numberOfMobileStations; i++){
-		clusterPowers[i] = new double*[neighbourPositions.size()];
-		int itIdx = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					//std::cout << "LOS Case!" << std::endl;
-					clusterPowers[i][0] = new double[N_cluster_LOS];
-					sum = 0;
-					double K = sigma_kf_LOS[i][0];				// K-factor in linear scale
-					
-					double P1_LOS = K / (K + 1);
-					
-					double temp_CS = initModule->par("PerClusterShadowing_LOS");
-					cluster_shadowing = pow(temp_CS,2);
-					delayScaling = initModule->par("DelayScaling_LOS");
-					for(int j = 0; j < N_cluster_LOS; j++){
-						// Formula 7.42
-						clusterPowers[i][0][j] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][0][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_LOS[i][0])) );
-						sum += clusterPowers[i][0][j];
-					}
-					
-					for(int j = 0; j < N_cluster_LOS; j++){
-						if (j==0){
-                                                        clusterPowers[i][0][j] = ((1/(K+1))*clusterPowers[i][0][j]/sum) + P1_LOS;
-                                                }else{
-						        clusterPowers[i][0][j] = (1/(K+1))*clusterPowers[i][0][j]/sum;
-						}
-					}
-				}else{
-					//std::cout << "NLOS Case!" << std::endl;
-					clusterPowers[i][0] = new double[N_cluster_NLOS];
-					sum = 0;
-					
-					double temp_CS = initModule->par("PerClusterShadowing_NLOS");
-					cluster_shadowing = pow(temp_CS,2); //METIS
-					delayScaling = initModule->par("DelayScaling_NLOS");
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						// Formula 7.42
-						clusterPowers[i][0][j] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][0][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_NLOS[i][0])) ); //METIS
-						sum += clusterPowers[i][0][j];
-					}
-					
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						clusterPowers[i][0][j] /= sum;
+	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j < numSenders; j++){
+			if(LOSCondition[i][j]){
+				temp_CS = initModule->par("PerClusterShadowing_LOS");
+				delayScaling = initModule->par("DelayScaling_LOS");
+				n_clusters = N_cluster_LOS;
+				sigma_ds = sigmaDS_LOS[i][j];
+			}
+			else{
+				temp_CS = initModule->par("PerClusterShadowing_NLOS");
+				delayScaling = initModule->par("DelayScaling_NLOS");
+				n_clusters = N_cluster_NLOS;
+				sigma_ds = sigmaDS_NLOS[i][j];
+			}
+			clusterPowers[i][j].resize(n_clusters,0.0);
+			sum = 0;
+			cluster_shadowing = pow(temp_CS,2); //METIS
+			for(int k = 0; k < n_clusters; k++){
+				// Formula 7.42
+				clusterPowers[i][j][k] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][j][k] * ((delayScaling - 1) / (delayScaling * sigma_ds)) );
+				sum += clusterPowers[i][j][k];
+			}
+			if(LOSCondition[i][j]){
+				K = sigmaKF_LOS[i][j]; 			// K-factor in linear scale
+				P1_LOS = K / (K + 1);
+				for(int k = 0; k < n_clusters; k++){
+					if (k==0){
+						clusterPowers[i][j][k] = ((1/(K+1))*clusterPowers[i][j][k]/sum) + P1_LOS;
+					}else{
+						clusterPowers[i][j][k] = (1/(K+1))*clusterPowers[i][j][k]/sum;
 					}
 				}
 			}else{
-				if(LOSCondition[i][itIdx]){
-					//std::cout << "LOS Case!" << std::endl;
-					clusterPowers[i][itIdx] = new double[N_cluster_LOS];
-					sum = 0;
-					double K = sigma_kf_LOS[i][itIdx]; 			// K-factor in linear scale
-					
-					double P1_LOS = K / (K + 1);
-					
-					double temp_CS = initModule->par("PerClusterShadowing_LOS");
-					cluster_shadowing = pow(temp_CS,2);
-					delayScaling = initModule->par("DelayScaling_LOS");
-					for(int j = 0; j < N_cluster_LOS; j++){
-						// Formula 7.42
-						clusterPowers[i][itIdx][j] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][itIdx][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_LOS[i][itIdx])) );
-						sum += clusterPowers[i][itIdx][j];
-					}
-					
-					for(int j = 0; j < N_cluster_LOS; j++){
-						if (j==0){
-                                                        clusterPowers[i][itIdx][j] = ((1/(K+1))*clusterPowers[i][itIdx][j]/sum) + P1_LOS;
-                                                }else{
-						        clusterPowers[i][itIdx][j] = (1/(K+1))*clusterPowers[i][itIdx][j]/sum;
-						}
-					}
-				}else{
-					//std::cout << "NLOS Case!" << std::endl;
-					clusterPowers[i][itIdx] = new double[N_cluster_NLOS];
-					sum = 0;
-					
-					double temp_CS = initModule->par("PerClusterShadowing_NLOS");
-					cluster_shadowing = pow(temp_CS,2); //METIS
-					delayScaling = initModule->par("DelayScaling_NLOS");
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						// Formula 7.42
-						clusterPowers[i][itIdx][j] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][itIdx][j] * ((delayScaling - 1) / (delayScaling * sigma_ds_NLOS[i][itIdx])) ); //METIS
-						sum += clusterPowers[i][itIdx][j];
-					}
-					
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						clusterPowers[i][itIdx][j] /= sum;
-					}
+				for(int k = 0; k < n_clusters; k++){
+					clusterPowers[i][j][k] /= sum;
 				}
-				itIdx++;
 			}
 		}
 	}
-	
-	// Precompute powers per ray (7.46)
-	double ***rayPowers = new double**[numberOfMobileStations]; /*!< The ray power for each cluster */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		rayPowers[i] = new double*[neighbourPositions.size()];
-		int itIdx = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					rayPowers[i][0] = new double[N_cluster_LOS];
-					for(int j = 0; j < N_cluster_LOS; j++){
-						rayPowers[i][0][j] = clusterPowers[i][0][j] / numOfRays_LOS;
-					}
-				}else{
-					rayPowers[i][0] = new double[N_cluster_NLOS];
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						rayPowers[i][0][j] = clusterPowers[i][0][j] / numOfRays_NLOS;
-					}
-				}
-			}else{
-				if(LOSCondition[i][itIdx]){
-					rayPowers[i][itIdx] = new double[N_cluster_LOS];
-					for(int j = 0; j < N_cluster_LOS; j++){
-						rayPowers[i][itIdx][j] = clusterPowers[i][itIdx][j] / numOfRays_LOS;
-					}
-				}else{
-					rayPowers[i][itIdx] = new double[N_cluster_NLOS];
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						rayPowers[i][itIdx][j] = clusterPowers[i][itIdx][j] / numOfRays_NLOS;
-					}
-				}
-				itIdx++;
-			}
-		}
-	}
-	
-	// Ray offset. Table 7.6
-	double ray_offset[20] = {	
-							0.0447, -0.0447, 0.1413, -0.1413, 0.2492, -0.2492, 
-							0.3715, -0.3715, 0.5129, -0.5129, 0.6797, -0.6797,
-							0.8844, -0.8844, 1.1481, -1.1481, 1.5195, -1.5195,
-							2.1551, -2.1551
-							};
-	
-	// Generate azimuth angles of arrival
-	double **azimuth_cluster_ASA = new double*[numberOfMobileStations];
-	double ****azimuth_ASA = new double***[numberOfMobileStations];	/*!< The angles of arrival in azimuth plane */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		azimuth_ASA[i] = new double**[neighbourPositions.size()];
-		int itIdx = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					azimuth_ASA[i][0] = new double*[N_cluster_LOS];
-					azimuth_cluster_ASA[i] = new double[N_cluster_LOS];
-			
-					double X_1 = uniform(-1.0,1.0);
-					double Y_1 = normal(0.0, (pow(sigma_asA_LOS[i][0] / 7.0,2)));
-			
-					for(int j = 0; j < N_cluster_LOS; j++){
-						azimuth_ASA[i][0][j] = new double[numOfRays_LOS];
-				
-						//Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_LOS[i][0] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_LOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asA_LOS[i][0] / 7.0,2)));
-				
-						// First Ray has geometric LOS direction?!
-						azimuth_cluster_ASA[i][j] = azimuth_cluster_ASA[i][j] * (X_N - X_1) + (Y_N - Y_1) + (AoA_LOS_dir[i][0]*180.0/pi);  // since AOA_LOS_dir is in radians
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							double cluster_ASA = initModule->par("Cluster_ASA_LOS");
-					
-							// Final angle computation per ray (LOS)
-							azimuth_ASA[i][0][j][k] = azimuth_cluster_ASA[i][j] + cluster_ASA * ray_offset[k];
+	return clusterPowers;
+}
 
-							if(azimuth_ASA[i][0][j][k] < -360.0){
-								azimuth_ASA[i][0][j][k]+=360.0;
-							}
-						}
-					}
-				}else{
-					azimuth_ASA[i][0] = new double*[N_cluster_NLOS];
-					azimuth_cluster_ASA[i] = new double[N_cluster_NLOS];
-			
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						azimuth_ASA[i][0][j] = new double[numOfRays_NLOS];
-				
-						// Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_NLOS[i][0] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_NLOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asA_NLOS[i][0] / 7.0,2)));
-				
-						azimuth_cluster_ASA[i][j] = azimuth_cluster_ASA[i][j] * X_N + Y_N + (AoA_LOS_dir[i][0]*180.0/pi);   // since AOA_LOS_dir is in radians
-				 
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							double cluster_ASA = initModule->par("Cluster_ASA_NLOS");
-					
-							// Final angle computation per ray (NLOS)
-							azimuth_ASA[i][0][j][k] = azimuth_cluster_ASA[i][j] + cluster_ASA * ray_offset[k];
-						}
-					}
-				}
-			}else{
-				if(LOSCondition[i][itIdx]){
-					azimuth_ASA[i][itIdx] = new double*[N_cluster_LOS];
-					azimuth_cluster_ASA[i] = new double[N_cluster_LOS];
-			
-					double X_1 = uniform(-1.0,1.0);
-					double Y_1 = normal(0.0, (pow(sigma_asA_LOS[i][itIdx] / 7.0,2)));
-			
-					for(int j = 0; j < N_cluster_LOS; j++){
-						azimuth_ASA[i][itIdx][j] = new double[numOfRays_LOS];
-				
-						//Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_LOS[i][itIdx] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_LOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asA_LOS[i][itIdx] / 7.0,2)));
-				
-						// First Ray has geometric LOS direction?!
-						azimuth_cluster_ASA[i][j] = azimuth_cluster_ASA[i][j] * (X_N - X_1) + (Y_N - Y_1) + (AoA_LOS_dir[i][itIdx]*180.0/pi);   // since AOA_LOS_dir is in radians
-  				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							double cluster_ASA = initModule->par("Cluster_ASA_LOS");
-					
-							// Final angle computation per ray (LOS)
-							azimuth_ASA[i][itIdx][j][k] = azimuth_cluster_ASA[i][j] + cluster_ASA * ray_offset[k];
-						}
-					}
-					
-				}else{
-					azimuth_ASA[i][itIdx] = new double*[N_cluster_NLOS];
-					azimuth_cluster_ASA[i] = new double[N_cluster_NLOS];
-			
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						azimuth_ASA[i][itIdx][j] = new double[numOfRays_NLOS];
-				
-						// Formula 7.47
-						azimuth_cluster_ASA[i][j] = (sigma_asA_NLOS[i][itIdx] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_NLOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asA_NLOS[i][itIdx] / 7.0,2)));
-				
-						azimuth_cluster_ASA[i][j] = azimuth_cluster_ASA[i][j] * X_N + Y_N + (AoA_LOS_dir[i][itIdx]*180.0/pi);   // since AOA_LOS_dir is in radians
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							double cluster_ASA = initModule->par("Cluster_ASA_NLOS");
-					
-							// Final angle computation per ray (NLOS)
-							azimuth_ASA[i][itIdx][j][k] = azimuth_cluster_ASA[i][j] + cluster_ASA * ray_offset[k];
-						}
-					}
-				}
-				itIdx++;
+vector<vector<vector<double>>> METISChannel::recomputeRayPowers(const vector<vector<bool>>& LOSCondition,
+		vector<vector<vector<double>>>& clusterPowers
+		){
+	size_t numReceivers = LOSCondition.size();
+	size_t numSenders = LOSCondition[0].size();
+	vector<vector<vector<double>>> rayPowers(numReceivers,
+			vector<vector<double>>(numSenders,vector<double>()));
+	int n_clusters;
+	int n_rays;
+	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j<numSenders; j++){
+			if(LOSCondition[i][j]){
+				n_clusters = N_cluster_LOS;
+				n_rays = numOfRays_LOS;
+			}
+			else{
+				n_clusters = N_cluster_NLOS;
+				n_rays = numOfRays_NLOS;
+			}
+			rayPowers[i][j].resize(n_clusters,0.0);
+			for(int k = 0; k < n_clusters; k++){
+				rayPowers[i][j][k] = clusterPowers[i][j][k] / n_rays;
 			}
 		}
 	}
-	
-	// Generate azimuth angles of departure in the same way 
-	double **azimuth_cluster_ASD = new double*[numberOfMobileStations];
-	double ****azimuth_ASD = new double***[numberOfMobileStations];	/*!< The angles of departure in azimuth plane */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		azimuth_ASD[i] = new double**[neighbourPositions.size()];
-		int itIdx = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					azimuth_ASD[i][0] = new double*[N_cluster_LOS];
-					azimuth_cluster_ASD[i] = new double[N_cluster_LOS];
-			
-					double X_1 = uniform(-1.0,1.0);
-					double Y_1 = normal(0.0, (pow(sigma_asD_LOS[i][0] / 7.0,2)));
-			
-					for(int j = 0; j < N_cluster_LOS; j++){
-						azimuth_ASD[i][0][j] = new double[numOfRays_LOS];
-				
-						//Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_LOS[i][0] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_LOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asD_LOS[i][0] / 7.0,2)));
-				
-						// First Ray has geometric LOS direction?!
-						azimuth_cluster_ASD[i][j] = azimuth_cluster_ASD[i][j] * (X_N - X_1) + (Y_N - Y_1) + (AoD_LOS_dir[i][0]*180.0/pi);   // since AOD_LOS_dir is in radians
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							double cluster_ASD = initModule->par("Cluster_ASD_LOS");
-					
-							// Final angle computation per ray (LOS)
-							azimuth_ASD[i][0][j][k] = azimuth_cluster_ASD[i][j] + cluster_ASD * ray_offset[k];
+	return rayPowers;	
+}
 
-							if(azimuth_ASD[i][0][j][k] < -360.0){
-								azimuth_ASD[i][0][j][k]+=360.0;
-							}
-						}
-					}
-				}else{
-					azimuth_ASD[i][0] = new double*[N_cluster_NLOS];
-					azimuth_cluster_ASD[i] = new double[N_cluster_NLOS];
-			
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						azimuth_ASD[i][0][j] = new double[numOfRays_NLOS];
+tuple<vector<vector<double>>,vector<vector<double>>,vector<vector<double>>,vector<vector<double>>> 
+METISChannel::recomputeAngleDirection(
+		const vector<Position>& receivers,
+		const vector<Position>& senders,
+		double heightSenders,
+		double heightReceivers
+		){
+	size_t numReceivers = receivers.size();
+	size_t numSenders = senders.size();
+	vector<vector<double>> AoADir(numReceivers,
+			vector<double>(numSenders));
+	vector<vector<double>> ZoADir(numReceivers,
+			vector<double>(numSenders));
+	vector<vector<double>> AoDDir(numReceivers,
+			vector<double>(numSenders));
+	vector<vector<double>> ZoDDir(numReceivers,
+			vector<double>(numSenders));
+	double x_dir;
+	double y_dir;
+	vec cartLOS_RecToSend_Angle = zeros(3);
+	vec cartLOS_SendToRec_Angle = zeros(3);
+	vec sphLOSAngle;
+		
+	// Cycle through all mobile stations
+    	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j < numSenders; j++){
+				// Angles of Arrival
+				x_dir = receivers[i].x - senders[j].x;
+				y_dir = receivers[i].y - senders[j].y;
+
+				cartLOS_RecToSend_Angle.set(0,x_dir);
+				cartLOS_RecToSend_Angle.set(1,y_dir);
+				cartLOS_RecToSend_Angle.set(2,heightReceivers);
 				
-						// Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_NLOS[i][0] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][0][j] / *(std::max_element(clusterPowers[i][0], clusterPowers[i][0] + N_cluster_NLOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asD_NLOS[i][0] / 7.0,2)));
+				sphLOSAngle = Cart_to_Sph(cartLOS_RecToSend_Angle);
+				AoADir[i][j] = sphLOSAngle.get(0);
+				ZoADir[i][j] = sphLOSAngle.get(1);
+
+				// Angles of Departure
+				x_dir = senders[j].x - receivers[i].x;
+				y_dir = senders[j].y - receivers[i].y;
+
+				cartLOS_SendToRec_Angle.set(0,x_dir);
+				cartLOS_SendToRec_Angle.set(1,y_dir);
+				cartLOS_SendToRec_Angle.set(2,heightSenders);
 				
-						azimuth_cluster_ASD[i][j] = azimuth_cluster_ASD[i][j] * X_N + Y_N + (AoD_LOS_dir[i][0]*180.0/pi);    // since AOD_LOS_dir is in radians
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							double cluster_ASD = initModule->par("Cluster_ASD_NLOS");
-					
-							// Final angle computation per ray (NLOS)
-							azimuth_ASD[i][0][j][k] = azimuth_cluster_ASD[i][j] + cluster_ASD * ray_offset[k];
-						}
-					}
+				sphLOSAngle = Cart_to_Sph(cartLOS_SendToRec_Angle);
+				AoDDir[i][j] = sphLOSAngle.get(0);
+				ZoDDir[i][j] = sphLOSAngle.get(1);
+		}
+	}
+	return std::make_tuple(AoADir,ZoADir,AoDDir,ZoDDir);
+}
+
+vector<vector<vector<vector<double>>>> METISChannel::recomputeAzimuthAngles(
+		const vector<vector<bool>>& LOSCondition,
+		const vector<vector<double>>& sigma_as_LOS,
+		const vector<vector<double>>& sigma_as_NLOS,
+		const vector<vector<double>>& sigma_kf,
+		const vector<vector<vector<double>>>& clusterPowers,
+		const vector<vector<double>>& angleDir,
+		const bool arrival
+		){
+	size_t numReceivers = LOSCondition.size();
+	size_t numSenders = LOSCondition[0].size();
+	vector<vector<double>> azimuthCluster(numReceivers,
+			vector<double>());
+	vector<vector<vector<vector<double>>>> azimuthRays(numReceivers,
+			vector<vector<vector<double>>>(numSenders,
+				vector<vector<double>>()));
+	int n_clusters;
+	int n_rays;
+	double X_1;
+	double Y_1;
+	double X_N;
+	double Y_N;
+	double sigma_angleSpread;
+	double cluster_AS;
+	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j < numSenders; j++){
+			if(LOSCondition[i][j]){
+				n_clusters = N_cluster_LOS;
+				n_rays = numOfRays_LOS;
+				sigma_angleSpread = sigma_as_LOS[i][j];
+				if(arrival){
+					cluster_AS = initModule->par("Cluster_ASA_LOS");
 				}
-			}else{
-				if(LOSCondition[i][itIdx]){
-					azimuth_ASD[i][itIdx] = new double*[N_cluster_LOS];
-					azimuth_cluster_ASD[i] = new double[N_cluster_LOS];
-			
-					double X_1 = uniform(-1.0,1.0);
-					double Y_1 = normal(0.0, (pow(sigma_asD_LOS[i][itIdx] / 7.0,2)));
-			
-					for(int j = 0; j < N_cluster_LOS; j++){
-						azimuth_ASD[i][itIdx][j] = new double[numOfRays_LOS];
-				
-						//Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_LOS[i][itIdx] / (0.7 * C_AS(N_cluster_LOS, true, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_LOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asD_LOS[i][itIdx] / 7.0,2)));
-				
-						// First Ray has geometric LOS direction?!
-						azimuth_cluster_ASD[i][j] = azimuth_cluster_ASD[i][j] * (X_N - X_1) + (Y_N - Y_1) + (AoD_LOS_dir[i][itIdx]*180.0/pi);   // since AOD_LOS_dir is in radians
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							double cluster_ASD = initModule->par("Cluster_ASD_LOS");
-					
-							// Final angle computation per ray (LOS)
-							azimuth_ASD[i][itIdx][j][k] = azimuth_cluster_ASD[i][j] + cluster_ASD * ray_offset[k];
-						}
-					}
-					
-				}else{
-					azimuth_ASD[i][itIdx] = new double*[N_cluster_NLOS];
-					azimuth_cluster_ASD[i] = new double[N_cluster_NLOS];
-			
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						azimuth_ASD[i][itIdx][j] = new double[numOfRays_NLOS];
-				
-						// Formula 7.47
-						azimuth_cluster_ASD[i][j] = (sigma_asD_NLOS[i][itIdx] / (0.7 * C_AS(N_cluster_NLOS, false, i, sigma_kf_LOS))) * sqrt( -1.0 * log(clusterPowers[i][itIdx][j] / *(std::max_element(clusterPowers[i][itIdx], clusterPowers[i][itIdx] + N_cluster_NLOS))) );
-						double X_N = uniform(-1.0,1.0);
-						double Y_N = normal(0.0, (pow(sigma_asD_NLOS[i][itIdx] / 7.0,2)));
-				
-						azimuth_cluster_ASD[i][j] = azimuth_cluster_ASD[i][j] * X_N + Y_N + (AoD_LOS_dir[i][itIdx]*180.0/pi);    // since AOD_LOS_dir is in radians
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							double cluster_ASD = initModule->par("Cluster_ASD_NLOS");
-					
-							// Final angle computation per ray (NLOS)
-							azimuth_ASD[i][itIdx][j][k] = azimuth_cluster_ASD[i][j] + cluster_ASD * ray_offset[k];
-						}
-					}
+				else{
+					cluster_AS = initModule->par("Cluster_ASD_LOS");
 				}
-				itIdx++;
+			}
+			else{
+				n_clusters = N_cluster_NLOS;
+				n_rays = numOfRays_NLOS;
+				sigma_angleSpread = sigma_as_NLOS[i][j];
+				if(arrival){
+					cluster_AS = initModule->par("Cluster_ASA_NLOS");
+				}
+				else{
+					cluster_AS = initModule->par("Cluster_ASD_NLOS");
+				}
+			}
+			azimuthRays[i][j].resize(n_clusters,vector<double>(
+						n_rays));
+			azimuthCluster[i].resize(n_clusters);
+			X_1 = uniform(-1.0,1.0);
+			Y_1 = normal(0.0, (pow(sigma_angleSpread / 7.0,2)));
+			for(int k = 0; k < n_clusters; k++){
+		
+				//Formula 7.47
+				azimuthCluster[i][k] = (sigma_angleSpread / (0.7 * C_AS(n_clusters, LOSCondition[i][j], i, sigma_kf))) * sqrt( -1.0 * log(clusterPowers[i][j][k] / *(std::max_element(clusterPowers[i][j].cbegin(), clusterPowers[i][j].cbegin() + n_clusters))) );
+				X_N = uniform(-1.0,1.0);
+				Y_N = normal(0.0, (pow(sigma_angleSpread / 7.0,2)));
+		
+				// First Ray has geometric LOS direction?!
+				if(LOSCondition[i][j]){
+					azimuthCluster[i][k] = azimuthCluster[i][k] * (X_N - X_1) + (Y_N - Y_1) + (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
+				}
+				else{
+					azimuthCluster[i][k] = azimuthCluster[i][k] * X_N + Y_N + (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
+				}
+		
+				for(int r = 0; r < n_rays; r++){
+					// Final angle computation per ray 
+					azimuthRays[i][j][k][r] = azimuthCluster[i][k] + cluster_AS * ray_offset[r];
+				}
 			}
 		}
 	}
-	
-	// Generate Elevation angles (for 2D channel model, set all elevtaion angles to 90 deg; otherwise use the code below for elevation angle generation according to METIS 1.2 or 1.4)
-	double ****elevation_ASA = new double***[numberOfMobileStations]; /*!< The angles of arrival in azimuth plane */
-	double ****elevation_ASD = new double***[numberOfMobileStations]; /*!< The angles of departure in azimuth plane */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		elevation_ASA[i] = new double**[neighbourPositions.size()];
-		elevation_ASD[i] = new double**[neighbourPositions.size()];
-		int itIdx = 1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				elevation_ASA[i][0] = new double*[N_cluster_NLOS];
-				elevation_ASD[i][0] = new double*[N_cluster_NLOS];
-				for(int j = 0; j < N_cluster_NLOS; j++){
-					elevation_ASA[i][0][j] = new double[numOfRays_NLOS];
-					elevation_ASD[i][0][j] = new double[numOfRays_NLOS];
-					for(int k = 0; k < numOfRays_NLOS; k++){
-						elevation_ASA[i][0][j][k] = 90;
-						elevation_ASD[i][0][j][k] = 90;
-					}
+	return azimuthRays;
+}
+
+/**
+ * ATTENTION! This implementation simply sets all angles to 90°!
+ * The computations specified in section 7.3.14.3 of METIS D1.2 are not yet 
+ * implemented!
+ */
+vector<vector<vector<vector<double>>>> METISChannel::recomputeZenithAngles(
+		const vector<vector<bool>>& LOSCondition,
+		const vector<vector<double>>& sigma_zs_LOS,
+		const vector<vector<double>>& sigma_zs_NLOS,
+		const vector<vector<double>>& sigma_kf,
+		const vector<vector<vector<double>>>& clusterPowers,
+		const vector<vector<double>>& angleDir,
+		const bool arrival
+		){
+	size_t numReceivers = LOSCondition.size();
+	size_t numSenders = LOSCondition[0].size();
+	vector<vector<vector<vector<double>>>> zenithRays(numReceivers,
+			vector<vector<vector<double>>>(numSenders,
+				vector<vector<double>>()));
+
+	int n_clusters;
+	int n_rays;
+	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j<numSenders; j++){
+			if(LOSCondition[i][j]){
+				n_clusters = N_cluster_LOS;
+				n_rays = numOfRays_LOS;
+			}
+			else{
+				n_clusters = N_cluster_NLOS;
+				n_rays = numOfRays_NLOS;
+			}
+			zenithRays[i][j].resize(n_clusters,vector<double>(n_rays));
+			for(int k = 0; k < n_clusters; k++){
+				for(int r = 0; r < n_rays; r++){
+					zenithRays[i][j][k][r] = 90;
 				}
-			}else{
-				elevation_ASA[i][itIdx] = new double*[N_cluster_NLOS];
-				elevation_ASD[i][itIdx] = new double*[N_cluster_NLOS];
-				for(int j = 0; j < N_cluster_NLOS; j++){
-					elevation_ASA[i][itIdx][j] = new double[numOfRays_NLOS];
-					elevation_ASD[i][itIdx][j] = new double[numOfRays_NLOS];
-					for(int k = 0; k < numOfRays_NLOS; k++){
-						elevation_ASA[i][itIdx][j][k] = 90;
-						elevation_ASD[i][itIdx][j][k] = 90;
-					}
-				}
-				itIdx++;
 			}
 		}
 	} 
+	return zenithRays;
+}
 
-	// Generate random phases (7.3.17)
-	double *****randomPhase = new double****[numberOfMobileStations]; /*!< The random subpath phases uniformly from [0,2pi) */
-	double **randomPhase_LOS = new double*[numberOfMobileStations];	/*!< The random phase for the LOS component, taken uniformly from [0,2pi) */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		int itIdx = 1;
-		randomPhase[i] = new double***[neighbourPositions.size()];
-		randomPhase_LOS[i] = new double[neighbourPositions.size()];
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					randomPhase[i][0] = new double**[N_cluster_LOS];
-					randomPhase_LOS[i][0] = uniform(-1.0*pi, pi);
-			
-					for(int j = 0; j < N_cluster_LOS; j++){
-						randomPhase[i][0][j] = new double*[numOfRays_LOS];
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							randomPhase[i][0][j][k] = new double[4];
-							
-							for(int l = 0; l < 4; l++){
-								randomPhase[i][0][j][k][l] = uniform(-1.0*pi, pi);				// for the random phases of NLOS component in equation 7-61 of METIS 1.2	
-							}
-						}
-					}
-				} else {
-					randomPhase[i][0] = new double**[N_cluster_NLOS];
-			
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						randomPhase[i][0][j] = new double*[numOfRays_NLOS];
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							randomPhase[i][0][j][k] = new double[4];
-							
-							for(int l = 0; l < 4; l++){
-								randomPhase[i][0][j][k][l] = uniform(-1.0*pi, pi);				// for the random phases as in equation 7-59 of METIS 1.2 (one each for ThetaTheta, ThetaPhi, PhiTheta and PhiPhi)
-							}
-						}
+tuple<vector<vector<vector<vector<vector<double>>>>>,vector<vector<double>>>
+METISChannel::genRandomPhases(
+		const vector<vector<bool>>& LOSCondition
+		){
+	size_t numReceivers = LOSCondition.size();
+	size_t numSenders = LOSCondition[0].size();
+	vector<vector<vector<vector<vector<double>>>>> phases(numReceivers,
+			vector<vector<vector<vector<double>>>>(numSenders,
+				vector<vector<vector<double>>>()));
+	vector<vector<double>> phases_LOS(numReceivers,vector<double>(
+				numSenders));
+
+	int n_clusters;
+	int n_rays;
+	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j < numSenders; j++){
+			if(LOSCondition[i][j]){
+				n_clusters = N_cluster_LOS;
+				n_rays = numOfRays_LOS;
+			}
+			else{
+				n_clusters = N_cluster_NLOS;
+				n_rays = numOfRays_NLOS;
+			}
+			phases[i][j].resize(n_clusters,
+					vector<vector<double>>(n_rays,
+						vector<double>(4)));
+			phases_LOS[i][j] = uniform(-1.0*pi, pi);
+			for(int k = 0; k < n_clusters; k++){
+				for(int r = 0; r < n_rays; r++){
+					for(int l = 0; l < 4; l++){
+						phases[i][j][k][r][l] = uniform(-1.0*pi, pi);			// for the random phases of NLOS component in equation 7-61 of METIS 1.2
 					}
 				}
-			} else {
-				if(LOSCondition[i][itIdx]){
-					randomPhase[i][itIdx] = new double**[N_cluster_LOS];
-					randomPhase_LOS[i][itIdx] = uniform(-1.0*pi, pi);
-			
-					for(int j = 0; j < N_cluster_LOS; j++){
-						randomPhase[i][itIdx][j] = new double*[numOfRays_LOS];
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							randomPhase[i][itIdx][j][k] = new double[4];
-							
-							for(int l = 0; l < 4; l++){
-								randomPhase[i][itIdx][j][k][l] = uniform(-1.0*pi, pi);			// for the random phases of NLOS component in equation 7-61 of METIS 1.2
-							}
-						}
-					}
-				}else{
-					randomPhase[i][itIdx] = new double**[N_cluster_NLOS];
-			
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						randomPhase[i][itIdx][j] = new double*[numOfRays_NLOS];
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							randomPhase[i][itIdx][j][k] = new double[4];
-							
-							for(int l = 0; l < 4; l++){
-								randomPhase[i][itIdx][j][k][l] = uniform(-1.0*pi, pi);			// for the random phases as in equation 7-59 of METIS 1.2 (one each for ThetaTheta, ThetaPhi, PhiTheta and PhiPhi)
-							}
-						}
-					}
-				}
-				itIdx++;
 			}
 		}
 	}
-	
-	// Generate cross polarization values
-	double ****Xn_m = new double***[numberOfMobileStations]; /*!< Cross polarization values per ray */
-	for(int i = 0; i < numberOfMobileStations; i++){
-		Xn_m[i] = new double**[neighbourPositions.size()];
-		int id_BS =1;
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				if(LOSCondition[i][0]){
-					Xn_m[i][0] = new double*[N_cluster_LOS];
-					for(int j = 0; j < N_cluster_LOS; j++){
-						Xn_m[i][0][j] = new double[numOfRays_LOS];
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							Xn_m[i][0][j][k] = normal(XPR_Mean_LOS, pow(XPR_Std_LOS,2) );
-						}
-					}
-				} else {
-					Xn_m[i][0] = new double*[N_cluster_NLOS];
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						Xn_m[i][0][j] = new double[numOfRays_NLOS];
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							Xn_m[i][0][j][k] = normal(XPR_Mean_NLOS, pow(XPR_Std_NLOS,2) );
-						}
-					}
+	return std::make_tuple(phases,phases_LOS);
+}
+
+vector<vector<vector<vector<double>>>> METISChannel::genCrossPolarization(
+		vector<vector<bool>>& LOSCondition) {
+	size_t numReceivers = LOSCondition.size();
+	size_t numSenders = LOSCondition[0].size();
+	vector<vector<vector<vector<double>>>> xpv(numReceivers,
+			vector<vector<vector<double>>>(numSenders,
+				vector<vector<double>>()));
+
+	int n_clusters;
+	int n_rays;
+	for(size_t i = 0; i < numReceivers; i++){
+		for(size_t j = 0; j < numSenders; j++){
+			if(LOSCondition[i][j]){
+				n_clusters = N_cluster_LOS;
+				n_rays = numOfRays_LOS;
+			}
+			else{
+				n_clusters = N_cluster_NLOS;
+				n_rays = numOfRays_NLOS;
+			}
+			xpv[i][j].resize(n_clusters,vector<double>(n_rays));
+			for(int k = 0; k < n_clusters; k++){
+				for(int r = 0; r < n_rays; r++){
+					xpv[i][j][k][r] = normal(XPR_Mean_LOS, pow(XPR_Std_LOS,2) );
 				}
-			} else {
-				if(LOSCondition[i][id_BS]){
-					Xn_m[i][id_BS] = new double*[N_cluster_LOS];
-					for(int j = 0; j < N_cluster_LOS; j++){
-						Xn_m[i][id_BS][j] = new double[numOfRays_LOS];
-				
-						for(int k = 0; k < numOfRays_LOS; k++){
-							Xn_m[i][id_BS][j][k] = normal(XPR_Mean_LOS, pow(XPR_Std_LOS,2) );
-						}
-					}
-				} else {
-					Xn_m[i][id_BS] = new double*[N_cluster_NLOS];
-					for(int j = 0; j < N_cluster_NLOS; j++){
-						Xn_m[i][id_BS][j] = new double[numOfRays_NLOS];
-				
-						for(int k = 0; k < numOfRays_NLOS; k++){
-							Xn_m[i][id_BS][j][k] = normal(XPR_Mean_NLOS, pow(XPR_Std_NLOS,2) );
-						}
-					}
-				}
-				id_BS++;
 			}
 		}
 	}
-	
-	// Main Loop:
-	// TODO: allow Elevation Angle
-	// TODO: adjust for METIS
-	// TODO: add polarization case
-	//------------------------------------------------------------------
-		
-	// Compute all constant values only once:
-	
+	return xpv;
+}
+
+void METISChannel::computeRaySumCluster(
+		size_t numRays,
+		double prefactor,
+		double k_0,
+		const vector<double>& zenithASA,
+		const vector<double>& zenithASD,
+		const vector<double>& azimuthASA,
+		const vector<double>& azimuthASD,
+		const array<double,3>& senderAntennaPos,
+		const array<double,3>& receiverAntennaPos,
+		size_t receiverAntennaIndex,
+		size_t senderAntennaIndex,
+		const vector<vector<double>>& randomPhase,
+		vector<int> *subcluster,
+		vector<vector<vector<complex<double>>>>& raySum
+		){
+	double AoA[3];
+	double AoD[3];
+	complex<double> exp_arrival;
+	complex<double> exp_departure;
+	double receiverGain;
+	double senderGain;
+	complex<double> pol;
+	complex<double> doppler;
+	size_t rayIdx;
+	// Cycle through all NLOS Rays
+	for(size_t m = 0; m < numRays; m++){
+		rayIdx = (subcluster!=nullptr) ? (*subcluster)[m] : m;
+		AoA[0] = sin(zenithASA[rayIdx]*pi/180) * cos(azimuthASA[rayIdx]*pi/180);
+		AoA[1] = sin(zenithASA[rayIdx]*pi/180) * sin(azimuthASA[rayIdx]*pi/180);
+		AoA[2] = cos(zenithASA[rayIdx]*pi/180);
+
+		AoD[0] = sin(zenithASD[rayIdx]*pi/180) * cos(azimuthASD[rayIdx]*pi/180);
+		AoD[1] = sin(zenithASD[rayIdx]*pi/180) * sin(azimuthASD[rayIdx]*pi/180);
+		AoD[2] = cos(zenithASD[rayIdx]*pi/180);
+
+		exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * receiverAntennaPos[0] + AoA[1] * receiverAntennaPos[1] + AoA[2] * receiverAntennaPos[2])) );
+		exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * senderAntennaPos[0] + AoD[1] * senderAntennaPos[1] + AoD[2] * senderAntennaPos[2])) );
+
+		// TODO: Include Polarization
+		// Replacement for polarization. (Below 4.14)
+		//pol = exp( complex<double>(0,uniform(0,2*pi)));
+		receiverGain = getMSGain(azimuthASA[rayIdx]*pi/180, zenithASA[rayIdx]*pi/180);
+		senderGain = getBSGain(azimuthASD[rayIdx]*pi/180, zenithASD[rayIdx]*pi/180);
+		pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase[rayIdx][0]));
+
+		// Calculate Doppler component of final formula
+		// Formula: 
+		// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
+		// Where: 
+		// k_0 = wavenumber
+		// |v| = magnitude of velocity
+		// AoA = Azimuth Angle of Arrival
+		// AoMD = Azimuth Angle of MS Movement Direction
+		// t = time vector
+
+		// Cycle through the time axis (Formula 4.15)
+		for(int t = 0; t < timeSamples; t++){
+			// We do not have MS movement for the moment, so no doppler effect either
+			//doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][m]*pi/180 - AoMD) * timeVector[i][t] ) );
+			doppler = 1.0;
+			raySum[t][receiverAntennaIndex][senderAntennaIndex] += pol * doppler * exp_arrival * exp_departure;
+		} // End time axis							
+	} // End cycle Rays
+	for(int t = 0; t < timeSamples; t++){
+		raySum[t][receiverAntennaIndex][senderAntennaIndex] = prefactor * raySum[t][receiverAntennaIndex][senderAntennaIndex];
+	} 							
+}
+
+tuple<vector<vector<vector<vector<vector<vector<complex<double>>>>>>>,
+	vector<vector<vector<vector<vector<vector<complex<double>>>>>>>>
+METISChannel::computeRaySums(vector<vector<bool>>& LOSCondition,
+		const vector<vector<double>>& sigma_kf,
+		int numReceiverAntenna,
+		int numSenderAntenna,
+		const vector<vector<vector<double>>>& clusterPowers,
+		const vector<vector<vector<vector<double>>>>& azimuth_ASA,
+		const vector<vector<vector<vector<double>>>>& azimuth_ASD,
+		const vector<vector<vector<vector<double>>>>& elevation_ASA,
+		const vector<vector<vector<vector<double>>>>& elevation_ASD,
+		const vector<vector<array<double,3>>>& receiverAntennaPos,
+		const vector<vector<array<double,3>>>& senderAntennaPos,
+		const vector<vector<vector<vector<vector<double>>>>>& randomPhase,
+		const vector<vector<double>>& randomPhase_LOS,
+		const vector<vector<double>>& AoA_LOS_dir,
+		const vector<vector<double>>& ZoA_LOS_dir,
+		const vector<vector<double>>& AoD_LOS_dir,
+		const vector<vector<double>>& ZoD_LOS_dir
+		){
+	size_t numReceivers = LOSCondition.size();
+	size_t numSenders = LOSCondition[0].size();
+	vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum(
+			numReceivers,vector<vector<vector<vector<vector<complex<double>>>>>>(
+				numSenders,vector<vector<vector<vector<complex<double>>>>>(
+					N_cluster_NLOS + 4,vector<vector<vector<complex<double>>>>(
+						timeSamples,vector<vector<complex<double>>>(
+							numReceiverAntenna,vector<complex<double>>(
+								numSenderAntenna))))));
+	vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum_LOS(
+			numReceivers,vector<vector<vector<vector<vector<complex<double>>>>>>(
+				numSenders,vector<vector<vector<vector<complex<double>>>>>(
+					N_cluster_LOS + 4,vector<vector<vector<complex<double>>>>(
+						timeSamples,vector<vector<complex<double>>>(
+							numReceiverAntenna,vector<complex<double>>(
+								numSenderAntenna))))));
 	// Wavenumber k_0
 	double k_0 = (2 * pi) / (speedOfLight / freq_c);
 	
 	// Create all local variables:
 	complex<double> doppler, pol;
 	double sq_P_over_M;
-
-	// For LOS case:
-	complex<double> *****raySum_LOS = new complex<double>****[numberOfMobileStations];
-	int clusterIdx_LOS;
-	
-	for(int m = 0; m < numberOfMobileStations; m++){
-		// +4 Clusters, because 2 are subdivided into 6, resulting in 4 more.
-		raySum_LOS[m] = new complex<double>***[(N_cluster_LOS + 4)];
-		for(int i = 0; i < (N_cluster_LOS + 4); i++){
-			raySum_LOS[m][i] = new complex<double>**[timeSamples];
-			for(int j = 0; j < timeSamples; j++){
-				raySum_LOS[m][i][j] = new complex<double>*[NumRxAntenna];
-				for(int k = 0; k < NumRxAntenna; k++){
-					raySum_LOS[m][i][j][k] = new complex<double>[NumTxAntenna]();
-				}
-			}
-		}
-	}
-	// For NLOS case:
-	complex<double> *****raySum = new complex<double>****[numberOfMobileStations];
-	int clusterIdx;
-	for(int m = 0; m < numberOfMobileStations; m++){
-		// +4 Clusters, because 2 are subdivided into 6, resulting in 4 more.
-		raySum[m] = new complex<double>***[(N_cluster_NLOS + 4)];
-			for(int i = 0; i < (N_cluster_NLOS + 4); i++){
-			raySum[m][i] = new complex<double>**[timeSamples];
-			for(int j = 0; j < timeSamples; j++){
-				raySum[m][i][j] = new complex<double>*[NumRxAntenna];
-				for(int k = 0; k < NumRxAntenna; k++){
-					raySum[m][i][j][k] = new complex<double>[NumTxAntenna]();
-				}
-			}
-		}
-	}
-
-	// initialize arrays for interferer ray sums
-	complex<double> ******raySumInterferer_LOS;
-	complex<double> ******raySumInterferer;
-	if(numOfInterferers>0){
-		// Only compute values for interferers if there actually are any 
-		// interfering neighbours
-		raySumInterferer_LOS = new complex<double>*****[numberOfMobileStations];
-		for (int m = 0; m < numberOfMobileStations; m++){
-			raySumInterferer_LOS[m] = new complex<double>****[numOfInterferers];
-			for(int i = 0; i < numOfInterferers; i++){
-				raySumInterferer_LOS[m][i] = new complex<double>***[(N_cluster_LOS + 4)];
-				for(int j = 0; j < (N_cluster_LOS + 4); j++){
-					raySumInterferer_LOS[m][i][j] = new complex<double>**[timeSamples];
-					for(int k = 0; k < timeSamples; k++){
-						raySumInterferer_LOS[m][i][j][k] = new complex<double>*[NumRxAntenna];
-						for(int l = 0; l < NumRxAntenna; l++){
-							raySumInterferer_LOS[m][i][j][k][l] = new complex<double>[NumTxAntenna]();
-						}
-					}
-				}
-			}
-		}
-
-		raySumInterferer = new complex<double>*****[numberOfMobileStations];
-		for(int m = 0; m < numberOfMobileStations; m++){
-			// +4 Clusters, because 2 are subdivided into 6, resulting in 4 more.
-			raySumInterferer[m] = new complex<double>****[numOfInterferers];
-			for(int i = 0; i < numOfInterferers; i++){
-				raySumInterferer[m][i] = new complex<double>***[(N_cluster_NLOS + 4)];
-				for(int j = 0; j < (N_cluster_NLOS + 4); j++){
-					raySumInterferer[m][i][j] = new complex<double>**[timeSamples];
-					for(int k = 0; k < timeSamples; k++){
-						raySumInterferer[m][i][j][k] = new complex<double>*[NumRxAntenna];
-						for(int l = 0; l < NumRxAntenna; l++){
-							raySumInterferer[m][i][j][k][l] = new complex<double>[NumTxAntenna]();
-						}
-					}
-				}
-			}
-		}
-	}
-
-	std::cout << "START MAIN LOOP for BS: " << bsId << std::endl;
-	
 	double AoA[3];
 	double AoD[3];
 	double MSgain, BSgain;
-	int SC_1[10] = {0,1,2,3,4,5,6,7,18,19}; //rays for sub-cluster 1 of first two clusters
-	int SC_2[6] = {8,9,10,11,16,17}; //rays for sub-cluster 2 of first two clusters
-	int SC_3[4] = {12,13,14,15}; //rays for sub-cluster 3 of first two clusters
-	int size_SC_1 = sizeof(SC_1)/sizeof(*SC_1); //length of SC_1
-	int size_SC_2 = sizeof(SC_2)/sizeof(*SC_2); //length of SC_2
-	int size_SC_3 = sizeof(SC_3)/sizeof(*SC_3); //length of SC_3
+	vector<vector<int>> subclusters{{0,1,2,3,4,5,6,7,18,19},
+		{8,9,10,11,16,17},{12,13,14,15}};
 	
-	// Cycle through all MS, TODO: change the loop iteration for sub clusters as well as for proper link to link implementation
-	for(int i = 0; i < numberOfMobileStations; i++){
-		// Cycle through all interferer base stations
-		int idIdx = 1;
+	int n_clusters;
+	// Cycle through all MS 
+	for(size_t i = 0; i < numReceivers; i++){
+		// Cycle through all base stations
+		int clusterIdx;
+		int clusterIdx_LOS;
 		
-		// Convert Cartesian Direction to spherical azimuth angle
-		double AoMD = atan((MSVelDir[i][1] / MSVelDir[i][0]));
-		
-		for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-			if(it->first == bsId){
-				// NLOS CASE:
-				if(!LOSCondition[i][0]){
-					// Cycle through all Receiver antennas (MS)
-						std::cout << "NLOS" << std::endl;
-					for(int u = 0; u < NumRxAntenna; u++){
-						// Cycle through all Transmitter antennas (BS)
-						for(int s = 0; s < NumTxAntenna; s++){
-							// Cycle through all Paths/Clusters
-							clusterIdx = 0;
-							for(int n = 0; n < N_cluster_NLOS; n++){
-								int L;
-								double P_n[3]; // Oversized, but 2 doubles really doesnt matter
-								// Two strongest clusters are divided into 3 subclusters!
-								//std::cout << "C_Power: " << clusterPowers[i][0][n] << std::endl;
-								if(n < 2){
-									L = 3;
-									P_n[0] = 10.0/20.0 * clusterPowers[i][0][n];
-									P_n[1] =  6.0/20.0 * clusterPowers[i][0][n];
-									P_n[2] =  4.0/20.0 * clusterPowers[i][0][n];
-								}else{
-									L = 1;
-									P_n[0] = clusterPowers[i][0][n];
-								}
-								// Cycle through all subclusters (only a loop for cluster 1 and 2)
-								for(int l = 0; l < L; l++){
-									if (L == 3){
-										if (l == 0){ // for sub-cluster 1 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_1);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-											// Cycle through all NLOS Ray
-											for(int m = 0; m < size_SC_1; m++){		
-												AoA[0] = sin(elevation_ASA[i][0][n][SC_1[m]]*pi/180) * cos(azimuth_ASA[i][0][n][SC_1[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][0][n][SC_1[m]]*pi/180) * sin(azimuth_ASA[i][0][n][SC_1[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][0][n][SC_1[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][0][n][SC_1[m]]*pi/180) * cos(azimuth_ASD[i][0][n][SC_1[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][0][n][SC_1[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_1[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][0][n][SC_1[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2] )) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][0][n][SC_1[m]]*pi/180, elevation_ASA[i][0][n][SC_1[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][0][n][SC_1[m]]*pi/180, elevation_ASD[i][0][n][SC_1[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][SC_1[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][SC_1[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySum[i][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_1){
-														raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-														//std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
-											clusterIdx++;
-										} else if (l == 1){ // for sub-cluster 2 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_2);
-											// Cycle through all NLOS Rays
-											for(int m = 0; m < size_SC_2; m++){		
-												AoA[0] = sin(elevation_ASA[i][0][n][SC_2[m]]*pi/180) * cos(azimuth_ASA[i][0][n][SC_2[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][0][n][SC_2[m]]*pi/180) * sin(azimuth_ASA[i][0][n][SC_2[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][0][n][SC_2[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][0][n][SC_2[m]]*pi/180) * cos(azimuth_ASD[i][0][n][SC_2[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][0][n][SC_2[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_2[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][0][n][SC_2[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][0][n][SC_2[m]]*pi/180, elevation_ASA[i][0][n][SC_2[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][0][n][SC_2[m]]*pi/180, elevation_ASD[i][0][n][SC_2[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][SC_2[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][SC_2[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySum[i][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_2){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-														//std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
-											clusterIdx++;
-										} else { //for sub-cluster 3 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_3);
-											// Cycle through all NLOS Ray
-											for(int m = 0; m < size_SC_3; m++){		
-												AoA[0] = sin(elevation_ASA[i][0][n][SC_3[m]]*pi/180) * cos(azimuth_ASA[i][0][n][SC_3[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][0][n][SC_3[m]]*pi/180) * sin(azimuth_ASA[i][0][n][SC_3[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][0][n][SC_3[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][0][n][SC_3[m]]*pi/180) * cos(azimuth_ASD[i][0][n][SC_3[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][0][n][SC_3[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_3[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][0][n][SC_3[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][0][n][SC_3[m]]*pi/180, elevation_ASA[i][0][n][SC_3[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][0][n][SC_3[m]]*pi/180, elevation_ASD[i][0][n][SC_3[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][SC_3[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][SC_3[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySum[i][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_3){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-														//std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
-											clusterIdx++;
-										} //end if (for all sub-clusters)
-									}else{ // for all clusters from N = 3 onwards
-										sq_P_over_M = sqrt(P_n[l] / numOfRays_NLOS);
-										//std::cout << "P_n[i]: " << P_n[i] << std::endl;
-										//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-										// Cycle through all NLOS Rays
-										for(int m = 0; m < numOfRays_NLOS; m++){		
-											AoA[0] = sin(elevation_ASA[i][0][n][m]*pi/180) * cos(azimuth_ASA[i][0][n][m]*pi/180);
-											AoA[1] = sin(elevation_ASA[i][0][n][m]*pi/180) * sin(azimuth_ASA[i][0][n][m]*pi/180);
-											AoA[2] = cos(elevation_ASA[i][0][n][m]*pi/180);
-										
-											AoD[0] = sin(elevation_ASD[i][0][n][m]*pi/180) * cos(azimuth_ASD[i][0][n][m]*pi/180);
-											AoD[1] = sin(elevation_ASD[i][0][n][m]*pi/180) * sin(azimuth_ASD[i][0][n][m]*pi/180);
-											AoD[2] = cos(elevation_ASD[i][0][n][m]*pi/180);
-										
-											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-											// TODO: Include Polarization
-											// Replacement for polarization. (Below 4.14)
-											//pol = exp( complex<double>(0,uniform(0,2*pi)));
-											MSgain = getMSGain(azimuth_ASA[i][0][n][m]*pi/180, elevation_ASA[i][0][n][m]*pi/180);
-											BSgain = getBSGain(azimuth_ASD[i][0][n][m]*pi/180, elevation_ASD[i][0][n][m]*pi/180);
-											pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][m][0]));
-										
-											// Calculate Doppler component of final formula
-											// Formula: 
-											// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-											// Where: 
-											// k_0 = wavenumber
-											// |v| = magnitude of velocity
-											// AoA = Azimuth Angle of Arrival
-											// AoMD = Azimuth Angle of MS Movement Direction
-											// t = time vector
-										
-											// Cycle through the time axis (Formula 4.15)
-											for(int t = 0; t < timeSamples; t++){
-												//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-												doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][m]*pi/180 - AoMD) * timeVector[i][t] ) );
-												//std::cout << "Doppler: " << doppler << std::endl;
-												raySum[i][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-												if(m + 1 == numOfRays_NLOS){
-													//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-													raySum[i][clusterIdx][t][u][s] = sq_P_over_M * raySum[i][clusterIdx][t][u][s];
-													//std::cout << "raySum[i][clusterIdx][t][u][s]: " << raySum[i][clusterIdx][t][u][s] << std::endl;
-												}
-											} // End time axis							
-										} // End cycle Rays
-										clusterIdx++;
-									} //End if
-								} // End cycle Subclusters
-							} // End cycle Clusters
-						} // End BS antenna
-					} // End MS antenna
-				}else{
-					// LOS case, TODO: correct the computation of raySum_LOS
-					// Cycle through all Receiver antennas (MS)
-					std::cout<< "LOS" << std::endl;
-					for(int u = 0; u < NumRxAntenna; u++){
-						// Cycle through all Transmitter antennas (BS)
-						for(int s = 0; s < NumTxAntenna; s++){
-							// Cycle through all Paths/Clusters
-							clusterIdx_LOS = 0;
-							for(int n = 0; n < N_cluster_LOS; n++){
-								int L;
-								double P_n[3]; // Oversized, but 2 doubles really doesnt matter
-								// Two strongest clusters are divided into 3 subclusters!
-								//std::cout << "C_Power: " << clusterPowers[i][0][n] << std::endl;
-								if(n < 2){
-									L = 3;
-									P_n[0] = 10.0/20.0 * clusterPowers[i][0][n];
-									P_n[1] =  6.0/20.0 * clusterPowers[i][0][n];
-									P_n[2] =  4.0/20.0 * clusterPowers[i][0][n];
-								}else{
-									L = 1;
-									P_n[0] = clusterPowers[i][0][n];
-								}
-								// Cycle through all subclusters (only a loop for cluster 1 and 2)
-								for(int l = 0; l < L; l++){
-									if (L == 3){
-										if (l == 0){ // for sub-cluster 1 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_1);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-											// Cycle through all LOS Rays
-											for(int m = 0; m < size_SC_1; m++){		
-												AoA[0] = sin(elevation_ASA[i][0][n][SC_1[m]]*pi/180) * cos(azimuth_ASA[i][0][n][SC_1[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][0][n][SC_1[m]]*pi/180) * sin(azimuth_ASA[i][0][n][SC_1[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][0][n][SC_1[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][0][n][SC_1[m]]*pi/180) * cos(azimuth_ASD[i][0][n][SC_1[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][0][n][SC_1[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_1[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][0][n][SC_1[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][0][n][SC_1[m]]*pi/180, elevation_ASA[i][0][n][SC_1[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][0][n][SC_1[m]]*pi/180, elevation_ASD[i][0][n][SC_1[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][SC_1[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][SC_1[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySum_LOS[i][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_1){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														double K = sigma_kf_LOS[i][0]; 
-														raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-														//std::cout << "raySum_LOS[i][clusterIdx][t][u][s]: " << raySum_LOS[i][clusterIdx][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
-											clusterIdx_LOS++;
-										} else if (l == 1){ // for sub-cluster 2 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_2);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-											// Cycle through all LOS Rays
-											for(int m = 0; m < size_SC_2; m++){		
-												AoA[0] = sin(elevation_ASA[i][0][n][SC_2[m]]*pi/180) * cos(azimuth_ASA[i][0][n][SC_2[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][0][n][SC_2[m]]*pi/180) * sin(azimuth_ASA[i][0][n][SC_2[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][0][n][SC_2[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][0][n][SC_2[m]]*pi/180) * cos(azimuth_ASD[i][0][n][SC_2[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][0][n][SC_2[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_2[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][0][n][SC_2[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][0][n][SC_2[m]]*pi/180, elevation_ASA[i][0][n][SC_2[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][0][n][SC_2[m]]*pi/180, elevation_ASD[i][0][n][SC_2[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][SC_2[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][SC_2[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySum_LOS[i][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_2){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														double K = sigma_kf_LOS[i][0]; 
-														raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-														//std::cout << "raySum_LOS[i][clusterIdx_LOS][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
-											clusterIdx_LOS++;
-										} else { //for sub-cluster 3 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_3);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-											// Cycle through all LOS Rays
-											for(int m = 0; m < size_SC_3; m++){		
-												AoA[0] = sin(elevation_ASA[i][0][n][SC_3[m]]*pi/180) * cos(azimuth_ASA[i][0][n][SC_3[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][0][n][SC_3[m]]*pi/180) * sin(azimuth_ASA[i][0][n][SC_3[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][0][n][SC_3[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][0][n][SC_3[m]]*pi/180) * cos(azimuth_ASD[i][0][n][SC_3[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][0][n][SC_3[m]]*pi/180) * sin(azimuth_ASD[i][0][n][SC_3[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][0][n][SC_3[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][0][n][SC_3[m]]*pi/180, elevation_ASA[i][0][n][SC_3[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][0][n][SC_3[m]]*pi/180, elevation_ASD[i][0][n][SC_3[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][SC_3[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][SC_3[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySum_LOS[i][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_3){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														double K = sigma_kf_LOS[i][0]; 
-														raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-														//std::cout << "raySum_LOS[i][clusterIdx_LOS][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
-											clusterIdx_LOS++;
-										} //end if (for all sub-clusters)
-									}else{ // for all clusters from N = 3 onwards
-										sq_P_over_M = sqrt(P_n[l] / numOfRays_LOS);
-										//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-										//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-										// Cycle through all LOS Rays
-										for(int m = 0; m < numOfRays_LOS; m++){		
-											AoA[0] = sin(elevation_ASA[i][0][n][m]*pi/180) * cos(azimuth_ASA[i][0][n][m]*pi/180);
-											AoA[1] = sin(elevation_ASA[i][0][n][m]*pi/180) * sin(azimuth_ASA[i][0][n][m]*pi/180);
-											AoA[2] = cos(elevation_ASA[i][0][n][m]*pi/180);
-										
-											AoD[0] = sin(elevation_ASD[i][0][n][m]*pi/180) * cos(azimuth_ASD[i][0][n][m]*pi/180);
-											AoD[1] = sin(elevation_ASD[i][0][n][m]*pi/180) * sin(azimuth_ASD[i][0][n][m]*pi/180);
-											AoD[2] = cos(elevation_ASD[i][0][n][m]*pi/180);
-										
-											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-											// TODO: Include Polarization
-											// Replacement for polarization. (Below 4.14)
-											//pol = exp( complex<double>(0,uniform(0,2*pi)));
-											MSgain = getMSGain(azimuth_ASA[i][0][n][m]*pi/180, elevation_ASA[i][0][n][m]*pi/180);
-											BSgain = getBSGain(azimuth_ASD[i][0][n][m]*pi/180, elevation_ASD[i][0][n][m]*pi/180);
-											pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][0][n][m][0]));
-										
-											// Calculate Doppler component of final formula
-											// Formula: 
-											// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-											// Where: 
-											// k_0 = wavenumber
-											// |v| = magnitude of velocity
-											// AoA = Azimuth Angle of Arrival
-											// AoMD = Azimuth Angle of MS Movement Direction
-											// t = time vector
-										
-											// Cycle through the time axis (Formula 4.15)
-											for(int t = 0; t < timeSamples; t++){
-												//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-												doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][m]*pi/180 - AoMD) * timeVector[i][t] ) );
-												//std::cout << "Doppler: " << doppler << std::endl;
-												raySum_LOS[i][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-												if(m + 1 == numOfRays_LOS){
-													//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-													double K = sigma_kf_LOS[i][0]; 
-													raySum_LOS[i][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySum_LOS[i][clusterIdx_LOS][t][u][s];
-													//std::cout << "raySum_LOS[i][clusterIdx_LOS][t][u][s]: " << raySum_LOS[i][clusterIdx_LOS][t][u][s] << std::endl;
-												}
-											} // End time axis							
-										} // End cycle Rays
-										clusterIdx_LOS++;
-									}//end if
-								} // End cycle Subclusters
+		for(size_t j=0; j<numSenders; j++){
+			double K = sigma_kf[i][j]; 
+			// Cycle through all Receiver antennas (MS)
+			for(int u = 0; u < numReceiverAntenna; u++){
+				// Cycle through all Transmitter antennas (BS)
+				for(int s = 0; s < numSenderAntenna; s++){
+					// Cycle through all Paths/Clusters
+					clusterIdx = 0;
+					clusterIdx_LOS = 0;
+					if(!LOSCondition[i][j]){
+						n_clusters = N_cluster_NLOS;
+					}
+					else{
+						n_clusters = N_cluster_LOS;
+					}
+					double P_n[3]; // Oversized, but 2 doubles really doesnt matter
+					for(int n = 0; n < 2; n++){
+						P_n[0] = 10.0/20.0 * clusterPowers[i][j][n];
+						P_n[1] =  6.0/20.0 * clusterPowers[i][j][n];
+						P_n[2] =  4.0/20.0 * clusterPowers[i][j][n];
+						int id_subclust = 0;
+						for(vector<int> &clust:subclusters){
+							if(!LOSCondition[i][j]){
+								sq_P_over_M = sqrt(P_n[id_subclust] / clust.size());
+								computeRaySumCluster(clust.size(),
+										sq_P_over_M,
+										k_0,
+										elevation_ASA[i][j][n],
+										elevation_ASD[i][j][n],
+										azimuth_ASA[i][j][n],
+										azimuth_ASD[i][j][n],
+										senderAntennaPos[j][s],
+										receiverAntennaPos[i][u],
+										u,
+										s,
+										randomPhase[i][j][n],
+										&clust,
+										raySum[i][j][clusterIdx]
+										);
+								clusterIdx++;
+							}
+							else{
+								sq_P_over_M = (sqrt(1/(K + 1))) * sqrt(P_n[id_subclust] / clust.size());
+								computeRaySumCluster(clust.size(),
+										sq_P_over_M,
+										k_0,
+										elevation_ASA[i][j][n],
+										elevation_ASD[i][j][n],
+										azimuth_ASA[i][j][n],
+										azimuth_ASD[i][j][n],
+										senderAntennaPos[j][s],
+										receiverAntennaPos[i][u],
+										u,
+										s,
+										randomPhase[i][j][n],
+										&clust,
+										raySum_LOS[i][j][clusterIdx_LOS]
+										);
+								clusterIdx_LOS++;
 								if(n == 0){ // for adding the additional LOS component, according to formula 7-61 in METIS 1.2
-									std::cout << "n: " << n << " LOS Computation for MS " << i << " and BS 0 " << std::endl;
-									double K = sigma_kf_LOS[i][0]; 						// K-factor in linear scale 
-									AoA[0] = sin(ZoA_LOS_dir[i][0]) * cos(AoA_LOS_dir[i][0]);
-									AoA[1] = sin(ZoA_LOS_dir[i][0]) * sin(AoA_LOS_dir[i][0]);
-									AoA[2] = cos(ZoA_LOS_dir[i][0]);
-										
-									AoD[0] = sin(ZoD_LOS_dir[i][0]) * cos(AoD_LOS_dir[i][0]);
-									AoD[1] = sin(ZoD_LOS_dir[i][0]) * sin(AoD_LOS_dir[i][0]);
-									AoD[2] = cos(ZoD_LOS_dir[i][0]);
-										
-									complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-									complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-									// TODO: Include Polarization in generic form
-									// Replacement for polarization. (Below 4.14)
-									//pol = exp( complex<double>(0,uniform(0,2*pi)));
-									MSgain = getMSGain(AoA_LOS_dir[i][0], ZoA_LOS_dir[i][0]);
-									BSgain = getBSGain(AoD_LOS_dir[i][0], ZoD_LOS_dir[i][0]);
-									pol = MSgain * BSgain * exp(complex<double>(0, randomPhase_LOS[i][0]));
-										
-									// Calculate Doppler component of final formula
-									// Formula: 
-									// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-									// Where: 
-									// k_0 = wavenumber
-									// |v| = magnitude of velocity
-									// AoA = Azimuth Angle of Arrival
-									// AoMD = Azimuth Angle of MS Movement Direction
-									// t = time vector
-										
+									AoA[0] = sin(ZoA_LOS_dir[i][j]) * cos(AoA_LOS_dir[i][j]);
+									AoA[1] = sin(ZoA_LOS_dir[i][j]) * sin(AoA_LOS_dir[i][j]);
+									AoA[2] = cos(ZoA_LOS_dir[i][j]);
+
+									AoD[0] = sin(ZoD_LOS_dir[i][j]) * cos(AoD_LOS_dir[i][j]);
+									AoD[1] = sin(ZoD_LOS_dir[i][j]) * sin(AoD_LOS_dir[i][j]);
+									AoD[2] = cos(ZoD_LOS_dir[i][j]);
+
+									complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * receiverAntennaPos[i][u][0] + AoA[1] * receiverAntennaPos[i][u][1] + AoA[2] * receiverAntennaPos[i][u][2])) );
+									complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * senderAntennaPos[j][s][0] + AoD[1] * senderAntennaPos[j][s][1] + AoD[2] * senderAntennaPos[j][s][2])) );
+
+									MSgain = getMSGain(AoA_LOS_dir[i][j], ZoA_LOS_dir[i][j]);
+									BSgain = getBSGain(AoD_LOS_dir[i][j], ZoD_LOS_dir[i][j]);
+									pol = MSgain * BSgain * exp(complex<double>(0, randomPhase_LOS[i][j]));
+
 									// Cycle through the time axis (Formula 4.15)
 									for(int t = 0; t < timeSamples; t++){
-										//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-										doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(AoA_LOS_dir[i][0] - AoMD) * timeVector[i][t] ) );
-										//std::cout << "Doppler: " << doppler << std::endl;
-										raySum_LOS[i][0][t][u][s] += (sqrt(K / (K + 1))) * pol * doppler * exp_arrival * exp_departure;
+										//doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(AoA_LOS_dir[i][idIdx] - AoMD) * timeVector[i][t] ) );
+										doppler = 1.0;
+										raySum_LOS[i][j][0][t][u][s] += (sqrt(K / (K + 1))) * pol * doppler * exp_arrival * exp_departure;
 									} // End time axis
 								}
-							} // End cycle Clusters
-						} // End BS antenna
-					} // End MS antenna
-				} //End if for own BS
-			}else{
-				// calculate interferer
-				// NLOS CASE:
-				if(!LOSCondition[i][idIdx]){
-					// Cycle through all Receiver antennas (MS)
-					for(int u = 0; u < NumRxAntenna; u++){
-						// Cycle through all Transmitter antennas (BS)
-						for(int s = 0; s < NumTxAntenna; s++){
-							// Cycle through all Paths/Clusters
-							clusterIdx = 0;
-							for(int n = 0; n < N_cluster_NLOS; n++){
-								int L;
-								double P_n[3]; // Oversized, but 2 doubles really doesnt matter
-								// Two strongest clusters are divided into 3 subclusters!
-								if(n < 2){
-									L = 3;
-									P_n[0] = 10.0/20.0 * clusterPowers[i][idIdx][n];
-									P_n[1] =  6.0/20.0 * clusterPowers[i][idIdx][n];
-									P_n[2] =  4.0/20.0 * clusterPowers[i][idIdx][n];
+							}
+							id_subclust++;
+						}
+					}
+					double P;
+					for(int n = 2; n < n_clusters; n++){
+						P = clusterPowers[i][j][n];
+						if(!LOSCondition[i][j]){
+							sq_P_over_M = sqrt(P / numOfRays_NLOS);
+							// Cycle through all NLOS Ray
+							computeRaySumCluster(numOfRays_NLOS,
+									sq_P_over_M,
+									k_0,
+									elevation_ASA[i][j][n],
+									elevation_ASD[i][j][n],
+									azimuth_ASA[i][j][n],
+									azimuth_ASD[i][j][n],
+									senderAntennaPos[j][s],
+									receiverAntennaPos[i][u],
+									u,
+									s,
+									randomPhase[i][j][n],
+									nullptr,
+									raySum[i][j][clusterIdx]
+									);
+							clusterIdx++;
+						}
+						else{
+							sq_P_over_M = (sqrt(1/(K + 1))) * sqrt(P / numOfRays_LOS);
+							// Cycle through all LOS Rays
+							computeRaySumCluster(numOfRays_LOS,
+									sq_P_over_M,
+									k_0,
+									elevation_ASA[i][j][n],
+									elevation_ASD[i][j][n],
+									azimuth_ASA[i][j][n],
+									azimuth_ASD[i][j][n],
+									senderAntennaPos[j][s],
+									receiverAntennaPos[i][u],
+									u,
+									s,
+									randomPhase[i][j][n],
+									nullptr,
+									raySum_LOS[i][j][clusterIdx_LOS]
+									);
+							clusterIdx_LOS++;
+						}
+					} // End cycle Clusters
+//					if(i==2){
+//						for(size_t clust=0; clust<raySum[i][j].size(); clust++){
+//							for(size_t t=0; t<raySum[i][j][clust].size(); t++){
+//								std::cout << "Ray Sum " << i << "," << j << "," << clust << "," << t << "," << u << "," << s << ": " << raySum[i][j][clust][t][u][s] << std::endl;
+//							}
+//							
+//						}
+//					}
+				} // End Sender antenna
+			} // End Receiver antenna
+		} //End loop for all Senders
+	} // End Links/Receivers
+
+	return std::make_tuple(std::move(raySum),std::move(raySum_LOS));
+}
+
+vector<vector<vector<vector<double>>>> METISChannel::computeCoeffs(
+		const vector<vector<bool>>& LOSCondition,
+		const vector<Position>& receiverPos,
+		const vector<Position>& senderPos,
+		double heightReceivers,
+		double heightSenders,
+		int numRBs,
+		int numReceiverAntenna,
+		int numSenderAntenna,
+		const vector<vector<vector<vector<vector<vector<complex<double>>>>>>>& raySum,
+		const vector<vector<vector<vector<vector<vector<complex<double>>>>>>>& raySum_LOS,
+		const vector<vector<vector<double>>>& clusterDelays,
+		const vector<vector<vector<double>>>& clusterDelays_LOS
+		){
+	size_t numReceivers = receiverPos.size();
+	size_t numSenders = senderPos.size();
+	vector<vector<vector<vector<double>>>> coeffs(numReceivers,
+			vector<vector<vector<double>>>(
+				numSenders,vector<vector<double>>(
+					timeSamples,vector<double>(numRBs))));
+	double pathloss, dist3D, dist2D;
+	int n_clusters;
+	
+	double delay_SC_1 = 5 * pow(10,-9); // delay for sub-cluster 1 (7-60)
+	double delay_SC_2 = 10 * pow(10,-9); // delay for sub-cluster 2 (7-60)
+	const vector<double> *delays;
+	const vector<vector<vector<vector<complex<double>>>>> *sum;
+	
+	for(size_t i = 0; i < numReceivers; i++){ //TODO: Correct the implementation for each Tx-Rx antenna
+		//Fourier Transform for interferers:
+		for(size_t idIdx = 0; idIdx<numSenders; idIdx++){
+			dist2D = sqrt(pow((senderPos[idIdx].x - receiverPos[i].x),2) + pow((senderPos[idIdx].y - receiverPos[i].y),2));
+			dist3D = sqrt(pow(dist2D,2) + pow((heightSenders - heightReceivers),2));
+			complex<double> res = complex<double>(0.0,0.0);
+			pathloss = CalcPathloss(dist2D, dist3D, LOSCondition[i][idIdx]);
+			for(int t = 0; t < timeSamples; t++){
+				for(int f = 0; f < numRBs; f++){
+					double freq_ = freq_c + f*180000;
+					res = complex<double>(0.0,0.0);
+					if(LOSCondition[i][idIdx]){
+						n_clusters = N_cluster_LOS;
+						delays = &clusterDelays_LOS[i][idIdx];
+						sum = &raySum_LOS[i][idIdx];
+					}
+					else{
+						n_clusters = N_cluster_NLOS;
+						delays = &clusterDelays[i][idIdx];
+						sum = &raySum[i][idIdx];
+					}
+					for(int u = 0; u < numReceiverAntenna; u++){
+						for(int s = 0; s < numSenderAntenna; s++){
+							for(int n = 0; n < n_clusters; n++){
+								if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
+									res = res + (*sum)[n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (*delays)[n]) );
+									res = res + (*sum)[n+1][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n] + delay_SC_1)) );
+									res = res + (*sum)[n+2][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n] + delay_SC_2)) );
+									res = res + (*sum)[n+3][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (*delays)[n+1]) );
+									res = res + (*sum)[n+4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n+1] + delay_SC_1)) );
+									res = res + (*sum)[n+5][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n+1] + delay_SC_2)) );
+									n++;
 								}else{
-									L = 1;
-									P_n[0] = clusterPowers[i][idIdx][n];
+									res = res + (*sum)[n + 4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (*delays)[n]) );
 								}
-								// Cycle through all subclusters (only a loop for cluster 1 and 2)
-								for(int l = 0; l < L; l++){
-									if (L == 3){
-										if (l == 0){ // for sub-cluster 1 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_1);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-											// Cycle through all NLOS Ray
-											for(int m = 0; m < size_SC_1; m++){		
-												AoA[0] = sin(elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180) * cos(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180) * sin(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180) * cos(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180, elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180, elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][SC_1[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_1){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] = sq_P_over_M * raySumInterferer[i][idIdx-1][clusterIdx][t][u][s];
-														//std::cout << "raySumInterferer[i][clusterIdx][t][u][s]: " << raySumInterferer[i][clusterIdx][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
-											clusterIdx++;
-										} else if (l == 1){ // for sub-cluster 2 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_2);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-											// Cycle through all NLOS Ray
-											for(int m = 0; m < size_SC_2; m++){		
-												AoA[0] = sin(elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180) * cos(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180) * sin(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180) * cos(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180, elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180, elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][SC_2[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_2){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] = sq_P_over_M * raySumInterferer[i][idIdx-1][clusterIdx][t][u][s];
-														//std::cout << "raySumInterferer[i][clusterIdx][t][u][s]: " << raySumInterferer[i][clusterIdx][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
-											clusterIdx++;
-										} else { //for sub-cluster 3 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_3);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-											// Cycle through all NLOS Ray
-											for(int m = 0; m < size_SC_3; m++){		
-												AoA[0] = sin(elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180) * cos(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180) * sin(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180) * cos(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180, elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180, elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][SC_3[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_3){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] = sq_P_over_M * raySumInterferer[i][idIdx-1][clusterIdx][t][u][s];
-														//std::cout << "raySumInterferer[i][clusterIdx][t][u][s]: " << raySumInterferer[i][clusterIdx][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
-											clusterIdx++;
-										} //end if (for all sub-clusters)
-									}else{ // for all clusters from N = 3 onwards
-										sq_P_over_M = sqrt(P_n[l] / numOfRays_NLOS);
-										//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-										//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-										// Cycle through all NLOS Ray
-										for(int m = 0; m < numOfRays_NLOS; m++){		
-											AoA[0] = sin(elevation_ASA[i][idIdx][n][m]*pi/180) * cos(azimuth_ASA[i][idIdx][n][m]*pi/180);
-											AoA[1] = sin(elevation_ASA[i][idIdx][n][m]*pi/180) * sin(azimuth_ASA[i][idIdx][n][m]*pi/180);
-											AoA[2] = cos(elevation_ASA[i][idIdx][n][m]*pi/180);
-										
-											AoD[0] = sin(elevation_ASD[i][idIdx][n][m]*pi/180) * cos(azimuth_ASD[i][idIdx][n][m]*pi/180);
-											AoD[1] = sin(elevation_ASD[i][idIdx][n][m]*pi/180) * sin(azimuth_ASD[i][idIdx][n][m]*pi/180);
-											AoD[2] = cos(elevation_ASD[i][idIdx][n][m]*pi/180);
-										
-											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-											// TODO: Include Polarization
-											// Replacement for polarization. (Below 4.14)
-											//pol = exp( complex<double>(0,uniform(0,2*pi)));
-											MSgain = getMSGain(azimuth_ASA[i][idIdx][n][m]*pi/180, elevation_ASA[i][idIdx][n][m]*pi/180);
-											BSgain = getBSGain(azimuth_ASD[i][idIdx][n][m]*pi/180, elevation_ASD[i][idIdx][n][m]*pi/180);
-											pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][m][0]));
-										
-											// Calculate Doppler component of final formula
-											// Formula: 
-											// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-											// Where: 
-											// k_0 = wavenumber
-											// |v| = magnitude of velocity
-											// AoA = Azimuth Angle of Arrival
-											// AoMD = Azimuth Angle of MS Movement Direction
-											// t = time vector
-										
-											// Cycle through the time axis (Formula 4.15)
-											for(int t = 0; t < timeSamples; t++){
-												//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-												doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][m]*pi/180 - AoMD) * timeVector[i][t] ) );
-												//std::cout << "Doppler: " << doppler << std::endl;
-												raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-												if(m + 1 == numOfRays_NLOS){
-													//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-													raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] = sq_P_over_M * raySumInterferer[i][idIdx-1][clusterIdx][t][u][s];
-													//std::cout << "raySumInterferer[i][idIdx-1][clusterIdx][t][u][s]: " << raySumInterferer[i][idIdx-1][clusterIdx][t][u][s] << std::endl;
-												}
-											} // End time axis							
-										} // End cycle Rays
-										clusterIdx++;
-									}//end if
-								} // End cycle Subclusters
-							} // End cycle Clusters
-						} // End BS antenna
-					} // End MS antenna
-				}else{
-					// LOS case,
-					// Cycle through all Receiver antennas (MS)
-					for(int u = 0; u < NumRxAntenna; u++){
-						// Cycle through all Transmitter antennas (BS)
-						for(int s = 0; s < NumTxAntenna; s++){
-							// Cycle through all Paths/Clusters
-							clusterIdx_LOS = 0;
-							for(int n = 0; n < N_cluster_LOS; n++){
-								int L;
-								double P_n[3]; // Oversized, but 2 doubles really doesnt matter
-								// Two strongest clusters are divided into 3 subclusters!
-								if(n < 2){
-									L = 3;
-									P_n[0] = 10.0/20.0 * clusterPowers[i][idIdx][n];
-									P_n[1] =  6.0/20.0 * clusterPowers[i][idIdx][n];
-									P_n[2] =  4.0/20.0 * clusterPowers[i][idIdx][n];
-								}else{
-									L = 1;
-									P_n[0] = clusterPowers[i][idIdx][n];
-								}
-								// Cycle through all subclusters (only a loop for cluster 1 and 2)
-								for(int l = 0; l < L; l++){
-									if (L == 3){
-										if (l == 0){ // for sub-cluster 1 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_1);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-											// Cycle through all LOS Rays
-											for(int m = 0; m < size_SC_1; m++){		
-												AoA[0] = sin(elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180) * cos(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180) * sin(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180) * cos(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180, elevation_ASA[i][idIdx][n][SC_1[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][idIdx][n][SC_1[m]]*pi/180, elevation_ASD[i][idIdx][n][SC_1[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][SC_1[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][SC_1[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_1){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														double K = sigma_kf_LOS[i][idIdx]; 
-														raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s];
-														//std::cout << "raySumInterferer_LOS[i][idIdx-1][clusterIdx][t][u][s]: " << raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
-											clusterIdx_LOS++;
-										} else if (l == 1){ // for sub-cluster 2 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_2);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-											// Cycle through all LOS Rays
-											for(int m = 0; m < size_SC_2; m++){		
-												AoA[0] = sin(elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180) * cos(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180) * sin(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180) * cos(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180, elevation_ASA[i][idIdx][n][SC_2[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][idIdx][n][SC_2[m]]*pi/180, elevation_ASD[i][idIdx][n][SC_2[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][SC_2[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][SC_2[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_2){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														double K = sigma_kf_LOS[i][idIdx]; 
-														raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s];
-														//std::cout << "raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s]: " << raySumInterferer[i][idIdx-1][clusterIdx_LOS][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
-											clusterIdx_LOS++;
-										} else { //for sub-cluster 3 of first two clusters
-											sq_P_over_M = sqrt(P_n[l] / size_SC_3);
-											//std::cout << "P_n[l]: " << P_n[l] << std::endl;
-											//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-											// Cycle through all LOS Rays
-											for(int m = 0; m < size_SC_3; m++){		
-												AoA[0] = sin(elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180) * cos(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-												AoA[1] = sin(elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180) * sin(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-												AoA[2] = cos(elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-										
-												AoD[0] = sin(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180) * cos(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-												AoD[1] = sin(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180) * sin(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-												AoD[2] = cos(elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-										
-												complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-												complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-												// TODO: Include Polarization
-												// Replacement for polarization. (Below 4.14)
-												//pol = exp( complex<double>(0,uniform(0,2*pi)));
-												MSgain = getMSGain(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180, elevation_ASA[i][idIdx][n][SC_3[m]]*pi/180);
-												BSgain = getBSGain(azimuth_ASD[i][idIdx][n][SC_3[m]]*pi/180, elevation_ASD[i][idIdx][n][SC_3[m]]*pi/180);
-												pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][SC_3[m]][0]));
-										
-												// Calculate Doppler component of final formula
-												// Formula: 
-												// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-												// Where: 
-												// k_0 = wavenumber
-												// |v| = magnitude of velocity
-												// AoA = Azimuth Angle of Arrival
-												// AoMD = Azimuth Angle of MS Movement Direction
-												// t = time vector
-										
-												// Cycle through the time axis (Formula 4.15)
-												for(int t = 0; t < timeSamples; t++){
-													//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-													doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][SC_3[m]]*pi/180 - AoMD) * timeVector[i][t] ) );
-													//std::cout << "Doppler: " << doppler << std::endl;
-													raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-													if(m + 1 == size_SC_3){
-														//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-														double K = sigma_kf_LOS[i][idIdx]; 
-														raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s];
-														//std::cout << "raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s]: " << raySumInterferer[i][idIdx-1][clusterIdx_LOS][t][u][s] << std::endl;
-													}
-												} // End time axis							
-											} // End cycle Rays
-											clusterIdx_LOS++;
-										} //end if (for all sub-clusters)
-									}else{ // for all clusters from N = 3 onwards
-										sq_P_over_M = sqrt(P_n[l] / numOfRays_LOS);
-										//std::cout << "P_n[i]: " << P_n[i] << std::endl;
-										//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-										// Cycle through all LOS Rays
-										for(int m = 0; m < numOfRays_LOS; m++){		
-											AoA[0] = sin(elevation_ASA[i][idIdx][n][m]*pi/180) * cos(azimuth_ASA[i][idIdx][n][m]*pi/180);
-											AoA[1] = sin(elevation_ASA[i][idIdx][n][m]*pi/180) * sin(azimuth_ASA[i][idIdx][n][m]*pi/180);
-											AoA[2] = cos(elevation_ASA[i][idIdx][n][m]*pi/180);
-										
-											AoD[0] = sin(elevation_ASD[i][idIdx][n][m]*pi/180) * cos(azimuth_ASD[i][idIdx][n][m]*pi/180);
-											AoD[1] = sin(elevation_ASD[i][idIdx][n][m]*pi/180) * sin(azimuth_ASD[i][idIdx][n][m]*pi/180);
-											AoD[2] = cos(elevation_ASD[i][idIdx][n][m]*pi/180);
-										
-											complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-											complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-											// TODO: Include Polarization
-											// Replacement for polarization. (Below 4.14)
-											//pol = exp( complex<double>(0,uniform(0,2*pi)));
-											MSgain = getMSGain(azimuth_ASA[i][idIdx][n][m]*pi/180, elevation_ASA[i][idIdx][n][m]*pi/180);
-											BSgain = getBSGain(azimuth_ASD[i][idIdx][n][m]*pi/180, elevation_ASD[i][idIdx][n][m]*pi/180);
-											pol = MSgain * BSgain * exp(complex<double>(0, randomPhase[i][idIdx][n][m][0]));
-										
-											// Calculate Doppler component of final formula
-											// Formula: 
-											// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-											// Where: 
-											// k_0 = wavenumber
-											// |v| = magnitude of velocity
-											// AoA = Azimuth Angle of Arrival
-											// AoMD = Azimuth Angle of MS Movement Direction
-											// t = time vector
-										
-											// Cycle through the time axis (Formula 4.15)
-											for(int t = 0; t < timeSamples; t++){
-												//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-												doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][idIdx][n][m]*pi/180 - AoMD) * timeVector[i][t] ) );
-												//std::cout << "Doppler: " << doppler << std::endl;
-												raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] += pol * doppler * exp_arrival * exp_departure;
-												if(m + 1 == numOfRays_LOS){
-													//std::cout << "sq_P_over_M: " << sq_P_over_M << std::endl;
-													double K = sigma_kf_LOS[i][idIdx]; 
-													raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] = (sqrt(1/(K + 1))) * sq_P_over_M * raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s];
-													//std::cout << "raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s]: " << raySumInterferer_LOS[i][idIdx-1][clusterIdx_LOS][t][u][s] << std::endl;
-												}
-											} // End time axis							
-										} // End cycle Rays
-										clusterIdx_LOS++;
-									}//end if
-								} // End cycle Subclusters
-								if(n == 0){ // for adding the additional LOS component, according to formula 7-61 in METIS 1.2
-									std::cout << "n: " << n << " LOS Computation for MS " << i << " and BS " << idIdx << std::endl;
-									double K = sigma_kf_LOS[i][idIdx]; 						// K-factor in linear scale 
-									AoA[0] = sin(ZoA_LOS_dir[i][idIdx]) * cos(AoA_LOS_dir[i][idIdx]);
-									AoA[1] = sin(ZoA_LOS_dir[i][idIdx]) * sin(AoA_LOS_dir[i][idIdx]);
-									AoA[2] = cos(ZoA_LOS_dir[i][idIdx]);
-										
-									AoD[0] = sin(ZoD_LOS_dir[i][idIdx]) * cos(AoD_LOS_dir[i][idIdx]);
-									AoD[1] = sin(ZoD_LOS_dir[i][idIdx]) * sin(AoD_LOS_dir[i][idIdx]);
-									AoD[2] = cos(ZoD_LOS_dir[i][idIdx]);
-										
-									complex<double> exp_arrival = exp( complex<double>(0.0,k_0 * (AoA[0] * RxAntennaPosition[i][u][0] + AoA[1] * RxAntennaPosition[i][u][1] + AoA[2] * RxAntennaPosition[i][u][2])) );
-									complex<double> exp_departure = exp( complex<double>(0.0,k_0 * (AoD[0] * TxAntennaPosition[0][s][0] + AoD[1] * TxAntennaPosition[0][s][1] + AoD[2] * TxAntennaPosition[0][s][2])) );
-										
-									// TODO: Include Polarization in generic form
-									// Replacement for polarization. (Below 4.14)
-									//pol = exp( complex<double>(0,uniform(0,2*pi)));
-									MSgain = getMSGain(AoA_LOS_dir[i][idIdx], ZoA_LOS_dir[i][idIdx]);
-									BSgain = getBSGain(AoD_LOS_dir[i][idIdx], ZoD_LOS_dir[i][idIdx]);
-									pol = MSgain * BSgain * exp(complex<double>(0, randomPhase_LOS[i][idIdx]));
-										
-									// Calculate Doppler component of final formula
-									// Formula: 
-									// doppler = exp( j * k_0 * |v| * cos(AoA - AoMD) * t)
-									// Where: 
-									// k_0 = wavenumber
-									// |v| = magnitude of velocity
-									// AoA = Azimuth Angle of Arrival
-									// AoMD = Azimuth Angle of MS Movement Direction
-									// t = time vector
-										
-									// Cycle through the time axis (Formula 4.15)
-									for(int t = 0; t < timeSamples; t++){
-										//std::cout << "n: " << n << " t: " << t << " Idx: " << clusterIdx << std::endl;
-										doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(AoA_LOS_dir[i][idIdx] - AoMD) * timeVector[i][t] ) );
-										//std::cout << "Doppler: " << doppler << std::endl;
-										raySumInterferer_LOS[i][idIdx-1][0][t][u][s] += (sqrt(K / (K + 1))) * pol * doppler * exp_arrival * exp_departure;
-									} // End time axis
-								}
-							} // End cycle Clusters
-						} // End BS antenna
-					} // End MS antenna
-				} //End if condition for interferer BS
-				idIdx++;
-			} //End if condition for own or interferer BS
-		} //End loop for all BSs
-	} // End Links/MS
+							}
+						}
+					}
+					double tempRes = pow(res.real(),2) + pow(res.imag(),2);
+					coeffs[i][idIdx][t][f] = pathloss * tempRes;
+				}
+			}
+
+		}
+	}
+	return coeffs;
+}
+
+void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions,
+		const vector<Position>& bsPositions){
+    	double wavelength = speedOfLight / freq_c;
+	int numReceiverAntenna = NumMsAntenna;
+	int numSenderAntenna = NumBsAntenna;
+    
+    	// Copy MS Positions
+	vector<Position> receiverPos(msPositions);	/*!< Position of the MS */
+    	// Copy BS Positions
+	vector<Position> senderPos(bsPositions);
+
+	vector<vector<array<double,3>>> receiverAntennaPos(receiverPos.size(),
+			vector<array<double,3>>(numReceiverAntenna));
+    	for(int i = 0; i < numberOfMobileStations; i++){
+		for(int j = 0; j < (numReceiverAntenna/2); j++){
+			receiverAntennaPos[i][j][0] = receiverPos[i].x - (0.25 * wavelength * (numReceiverAntenna - 1 - (j*2.0)));
+			receiverAntennaPos[i][j][1] = receiverPos[i].y;
+			receiverAntennaPos[i][j][2] = heightUE;
+		}
+		for(int j = (numReceiverAntenna/2); j < numReceiverAntenna ; j++){
+			receiverAntennaPos[i][j][0] = receiverAntennaPos[i][j-1][0] + (0.5 * wavelength);
+			receiverAntennaPos[i][j][1] = receiverPos[i].y;
+			receiverAntennaPos[i][j][2] = heightUE;
+		}
+	}
+	vector<vector<array<double,3>>>& senderAntennaPos = bsAntennaPositions;
+
+	vector<vector<double>> AoA_LOS_dir;
+	vector<vector<double>> ZoA_LOS_dir;
+	vector<vector<double>> AoD_LOS_dir;
+	vector<vector<double>> ZoD_LOS_dir;
+	std::tie(AoA_LOS_dir,ZoA_LOS_dir,AoD_LOS_dir,ZoD_LOS_dir) = recomputeAngleDirection(
+			receiverPos,
+			senderPos,
+			heightBS,
+			heightUE
+			);
+	
+	//Assign LOS Conditions:
+	vector<vector<bool>> LOSCondition(genLosCond(senderPos,receiverPos));
+	
+	vector<vector<double>> sigma_ds_LOS(receiverPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_asD_LOS(receiverPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_asA_LOS(receiverPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_zsD_LOS(receiverPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_zsA_LOS(receiverPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_sf_LOS(receiverPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_kf_LOS(receiverPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_ds_NLOS(receiverPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_asD_NLOS(receiverPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_asA_NLOS(receiverPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_zsD_NLOS(receiverPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_zsA_NLOS(receiverPos.size(),
+			vector<double>(neighbourPositions.size()));
+	vector<vector<double>> sigma_sf_NLOS(receiverPos.size(),
+			vector<double>(neighbourPositions.size()));
+	recomputeLargeScaleParameters(senderPos,receiverPos,
+			sigma_ds_LOS,
+			sigma_asD_LOS,
+			sigma_asA_LOS,
+			sigma_zsD_LOS,
+			sigma_zsA_LOS,
+			sigma_sf_LOS,
+			sigma_kf_LOS,
+			sigma_ds_NLOS,
+			sigma_asD_NLOS,
+			sigma_asA_NLOS,
+			sigma_zsD_NLOS,
+			sigma_zsA_NLOS,
+			sigma_sf_NLOS
+			);
+	std::cout << "Finished Large Scale parameter.." << std::endl;
+
+    	// Begin small scale parameter generation.
+    
+    	// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
+	vector<vector<vector<double>>> clusterDelays;
+	vector<vector<vector<double>>> clusterDelays_LOS;
+	std::tie(clusterDelays_LOS,clusterDelays) = recomputeClusterDelays(
+			LOSCondition,
+			sigma_ds_LOS,
+			sigma_ds_NLOS,
+			sigma_kf_LOS
+			);
+
+	vector<vector<vector<double>>> clusterPowers(genClusterPowers(LOSCondition,
+				clusterDelays,
+				sigma_ds_LOS,
+				sigma_ds_NLOS,
+				sigma_kf_LOS
+				));
+
+	// Precompute powers per ray (7.46)
+	// While METIS D1.2 clearly states how to compute individual ray 
+	// powers in section 7.3.13, only cluster powers are used 
+	// for further computations.
+//	vector<vector<vector<double>>> rayPowers(recomputeRayPowers(
+//				LOSCondition,
+//				clusterPowers)); /*!< The ray power for each cluster */
+	
+	
+	
+	// Generate azimuth angles of arrival
+	vector<vector<vector<vector<double>>>> azimuth_ASA(recomputeAzimuthAngles(
+			LOSCondition,
+			sigma_asA_LOS,
+			sigma_asA_NLOS,
+			sigma_kf_LOS,
+			clusterPowers,
+			AoA_LOS_dir,
+			true));
+
+	// Generate azimuth angles of departure in the same way 
+	vector<vector<vector<vector<double>>>> azimuth_ASD(recomputeAzimuthAngles(
+			LOSCondition,
+			sigma_asD_LOS,
+			sigma_asD_NLOS,
+			sigma_kf_LOS,
+			clusterPowers,
+			AoD_LOS_dir,
+			false));
+
+	// Generate Zenith angles 
+	vector<vector<vector<vector<double>>>> elevation_ASA(recomputeZenithAngles(
+				LOSCondition,
+				sigma_zsA_LOS,
+				sigma_zsA_NLOS,
+				sigma_kf_LOS,
+				clusterPowers,
+				ZoA_LOS_dir,
+				true));
+
+	vector<vector<vector<vector<double>>>> elevation_ASD(recomputeZenithAngles(
+				LOSCondition,
+				sigma_zsD_LOS,
+				sigma_zsD_NLOS,
+				sigma_kf_LOS,
+				clusterPowers,
+				ZoD_LOS_dir,
+				false));
+
+	// Generate random phases (7.3.17)
+	vector<vector<vector<vector<vector<double>>>>> randomPhase;
+	vector<vector<double>> randomPhase_LOS;
+	std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(LOSCondition);
+	
+	// Generate cross polarization values
+	vector<vector<vector<vector<double>>>> Xn_m(genCrossPolarization(
+				LOSCondition));
+	
+
+	// initialize arrays for interferer ray sums
+	vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum_LOS;
+	vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum;
+
+	std::cout << "START MAIN LOOP for BS: " << bsId << std::endl;
+
+	std::tie(raySum,raySum_LOS) = computeRaySums(LOSCondition,
+			sigma_kf_LOS,
+			numReceiverAntenna,
+			numSenderAntenna,
+			clusterPowers,
+			azimuth_ASA,
+			azimuth_ASD,
+			elevation_ASA,
+			elevation_ASD,
+			receiverAntennaPos,
+			senderAntennaPos,
+			randomPhase,
+			randomPhase_LOS,
+			AoA_LOS_dir,
+			ZoA_LOS_dir,
+			AoD_LOS_dir,
+			ZoD_LOS_dir
+			);
 	
 	std::cout << "FINISHED MAIN LOOP for BS: " << bsId << std::endl;
 
@@ -2247,324 +1232,282 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 	// Apply Fourier transform, to get time/frequency domain from time/delay
 	
 	std::cout << "START FOURIER TRANSFORM for BS: " << bsId << std::endl;
-	
-	double pathloss, dist3D;
-	ofstream TimeFrequency;
-	//ofstream TimeFrequencyInteferer;
-	
-	double delay_SC_1 = 5 * pow(10,-9); // delay for sub-cluster 1 (7-60)
-	double delay_SC_2 = 10 * pow(10,-9); // delay for sub-cluster 2 (7-60)
-	
-	for(int i = 0; i < numberOfMobileStations; i++){
-		//TimeFrequency.open ("/home/sahari/GSCM_Channel_model/abstractLTEChannelModel/results/TimeFrequency_BS_" + std::to_string( (long long) bsId ) + "_" + std::to_string((MSPos[i].x * 100)) + ".txt");
-		dist2D = sqrt(pow((xPos - MSPos[i].x),2) + pow((yPos - MSPos[i].y),2));
-		dist3D = sqrt(pow(dist2D,2) + pow((heightBS - heightUE),2));
-		complex<double> res = complex<double>(0.0,0.0);
-		for(int t = 0; t < timeSamples; t++){
-			for(int f = 0; f < downRBs; f++){
-				double freq_ = freq_c + f*180000;
-				res = complex<double>(0.0,0.0);
-				if(LOSCondition[i][0]){
-					pathloss = CalcPathloss(dist2D, dist3D, true);
-					for(int u = 0; u < NumRxAntenna; u++){
-						for(int s = 0; s < NumTxAntenna; s++){
-							for(int n = 0; n < N_cluster_LOS; n++){
-								if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
-									res = res + raySum_LOS[i][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][0][n]) );
-									res = res + raySum_LOS[i][n+1][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][0][n] + delay_SC_1)) );
-									res = res + raySum_LOS[i][n+2][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][0][n] + delay_SC_2)) );
-									res = res + raySum_LOS[i][n+3][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][0][n+1]) );
-									res = res + raySum_LOS[i][n+4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][0][n+1] + delay_SC_1)) );
-									res = res + raySum_LOS[i][n+5][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][0][n+1] + delay_SC_2)) );
-									n++;
-								}else{
-									res = res + raySum_LOS[i][n + 4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][0][n]) );
-								}
-							}
-						}
-					}
-					double tempRes = pow(res.real(),2) + pow(res.imag(),2);
-					SINRtable[i][t][f] = pathloss * tempRes;
-					//TimeFrequency << pathloss * tempRes << " ";
-				}else{
-					pathloss = CalcPathloss(dist2D, dist3D, false);
-					for(int u = 0; u < NumRxAntenna; u++){
-						for(int s = 0; s < NumTxAntenna; s++){
-							for(int n = 0; n < N_cluster_NLOS; n++){
-								if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
-									res = res + raySum[i][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][0][n]) );
-									res = res + raySum[i][n+1][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][0][n] + delay_SC_1)) );
-									res = res + raySum[i][n+2][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][0][n] + delay_SC_2)) );
-									res = res + raySum[i][n+3][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][0][n+1]) );
-									res = res + raySum[i][n+4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][0][n+1] + delay_SC_1)) );
-									res = res + raySum[i][n+5][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][0][n+1] + delay_SC_2)) );
-									n++;
-								}else{
-									res = res + raySum[i][n + 4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][0][n]) );
-								}
-							} //End Tx antenna
-						} //End Rx antenna
-					} //End clusters
-					double tempRes = pow(res.real(),2) + pow(res.imag(),2);
-					SINRtable[i][t][f] = pathloss * tempRes;
-					//TimeFrequency << pathloss * tempRes << " ";
-				} //End if condition for LOS/NLOS
-			} //End loop for RBs
-			TimeFrequency << "\n\n";
-		}
-		//TimeFrequency << pathloss << "\n";
-		//TimeFrequency.close();
-	}
-	
-	if(numOfInterferers>0){
-		//Only compute SINRneighbour values if there actually are any 
-		// neighbours to influence transmissions
-		for(int i = 0; i < numberOfMobileStations; i++){ //TODO: Correct the implementation for each Tx-Rx antenna
-			int idIdx = 0;
-			//Fourier Transform for interferers:
-			for(std::map<int, Position>::iterator it = neighbourPositions.begin(); it != neighbourPositions.end(); it++){
-				if(it->first == bsId){
-					// Skip own BS
-					continue;
-				}else{
-					//TimeFrequencyInteferer.open ("/home/sahari/GSCM_Channel_model/abstractLTEChannelModel/results/TimeFrequency_Interferer_BS_" + std::to_string( (long long) bsId ) + "_" + std::to_string((MSPos[i].x * 100)) + ".txt");
-					dist2D = sqrt(pow((it->second.x - MSPos[i].x),2) + pow((it->second.y - MSPos[i].y),2));
-					dist3D = sqrt(pow(dist2D,2) + pow((heightBS - heightUE),2));
-					complex<double> res = complex<double>(0.0,0.0);
-					for(int t = 0; t < timeSamples; t++){
-						for(int f = 0; f < downRBs; f++){
-							double freq_ = freq_c + f*180000;
-							res = complex<double>(0.0,0.0);
-							if(LOSCondition[i][idIdx+1]){
-								pathloss = CalcPathloss(dist2D, dist3D, true);
-								for(int u = 0; u < NumRxAntenna; u++){
-									for(int s = 0; s < NumTxAntenna; s++){
-										for(int n = 0; n < N_cluster_LOS; n++){
-											if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
-												res = res + raySumInterferer_LOS[i][idIdx][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][idIdx+1][n]) );
-												res = res + raySumInterferer_LOS[i][idIdx][n+1][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx+1][n] + delay_SC_1)) );
-												res = res + raySumInterferer_LOS[i][idIdx][n+2][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx+1][n] + delay_SC_2)) );
-												res = res + raySumInterferer_LOS[i][idIdx][n+3][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][idIdx+1][n+1]) );
-												res = res + raySumInterferer_LOS[i][idIdx][n+4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx+1][n+1] + delay_SC_1)) );
-												res = res + raySumInterferer_LOS[i][idIdx][n+5][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays_LOS[i][idIdx+1][n+1] + delay_SC_2)) );
-												n++;
-											}else{
-												res = res + raySumInterferer_LOS[i][idIdx][n + 4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays_LOS[i][idIdx+1][n]) );
-											}
-										}
-									}
-								}
-								double tempRes = pow(res.real(),2) + pow(res.imag(),2);
-								SINRneighbour[i][idIdx][t][f] = pathloss * tempRes;
-								//TimeFrequencyInteferer << pathloss * tempRes << " ";
-							}else{
-								pathloss = CalcPathloss(dist2D, dist3D, false);
-								for(int u = 0; u < NumRxAntenna; u++){
-									for(int s = 0; s < NumTxAntenna; s++){
-										for(int n = 0; n < N_cluster_NLOS; n++){
-											if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
-												res = res + raySumInterferer[i][idIdx][n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][idIdx+1][n]) );
-												res = res + raySumInterferer[i][idIdx][n+1][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx+1][n] + delay_SC_1)) );
-												res = res + raySumInterferer[i][idIdx][n+2][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx+1][n] + delay_SC_2)) );
-												res = res + raySumInterferer[i][idIdx][n+3][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][idIdx+1][n+1]) );
-												res = res + raySumInterferer[i][idIdx][n+4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx+1][n+1] + delay_SC_1)) );
-												res = res + raySumInterferer[i][idIdx][n+5][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (clusterDelays[i][idIdx+1][n+1] + delay_SC_2)) );
-												n++;
-											}else{
-												res = res + raySumInterferer[i][idIdx][n + 4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * clusterDelays[i][idIdx+1][n]) );
-											}
-										}
-									}
-								}
-								double tempRes = pow(res.real(),2) + pow(res.imag(),2);
-								SINRneighbour[i][idIdx][t][f] = pathloss * tempRes;
-								//TimeFrequencyInteferer << pathloss * tempRes << " ";
-							}
-						}
-						//TimeFrequencyInteferer << "\n";
-					}
-					idIdx++;
-				}
-			}
-			//TimeFrequencyInteferer.close();
-		}
-	
-	}
+
+	coeffDownTable = std::move(computeCoeffs(
+				LOSCondition,
+				receiverPos,
+				senderPos,
+				heightUE,
+				heightBS,
+				downRBs,
+				numReceiverAntenna,
+				numSenderAntenna,
+				raySum,
+				raySum_LOS,
+				clusterDelays,
+				clusterDelays_LOS
+				));
 	
 	std::cout << "FINISHED FOURIER TRANSFORM for BS: " << bsId << std::endl;
 	
-	//------------------------------------------------------------------
-	
-	//---------------------------------------------------------------------
-	// Delete all heap allocated local variables
+}
 
-	for(int i = 0; i < numberOfMobileStations; i++){
-		for(unsigned s=0; s<neighbourPositions.size(); s++){
-			if(LOSCondition[i][s]){
-				for(int j=0;j<N_cluster_LOS;j++){
-					delete[] azimuth_ASA[i][s][j];
-					delete[] azimuth_ASD[i][s][j];
-					for(int k = 0; k < numOfRays_LOS; k++){
-						delete[] randomPhase[i][0][j][k];
-					}
-					delete[] randomPhase[i][s][j];
-					delete[] Xn_m[i][s][j];
-				}
-				delete[] clusterDelays_LOS[i][s];
+void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPositions,
+		const vector<Position>& bsPositions){
+    	double wavelength = speedOfLight / freq_c;
+	int numReceiverAntenna = NumBsAntenna;
+	int numSenderAntenna = NumMsAntenna;
+	// Copy BS Positions
+	// This is only the position of the local base station, because 
+	// that base station is the only receiver for the UP direction in any 
+	// given cell.
+	vector<Position> receiverPos{bsPositions[bsId]};
+	coeffUpTable = vector<vector<vector<vector<vector<double>>>>>(bsPositions.size(),
+			vector<vector<vector<vector<double>>>>(1));
+	for(size_t j=0; j<msPositions.size(); j++){
+		// Copy MS Positions
+		vector<Position> senderPos(msPositions[j]);
+
+		vector<vector<array<double,3>>> senderAntennaPos(senderPos.size(),
+				vector<array<double,3>>(numSenderAntenna));
+		for(int i = 0; i < senderPos.size(); i++){
+			for(int j = 0; j < (numSenderAntenna/2); j++){
+				senderAntennaPos[i][j][0] = senderPos[i].x - (0.25 * wavelength * (numSenderAntenna - 1 - (j*2.0)));
+				senderAntennaPos[i][j][1] = senderPos[i].y;
+				senderAntennaPos[i][j][2] = heightUE;
 			}
-			else{
-				for(int j=0;j<N_cluster_NLOS;j++){
-					delete[] azimuth_ASA[i][s][j];
-					delete[] azimuth_ASD[i][s][j];
-					for(int k = 0; k < numOfRays_NLOS; k++){
-						delete[] randomPhase[i][0][j][k];
-					}
-					delete[] randomPhase[i][s][j];
-					delete[] Xn_m[i][s][j];
-				}
+			for(int j = (numSenderAntenna/2); j < numSenderAntenna ; j++){
+				senderAntennaPos[i][j][0] = senderAntennaPos[i][j-1][0] + (0.5 * wavelength);
+				senderAntennaPos[i][j][1] = senderPos[i].y;
+				senderAntennaPos[i][j][2] = heightUE;
 			}
-			delete[] azimuth_ASA[i][s];
-			delete[] azimuth_ASD[i][s];
-			delete[] clusterDelays[i][s];
-			delete[] clusterPowers[i][s];
-			for(int j=0;j<N_cluster_NLOS;j++){
-				delete[] elevation_ASA[i][s][j];
-				delete[] elevation_ASD[i][s][j];
-			}
-			delete[] elevation_ASA[i][s];
-			delete[] elevation_ASD[i][s];
-			delete[] randomPhase[i][s];
-			delete[] rayPowers[i][s];
-			delete[] Xn_m[i][s];
 		}
-		delete[] AoA_LOS_dir[i];
-		delete[] AoD_LOS_dir[i];
-		delete[] azimuth_ASA[i];
-		delete[] azimuth_ASD[i];
-		delete[] azimuth_cluster_ASA[i];
-		delete[] azimuth_cluster_ASD[i];
-		delete[] clusterDelays[i];
-		delete[] clusterDelays_LOS[i];
-	 	delete[] clusterPowers[i];
-		delete[] elevation_ASA[i];
-		delete[] elevation_ASD[i];
-		delete[] LOSCondition[i];
-		delete[] MSVelDir[i];
-		delete[] randomPhase[i];
-		delete[] randomPhase_LOS[i];
-		delete[] rayPowers[i];
-		for(int s=0; s<NumRxAntenna; s++){
-			delete[] RxAntennaPosition[i][s];
+		vector<vector<array<double,3>>> receiverAntennaPos{bsAntennaPositions[bsId]};
+
+		vector<vector<double>> AoA_LOS_dir;
+		vector<vector<double>> ZoA_LOS_dir;
+		vector<vector<double>> AoD_LOS_dir;
+		vector<vector<double>> ZoD_LOS_dir;
+		std::tie(AoA_LOS_dir,ZoA_LOS_dir,AoD_LOS_dir,ZoD_LOS_dir) = recomputeAngleDirection(
+				receiverPos,
+				senderPos,
+				heightUE,
+				heightBS
+				);
+
+		//Assign LOS Conditions:
+		vector<vector<bool>> LOSCondition(genLosCond(senderPos,receiverPos));
+
+		vector<vector<double>> sigma_ds_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_asD_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_asA_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_zsD_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_zsA_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_sf_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_kf_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_ds_NLOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_asD_NLOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_asA_NLOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_zsD_NLOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_zsA_NLOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_sf_NLOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		recomputeLargeScaleParameters(senderPos,receiverPos,
+				sigma_ds_LOS,
+				sigma_asD_LOS,
+				sigma_asA_LOS,
+				sigma_zsD_LOS,
+				sigma_zsA_LOS,
+				sigma_sf_LOS,
+				sigma_kf_LOS,
+				sigma_ds_NLOS,
+				sigma_asD_NLOS,
+				sigma_asA_NLOS,
+				sigma_zsD_NLOS,
+				sigma_zsA_NLOS,
+				sigma_sf_NLOS
+				);
+		std::cout << "Finished Large Scale parameter.." << std::endl;
+
+		// Begin small scale parameter generation.
+
+		// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
+		vector<vector<vector<double>>> clusterDelays;
+		vector<vector<vector<double>>> clusterDelays_LOS;
+		std::tie(clusterDelays_LOS,clusterDelays) = recomputeClusterDelays(
+				LOSCondition,
+				sigma_ds_LOS,
+				sigma_ds_NLOS,
+				sigma_kf_LOS
+				);
+
+		vector<vector<vector<double>>> clusterPowers(genClusterPowers(LOSCondition,
+					clusterDelays,
+					sigma_ds_LOS,
+					sigma_ds_NLOS,
+					sigma_kf_LOS
+					));
+
+		// Precompute powers per ray (7.46)
+		// While METIS D1.2 clearly states how to compute individual ray 
+		// powers in section 7.3.13, only cluster powers are used 
+		// for further computations.
+		//	vector<vector<vector<double>>> rayPowers(recomputeRayPowers(
+		//				LOSCondition,
+		//				clusterPowers)); /*!< The ray power for each cluster */
+
+
+
+		// Generate azimuth angles of arrival
+		vector<vector<vector<vector<double>>>> azimuth_ASA(recomputeAzimuthAngles(
+					LOSCondition,
+					sigma_asA_LOS,
+					sigma_asA_NLOS,
+					sigma_kf_LOS,
+					clusterPowers,
+					AoA_LOS_dir,
+					true));
+
+		// Generate azimuth angles of departure in the same way 
+		vector<vector<vector<vector<double>>>> azimuth_ASD(recomputeAzimuthAngles(
+					LOSCondition,
+					sigma_asD_LOS,
+					sigma_asD_NLOS,
+					sigma_kf_LOS,
+					clusterPowers,
+					AoD_LOS_dir,
+					false));
+
+		// Generate Zenith angles 
+		vector<vector<vector<vector<double>>>> elevation_ASA(recomputeZenithAngles(
+					LOSCondition,
+					sigma_zsA_LOS,
+					sigma_zsA_NLOS,
+					sigma_kf_LOS,
+					clusterPowers,
+					ZoA_LOS_dir,
+					true));
+
+		vector<vector<vector<vector<double>>>> elevation_ASD(recomputeZenithAngles(
+					LOSCondition,
+					sigma_zsD_LOS,
+					sigma_zsD_NLOS,
+					sigma_kf_LOS,
+					clusterPowers,
+					ZoD_LOS_dir,
+					false));
+
+		// Generate random phases (7.3.17)
+		vector<vector<vector<vector<vector<double>>>>> randomPhase;
+		vector<vector<double>> randomPhase_LOS;
+		std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(LOSCondition);
+
+		// Generate cross polarization values
+		vector<vector<vector<vector<double>>>> Xn_m(genCrossPolarization(
+					LOSCondition));
+
+
+		// initialize arrays for interferer ray sums
+		vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum_LOS;
+		vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum;
+
+		std::cout << "START MAIN LOOP for BS: " << bsId << std::endl;
+
+		std::tie(raySum,raySum_LOS) = computeRaySums(LOSCondition,
+				sigma_kf_LOS,
+				numReceiverAntenna,
+				numSenderAntenna,
+				clusterPowers,
+				azimuth_ASA,
+				azimuth_ASD,
+				elevation_ASA,
+				elevation_ASD,
+				receiverAntennaPos,
+				senderAntennaPos,
+				randomPhase,
+				randomPhase_LOS,
+				AoA_LOS_dir,
+				ZoA_LOS_dir,
+				AoD_LOS_dir,
+				ZoD_LOS_dir
+				);
+
+		std::cout << "FINISHED MAIN LOOP for BS: " << bsId << std::endl;
+
+		//output2 << "Init 3 METIS at BS " << bsId << " with rand: " << normal(0,1) << std::endl;
+
+		//------------------------------------------------------------------
+		// Apply Fourier transform, to get time/frequency domain from time/delay
+
+		std::cout << "START FOURIER TRANSFORM for BS: " << bsId << std::endl;
+
+		coeffUpTable[j] = std::move(computeCoeffs(
+					LOSCondition,
+					receiverPos,
+					senderPos,
+					heightBS,
+					heightUE,
+					upRBs,
+					numReceiverAntenna,
+					numSenderAntenna,
+					raySum,
+					raySum_LOS,
+					clusterDelays,
+					clusterDelays_LOS
+					));
+
+		std::cout << "FINISHED FOURIER TRANSFORM for BS: " << bsId << std::endl;
+	
+	}
+    
+	
+}
+
+void METISChannel::recomputeMETISParams(Position** msPositions){
+	int numMs;
+	vector<vector<Position>> msPos(neighbourPositions.size(),
+			vector<Position>());
+	for(size_t j=0; j<neighbourPositions.size(); j++){
+		numMs = neighbourIdMatching->getNumberOfMS(j);
+		msPos[j].resize(numMs);
+		for(size_t i=0; i<numMs; i++){
+			msPos[j][i].x = msPositions[j][i].x;
+			msPos[j][i].y = msPositions[j][i].y;
 		}
-		delete[] RxAntennaPosition[i];
-		delete[] sigma_ds_LOS[i];					
-		delete[] sigma_asD_LOS[i];					
-		delete[] sigma_asA_LOS[i];
-		delete[] sigma_zsD_LOS[i];
-		delete[] sigma_zsA_LOS[i];					
-		delete[] sigma_sf_LOS[i];					
-		delete[] sigma_kf_LOS[i];					
-		delete[] sigma_ds_NLOS[i];					
-		delete[] sigma_asD_NLOS[i];					
-		delete[] sigma_asA_NLOS[i];
-		delete[] sigma_zsD_NLOS[i];
-		delete[] sigma_zsA_NLOS[i];					
-		delete[] sigma_sf_NLOS[i];						
-		delete[] Xn_m[i];
-		delete[] ZoA_LOS_dir[i];
-		delete[] ZoD_LOS_dir[i];
 	}
-	for(int i=0; i<6; i++){
-		delete[] autoCorrelation_NLOS[i];
+	vector<Position> bsPos(neighbourPositions.size());
+	for(size_t j=0; j<neighbourPositions.size(); j++){
+		bsPos[j] = neighbourPositions[j];
 	}
-	delete[] autoCorrelation_NLOS;
-	for(int i=0; i<7; i++){
-		delete[] autoCorrelation_LOS[i];
-	}
-	delete[] autoCorrelation_LOS;
-	delete[] AoA_LOS_dir;
-	delete[] AoD_LOS_dir;
-	delete[] azimuth_ASA;
-	delete[] azimuth_ASD;
-	delete[] azimuth_cluster_ASA;
-	delete[] azimuth_cluster_ASD;
-	delete[] clusterDelays;
-	delete[] clusterDelays_LOS;
-	delete[] clusterPowers;
-	delete[] elevation_ASA;
-	delete[] elevation_ASD;
-	delete[] LOSCondition;
-	delete[] MSPos;
-	delete[] MSVelDir;
-	delete[] MSVelMag;
-	delete[] randomPhase;
-	delete[] randomPhase_LOS;
-	delete[] rayPowers;
-	for(int m = 0; m < numberOfMobileStations; m++){
-		for(int i = 0; i < (N_cluster_LOS + 4); i++){
-			for(int j = 0; j < timeSamples; j++){
-				for(int k = 0; k < NumRxAntenna; k++){
-					delete[] raySum_LOS[m][i][j][k];
+	recomputeDownCoefficients(msPos[bsId],bsPos);
+	// Comment in the following lines to print the down table
+/*	for(size_t i=0; i<numberOfMobileStations; i++){
+		std::cout << "MS: " << i << std::endl;
+		for(size_t j=0; j<bsPos.size(); j++){
+			std::cout << "\tBS: " << j << std::endl;
+			for(size_t t=0; t<timeSamples; t++){
+				std::cout << "\t\tTS: " << t << std::endl;
+				for(size_t r=0; r<downRBs; r++){
+					std::cout << "\t\t\tRB " << r << ": " << coeffDownTable[i][j][t][r] << std::endl;
 				}
-				delete[] raySum_LOS[m][i][j];
+
 			}
-			delete[] raySum_LOS[m][i];
 		}
-		delete[] raySum_LOS[m];
-		for(int i = 0; i < (N_cluster_NLOS + 4); i++){
-			for(int j = 0; j < timeSamples; j++){
-				for(int k = 0; k < NumRxAntenna; k++){
-					delete[] raySum[m][i][j][k];
-				}
-				delete[] raySum[m][i][j];
-			}
-			delete[] raySum[m][i];
-		}
-		delete[] raySum[m];
 	}
-	delete[] raySum;
-	delete[] raySum_LOS;
-	if(numOfInterferers>0){
-		for (int m = 0; m < numberOfMobileStations; m++){
-			for(int i = 0; i < numOfInterferers; i++){
-				for(int j = 0; j < (N_cluster_LOS + 4); j++){
-					for(int k = 0; k < timeSamples; k++){
-						for(int l = 0; l < NumRxAntenna; l++){
-							delete[] raySumInterferer_LOS[m][i][j][k][l];
-							delete[] raySumInterferer[m][i][j][k][l];
-						}
-						delete[] raySumInterferer_LOS[m][i][j][k];
-						delete[] raySumInterferer[m][i][j][k];
-					}
-					delete[] raySumInterferer_LOS[m][i][j];
-					delete[] raySumInterferer[m][i][j];
-				}
-				delete[] raySumInterferer_LOS[m][i];
-				delete[] raySumInterferer[m][i];
-			}
-			delete[] raySumInterferer_LOS[m];
-			delete[] raySumInterferer[m];
-		}
-		delete[] raySumInterferer_LOS;
-		delete[] raySumInterferer;
-	}
-	delete[] RxAntennaPosition;
-	delete[] sigma_ds_LOS;					
-	delete[] sigma_asD_LOS;					
-	delete[] sigma_asA_LOS;
-	delete[] sigma_zsD_LOS;
-	delete[] sigma_zsA_LOS;					
-	delete[] sigma_sf_LOS;					
-	delete[] sigma_kf_LOS;					
-	delete[] sigma_ds_NLOS;					
-	delete[] sigma_asD_NLOS;					
-	delete[] sigma_asA_NLOS;
-	delete[] sigma_zsD_NLOS;
-	delete[] sigma_zsA_NLOS;					
-	delete[] sigma_sf_NLOS;						
-	delete[] Xn_m;
-	delete[] ZoA_LOS_dir;
-	delete[] ZoD_LOS_dir;
+*/
+	recomputeUpCoefficients(msPos,bsPos);
 }
 
 /**
@@ -2573,7 +1516,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 * @param LOS true iff LOS Condition, false otherwise
 * @return Scaling factor
 */
-double METISChannel::C_AS(int numCluster, bool LOS, int i,double **sigma_kf_LOS){
+double METISChannel::C_AS(int numCluster, bool LOS, int i,
+		vector<vector<double>> sigma_kf_LOS){
 	if(LOS){
 		double K = 10.0 * log10(abs(sigma_kf_LOS[i][0]));
 		double k_factor_LOS = 1.1035 - 0.028 * K - 0.002 * pow(K,2) + 0.0001 * pow(K,3);
@@ -2616,7 +1560,8 @@ double METISChannel::C_AS(int numCluster, bool LOS, int i,double **sigma_kf_LOS)
 * @param LOS true iff LOS Condition, false otherwise
 * @return Scaling factor
 */
-double METISChannel::C_ZS(int numCluster, bool LOS,double **sigma_kf_LOS){
+double METISChannel::C_ZS(int numCluster, bool LOS,
+		vector<vector<double>> sigma_kf_LOS){
 	int i = 0;
 	if(LOS){
 		double K = 10.0 * log10(abs(sigma_kf_LOS[i][0]));
@@ -2642,16 +1587,11 @@ double METISChannel::C_ZS(int numCluster, bool LOS,double **sigma_kf_LOS){
 * Function that computes the exponential auto correlation for LOS.
 * @return True if succesful. False otherwise.
 */
-double **METISChannel::generateAutoCorrelation_LOS(Position *MSPos){
-	int r = initModule->par("cellRadiusMETIS");
-	std::cout << "Radius: " << r << std::endl;
-	double **autoCorrelation_LOS = new double*[7];
-	for(int i = 0; i < 7; i++){
-		autoCorrelation_LOS[i] = new double[numberOfMobileStations];
-		for(int j = 0; j < numberOfMobileStations; j++){
-			autoCorrelation_LOS[i][j] = 0;
-		}
-	}
+void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
+		const vector<Position>& receivers,
+		vector<vector<vector<double>>>& correlation){
+	correlation.resize(receivers.size(),vector<vector<double>>(senders.size(),
+				vector<double>(7)));
 	
 	// Read in LOS Decorrelation parameters.
 	int decorr_LOS_DS = initModule->par("Decorr_LOS_DS");
@@ -2682,13 +1622,13 @@ double **METISChannel::generateAutoCorrelation_LOS(Position *MSPos){
 	}
 	
 	for(int i = 0; i < 7; i++){
-		grid[i] = new double*[2*r + 20];
-		tmpX[i] = new double*[2*r + 20];
-		tmpY[i] = new double*[2*r + 20];
-		for(int j = 0; j < 2*r + 20; j++){
-			grid[i][j] = new double[2*r + 20];
-			tmpX[i][j] = new double[2*r + 20];
-			tmpY[i][j] = new double[2*r + 20];
+		grid[i] = new double*[(int) sizeX+10];
+		tmpX[i] = new double*[(int) sizeX+10];
+		tmpY[i] = new double*[(int) sizeX+10];
+		for(int j = 0; j < (int) sizeX+10; j++){
+			grid[i][j] = new double[(int) sizeY+10];
+			tmpX[i][j] = new double[(int) sizeY+10];
+			tmpY[i][j] = new double[(int) sizeY+10];
 		}
 	}
 		
@@ -2721,8 +1661,8 @@ double **METISChannel::generateAutoCorrelation_LOS(Position *MSPos){
 		
 	// Generate grid of (2*r+200)*(2*r+200) iid gaussian random numbers
 	for(int i = 0; i < 7; i++){
-		for(int j = 0; j < 2*r + 20; j++){
-			for(int k = 0; k < 2*r + 20; k++){
+		for(int j = 0; j < (int) sizeX+10; j++){
+			for(int k = 0; k < (int) sizeY+10; k++){
 				grid[i][j][k] = normal(0,1);
 				tmpX[i][j][k] = 0;
 				tmpY[i][j][k] = 0;
@@ -2734,9 +1674,9 @@ double **METISChannel::generateAutoCorrelation_LOS(Position *MSPos){
 	// For all Large scale parameters
 	for(int i = 0; i < 7; i++){
 		// Forall x points except offset
-		for(int j = 10; j < 2*r + 10; j++){
+		for(int j = 10; j < (int) sizeX+10; j++){
 			// Forall y points except offset
-			for(int k = 10; k < 2*r + 10; k++){
+			for(int k = 10; k < (int) sizeY+10; k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
 					tmpX[i][j][k] += grid[i][j][k - l] * filter[i][l];
@@ -2749,9 +1689,9 @@ double **METISChannel::generateAutoCorrelation_LOS(Position *MSPos){
 	// For all Large scale parameters
 	for(int i = 0; i < 7; i++){
 		// For all x points except offset
-		for(int j = 10; j < 2*r + 10; j++){
+		for(int j = 10; j < (int) sizeY+10; j++){
 			// For all y points except offset
-			for(int k = 10; k < 2*r + 10; k++){
+			for(int k = 10; k < (int) sizeX+10; k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
 					tmpY[i][k][j] += tmpX[i][k - l][j] * filter[i][l];
@@ -2761,11 +1701,11 @@ double **METISChannel::generateAutoCorrelation_LOS(Position *MSPos){
 	}
 		
 	// For each Link generate Large scale parameters
-	double middle = (2*r + 10)/2;
-	for(int a = 0; a < numberOfMobileStations; a++){
-		for(int i = 0; i < 7; i++){
-			autoCorrelation_LOS[i][a] = tmpY[i][(int) (MSPos[a].x + middle - xPos)][(int) (MSPos[a].y + middle - yPos)];
-			//autoCorrelation_LOS[i][a] = normal(0,1);
+	for(size_t l = 0; l < receivers.size(); l++){
+		for(size_t i=0; i<senders.size(); i++){
+			for(int j=0; j<7; j++){
+				correlation[l][i][j] = tmpY[j][(int) receivers[l].x ][(int) receivers[l].y];
+			}
 		}
 	}
 	// Clean up all local variables allocated on the heap
@@ -2773,7 +1713,7 @@ double **METISChannel::generateAutoCorrelation_LOS(Position *MSPos){
 	// directly on the stack, instead of using entirely unnecessary 
 	// dynamic memory allocation
 	for(int i = 0; i < 7; i++){
-		for(int j = 0; j < 2*r + 20; j++){
+		for(int j = 0; j < (int) sizeX+10; j++){
 			delete[] grid[i][j];
 			delete[] tmpX[i][j];
 			delete[] tmpY[i][j];
@@ -2785,24 +1725,17 @@ double **METISChannel::generateAutoCorrelation_LOS(Position *MSPos){
 	delete[] grid;
 	delete[] tmpX;
 	delete[] tmpY;
-
-	return autoCorrelation_LOS;
 }
 
 /**
 * Function that computes the exponential auto correlation for NLOS.
 * @return True if succesful. False otherwise.
 */
-double **METISChannel::generateAutoCorrelation_NLOS(Position *MSPos){
-	int r = initModule->par("cellRadiusMETIS");
-	std::cout << "Radius: " << r << std::endl;
-	double **autoCorrelation_NLOS = new double*[6];
-	for(int i = 0; i < 6; i++){
-		autoCorrelation_NLOS[i] = new double[numberOfMobileStations];
-		for(int j = 0; j < numberOfMobileStations; j++){
-			autoCorrelation_NLOS[i][j] = 0;
-		}
-	}
+void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
+		const vector<Position>& receivers,
+		vector<vector<vector<double>>>& correlation){
+	correlation.resize(receivers.size(),vector<vector<double>>(senders.size(),
+				vector<double>(6)));
 	
 	// Read in NLOS Decorrelation parameters.
 	int decorr_NLOS_DS = initModule->par("Decorr_NLOS_DS");
@@ -2838,13 +1771,13 @@ double **METISChannel::generateAutoCorrelation_NLOS(Position *MSPos){
 	}
 	
 	for(int i = 0; i < 6; i++){
-		grid[i] = new double*[2*r + 20];
-		tmpX[i] = new double*[2*r + 20];
-		tmpY[i] = new double*[2*r + 20];
-		for(int j = 0; j < 2*r + 20; j++){
-			grid[i][j] = new double[2*r + 20];
-			tmpX[i][j] = new double[2*r + 20];
-			tmpY[i][j] = new double[2*r + 20];
+		grid[i] = new double*[(int) sizeX+10];
+		tmpX[i] = new double*[(int) sizeX+10];
+		tmpY[i] = new double*[(int) sizeX+10];
+		for(int j = 0; j < (int) sizeX+10; j++){
+			grid[i][j] = new double[(int) sizeY+10];
+			tmpX[i][j] = new double[(int) sizeY+10];
+			tmpY[i][j] = new double[(int) sizeY+10];
 		}
 	}
 		
@@ -2874,8 +1807,8 @@ double **METISChannel::generateAutoCorrelation_NLOS(Position *MSPos){
 		
 	// Generate grid of (2*r+200)*(2*r+200) iid gaussian random numbers
 	for(int i = 0; i < 6; i++){
-		for(int j = 0; j < 2*r + 20; j++){
-			for(int k = 0; k < 2*r + 20; k++){
+		for(int j = 0; j < (int) sizeX+10; j++){
+			for(int k = 0; k < (int) sizeY+10; k++){
 				grid[i][j][k] = normal(0,1);
 				tmpX[i][j][k] = 0;
 				tmpY[i][j][k] = 0;
@@ -2887,9 +1820,9 @@ double **METISChannel::generateAutoCorrelation_NLOS(Position *MSPos){
 	// Forall Large scale parameters
 	for(int i = 0; i < 6; i++){
 		// Forall x points except offset
-		for(int j = 10; j < 2*r + 10; j++){
+		for(int j = 10; j < (int) sizeX+10; j++){
 			// Forall y points except offset
-			for(int k = 10; k < 2*r + 10; k++){
+			for(int k = 10; k < (int) sizeY+10; k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
 					tmpX[i][j][k] += grid[i][j][k - l] * filter[i][l];
@@ -2902,9 +1835,9 @@ double **METISChannel::generateAutoCorrelation_NLOS(Position *MSPos){
 	// Forall Large scale parameters
 	for(int i = 0; i < 6; i++){
 		// Forall x points except offset
-		for(int j = 10; j < 2*r + 10; j++){
+		for(int j = 10; j < (int) sizeX+10; j++){
 			// Forall y points except offset
-			for(int k = 10; k < 2*r + 10; k++){
+			for(int k = 10; k < (int) sizeY+10; k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
 					tmpY[i][k][j] += tmpX[i][k - l][j] * filter[i][l];
@@ -2914,11 +1847,11 @@ double **METISChannel::generateAutoCorrelation_NLOS(Position *MSPos){
 	}
 		
 	// For each Link generate Large scale parameters
-	double middle = (2*r + 10)/2;
-	for(int a = 0; a < numberOfMobileStations; a++){
-		for(int i = 0; i < 6; i++){
-			autoCorrelation_NLOS[i][a] = tmpY[i][(int) (MSPos[a].x + middle - xPos)][(int) (MSPos[a].y + middle - yPos)];
-			//autoCorrelation_NLOS[i][a] = normal(0,1);
+	for(size_t l = 0; l < receivers.size(); l++){
+		for(size_t i=0; i<senders.size(); i++){
+			for(int j=0; j<6; j++){
+				correlation[l][i][j] = tmpY[j][(int) receivers[l].x ][(int) receivers[l].y];
+			}
 		}
 	}
 	// Clean up all local variables allocated on the heap
@@ -2926,7 +1859,7 @@ double **METISChannel::generateAutoCorrelation_NLOS(Position *MSPos){
 	// directly on the stack, instead of using entirely unnecessary 
 	// dynamic memory allocation
 	for(int i = 0; i < 6; i++){
-		for(int j = 0; j < 2*r + 20; j++){
+		for(int j = 0; j < (int) sizeX+10; j++){
 			delete[] grid[i][j];
 			delete[] tmpX[i][j];
 			delete[] tmpY[i][j];
@@ -2944,8 +1877,6 @@ double **METISChannel::generateAutoCorrelation_NLOS(Position *MSPos){
 	}
 	delete[] filter;
 	delete[] sum;
-
-	return autoCorrelation_NLOS;
 }
 
 /**
@@ -3063,26 +1994,60 @@ void METISChannel::handleMessage(cMessage* msg){
 	delete msg;
 }
 
-double METISChannel::calcSINR(int RB, vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId){
-	NeighbourIdMatching *neighbourIdMatching;
-	cModule *cell = initModule->getParentModule()->getParentModule();
-	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
-	
+double METISChannel::calcUpSINR(int RB, 
+		std::forward_list<TransInfoMs*> &interferers,
+		int msId,
+		double transPower){
 	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
-
+	double received = 0;
 	double interference = 0;
-	for(int i = 0; i < neighbourIdMatching->numberOfNeighbours() - 1; i++){
-		interference += SINRneighbour[msId][i][SINRCounter][RB];
+	forward_list<TransInfoMs*>::iterator prev(interferers.before_begin());
+	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
+		if((*it)->getCreationTime()<simTime()){
+			interference += (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB];
+		}
+		else{
+			delete *it;
+			interferers.erase_after(prev);
+			it=prev;
+
+		}
 	}
-	delete neighbourIdMatching;
+	received = transPower * coeffUpTable[bsId][0][msId][SINRcounter][RB];
 	interference += getTermalNoise(300,180000);
 	// Convert to db scale
-	//std::cout << 10 * log10( SINRtable[msId][SINRcounter][RB] / interference ) << std::endl;
-	//std::cout << "Gain: " << 10 * log10( SINRtable[msId][SINRcounter][RB] ) << "  MS: " << msId << std::endl;
-	//std::cout << "Interference: " << interference << "  MS: " << msId << std::endl;
-	//std::cout << "Simtime: " << simTime() << " Counter: " << std::round( simTime().dbl() *1000.0*4.0) << std::endl;
-	return 10 * log10( SINRtable[msId][SINRCounter][RB] / interference );
-	//return 10 * log10( SINRtable[msId][SINRcounter][RB] / getTermalNoise(300,180000) );
+	return 10 * log10( received / interference );
+}
+
+double METISChannel::calcDownSINR(int RB, 
+		std::forward_list<TransInfoBs*> &interferers,
+		int msId,
+		double transPower){
+	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
+	double received = 0;
+	double interference = 0;
+	forward_list<TransInfoBs*>::iterator prev(interferers.before_begin());
+	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
+		if((*it)->getCreationTime()<simTime()){
+			interference += (*it)->getPower() * coeffDownTable[msId][(*it)->getBsId()][SINRCounter][RB];
+		}
+		else{
+			delete *it;
+			interferers.erase_after(prev);
+			it=prev;
+
+		}
+	}
+	received = transPower * coeffDownTable[msId][bsId][SINRcounter][RB];
+	interference += getTermalNoise(300,180000);
+	// Convert to db scale
+	return 10 * log10( received / interference );
+}
+
+double METISChannel::calcSINR(int RB, vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId){
+	// Return 1.0, this method is not used with the METIS channel
+	// See calcDownSINR/calcUpSINR instead
+	return -1.0;
 }
 
 vec METISChannel::calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId){
@@ -3117,35 +2082,11 @@ METISChannel::~METISChannel(){
 		// variables uninitialized, leading to errors. Thus, they 
 		// are only freed when init has been called, as indicated by 
 		// the initialized variable.
-		delete[] bs_antenna_bearing;				
-		delete[] bs_antenna_downtilt;			
-		delete[] bs_antenna_slant;				
 		for(int i=0; i<numberOfMobileStations; i++){
-			for(int j=0; j<numOfInterferers; j++){
-				for(int k=0; k<timeSamples; k++){
-					delete[] SINRneighbour[i][j][k];
-				}
-				delete[] SINRneighbour[i][j];
-			}
-			delete[] SINRneighbour[i];
-			for(int j=0; j<timeSamples; j++){
-				delete[] SINRtable[i][j];
-			}
-			delete[] SINRtable[i];
 			delete[] timeVector[i];
 		}
-		delete[] ms_antenna_bearing;				
-		delete[] ms_antenna_downtilt;			
-		delete[] ms_antenna_slant;				
 		delete neighbourIdMatching; 
-		delete[] SINRneighbour;
-		delete[] SINRtable;
-		for(int i=0; i<NumTxAntenna; i++){
-			delete[] TxAntennaPosition[0][i];
-		}
 		delete[] timeVector;
-		delete[] TxAntennaPosition[0];
-		delete[] TxAntennaPosition;
 	
 	}
 

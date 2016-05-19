@@ -45,8 +45,8 @@ void BsChannel::initialize()  {
     neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
     
     // EESM Beta values for effective SINR
-	string eesm_beta = par("eesm_beta");
-	eesm_beta_values = vec(eesm_beta);
+    string eesm_beta = par("eesm_beta");
+    eesm_beta_values = vec(eesm_beta);
     
     // This counter counts how many neighbour have already transmitted all necessary VR information.
     // Initialized with one because BS knows its own VR.
@@ -58,12 +58,12 @@ void BsChannel::initialize()  {
     int ch = par("channelModel");
     
     if(ch == 0){
-		channel = new METISChannel();
-	}else if(ch == 1){
-		channel = new Cost2100Channel();
-	}else{
-		channel = new ChannelAlternative();
-	}
+	    channel = new METISChannel();
+    }else if(ch == 1){
+	    channel = new Cost2100Channel();
+    }else{
+	    channel = new ChannelAlternative();
+    }
       
     // Save the CURRENT Direction of the schedule for next TTI for all Neighbours
     scheduleDirection = new int[neighbourIdMatching->numberOfNeighbours()];
@@ -81,6 +81,9 @@ void BsChannel::initialize()  {
     for(int i = 0; i < neighbourIdMatching->numberOfNeighbours(); i++)  {
         msPositions[i] = new Position[numberOfMobileStations]; //TODO change to dynamic size per bs; when uneven partition is allowed
     }
+
+    // Prepare transmission info lists for every UP ressource block
+    transInfos.resize(upResBlocks);
 
     //the position of the base stations
     bsPosition.x = par("xPos");
@@ -137,7 +140,12 @@ void BsChannel::handleMessage(cMessage *msg)  {
 	else if(msg->isName("BS_POSITION_MSG")) {
         PositionExchange *bsPos = (PositionExchange *) msg;
         neighbourPositions[bsPos->getId()] = bsPos->getPosition();
+	std::cout << "Bs " << bsId << " Received Position for BS " << bsPos->getId() << std::endl;
         delete msg;
+    }
+    else if(msg->getKind()==MessageType::transInfoMs){
+    	TransInfoMs *info = dynamic_cast<TransInfoMs*>(msg);
+	transInfos[info->getRb()].push_front(info);
     }
     else if(msg->isName("BS_MS_POSITIONS"))  {
         //save the postitions of the mobile stations
@@ -147,15 +155,6 @@ void BsChannel::handleMessage(cMessage *msg)  {
         for(unsigned int i = 0; i < msPos->getPositionsArraySize(); i++)  {
             msPositions[fromBsId][i] = msPos->getPositions(i);
         }
-        if(bsId == 3 && fromBsId == 3){
-			string out2 = "Positions.txt";
-			ofstream output2(out2);
-			for(int i = 0; i < numberOfMobileStations; i++){
-				//output2 << msPositions[fromBsId][i].x << " " << msPositions[fromBsId][i].y
-				 //<< " " <<  1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 500.0,2) + pow(msPositions[fromBsId][i].y - 500.0,2) ) ) + 28 + 20*log10(2.5)) /10) << " \t " << 1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 500.0,2) + pow(msPositions[fromBsId][i].y - 1000.0,2) ) ) + 28 + 20*log10(2.5)) /10) << " \t " << 1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 500.0,2) + pow(msPositions[fromBsId][i].y - 0.0,2) ) ) + 28 + 20*log10(2.5)) /10) << " \t " << 1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 933.0,2) + pow(msPositions[fromBsId][i].y - 750.0,2) ) ) + 28 + 20*log10(2.5)) /10) << " \t " << 1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 67.0,2) + pow(msPositions[fromBsId][i].y - 750.0,2) ) ) + 28 + 20*log10(2.5)) /10) << " \t " << 1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 933.0,2) + pow(msPositions[fromBsId][i].y - 250.0,2) ) ) + 28 + 20*log10(2.5)) /10) << " \t " << 1/pow(10, (22*log10( sqrt( pow(msPositions[fromBsId][i].x - 67.0,2) + pow(msPositions[fromBsId][i].y - 250.0,2) ) ) + 28 + 20*log10(2.5)) /10) << endl;
-			}
-			output2.close();
-		}
         if(simTime() >= 1 && this->getIndex()==0){
 		// The channel instance is shared among all BsChannel instances,
 		// thus only one BsChannel actually needs to call the update 
@@ -170,33 +169,12 @@ void BsChannel::handleMessage(cMessage *msg)  {
 
         //the channel receives the packet in a bundle
         DataPacketBundle *bundle = (DataPacketBundle *) msg;
-	//sendDelayed(bundle, tti - epsilon, "toPhy");
-
         vector<double> instSINR;
-        
 	int currentRessourceBlock = bundle->getRBs(0);
-	vector<double> power;
-	vector<Position> pos;
-	vector<int> bsId;
-
-	bsId.push_back(bundle->getBsId());
-	bsId.push_back(bundle->getBsId());
-
-	NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
-	for(NeighbourMap::iterator it = map->begin(); it != map->end(); it++)  {
-		if(it->first == bundle->getBsId())
-			continue; //skip the own bs; cant interfere
-		int interfererId = schedules[(it->second).first][currentRessourceBlock];
-
-		if(interfererId != -1)  { //skip unused slots
-			bsId.push_back(it->first);
-
-			//cout << "BS " << it->first << ", MS " << interfererId << " is an interferer for the packet!"  << endl;
-		}
-	}
-	instSINR.push_back(channel->calcSINR(currentRessourceBlock,power,pos,bsId,true,bundle->getMsId()));
+	instSINR.push_back(channel->calcUpSINR(currentRessourceBlock,transInfos[currentRessourceBlock],bundle->getMsId(),bundle->getTransPower()));
 
 	double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
+	std::cout << "SINR UP" << " At " << bundle->getBsId() << " from " << bundle->getMsId() <<": " << effSINR << std::endl;
 	//cout << "Effektive SINR (Up): " << effSINR << endl;
 	double bler = getBler(bundle->getCqi(), effSINR, this);
 	//cout << "Block Error Rate(Up): " << bler << endl;

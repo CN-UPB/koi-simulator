@@ -15,6 +15,7 @@
 #include "StreamTransReq_m.h"
 #include "StreamTransSched_m.h"
 #include "SINR_m.h"
+#include "TransInfoMs_m.h"
 #include <stdlib.h>
 #include <cmath>
 
@@ -183,6 +184,7 @@ void MsMac::initialize()  {
    	tti = par("tti");
     	downResourceBlocks = par("downResourceBlocks");
     	packetLength = par("packetLength");
+	transmissionPower = par("transmissionPower");
 
         //msPosition = initMsPosition(initQuadrant, initPosAlpha, initPosBeta, initPosGamma); //for random MS positions in hexagonal cell
     	msPosition = initMsPositionLinear(); //for MS position along a straight road
@@ -238,9 +240,16 @@ void MsMac::handleMessage(cMessage *msg)  {
 		delete packet;
 		packetBundle->setRBsArraySize(1);
 		packetBundle->setRBs(0,schedule->getRb());
+		packetBundle->setTransPower(transmissionPower);
 		// Set CQI to a fixed value until we decide how to compute it
 		//packetBundle->setCqi(cqi);
 		packetBundle->setCqi(15);
+		TransInfoMs *info = new TransInfoMs();
+		info->setBsId(bsId);
+		info->setMsId(msId);
+		info->setRb(schedule->getRb());
+		info->setPower(transmissionPower);
+		send(info,"toBsMac");
                 sendDelayed(packetBundle, epsilon, "toPhy");
             }
         }
