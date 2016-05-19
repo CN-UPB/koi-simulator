@@ -140,6 +140,7 @@ void BsChannel::handleMessage(cMessage *msg)  {
 	else if(msg->isName("BS_POSITION_MSG")) {
         PositionExchange *bsPos = (PositionExchange *) msg;
         neighbourPositions[bsPos->getId()] = bsPos->getPosition();
+	std::cout << "Bs " << bsId << " Received Position for BS " << bsPos->getId() << std::endl;
         delete msg;
     }
     else if(msg->getKind()==MessageType::transInfoMs){
@@ -168,31 +169,9 @@ void BsChannel::handleMessage(cMessage *msg)  {
 
         //the channel receives the packet in a bundle
         DataPacketBundle *bundle = (DataPacketBundle *) msg;
-	//sendDelayed(bundle, tti - epsilon, "toPhy");
-
         vector<double> instSINR;
-        
 	int currentRessourceBlock = bundle->getRBs(0);
-	vector<double> power;
-	vector<Position> pos;
-	vector<int> bsId;
-
-	bsId.push_back(bundle->getBsId());
-	bsId.push_back(bundle->getBsId());
-
-	NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
-	for(NeighbourMap::iterator it = map->begin(); it != map->end(); it++)  {
-		if(it->first == bundle->getBsId())
-			continue; //skip the own bs; cant interfere
-		int interfererId = schedules[(it->second).first][currentRessourceBlock];
-
-		if(interfererId != -1)  { //skip unused slots
-			bsId.push_back(it->first);
-
-			//cout << "BS " << it->first << ", MS " << interfererId << " is an interferer for the packet!"  << endl;
-		}
-	}
-	instSINR.push_back(channel->calcSINR(currentRessourceBlock,power,pos,bsId,true,bundle->getMsId()));
+	instSINR.push_back(channel->calcUpSINR(currentRessourceBlock,transInfos[currentRessourceBlock],bundle->getMsId(),bundle->getTransPower()));
 
 	double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
 	std::cout << "SINR UP" << " At " << bundle->getBsId() << " from " << bundle->getMsId() <<": " << effSINR << std::endl;

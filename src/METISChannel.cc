@@ -114,6 +114,8 @@ bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map 
     	// Half wavelength distance between antennas; give the position of Tx and Rx antennas in GCS
 	// For even value of NumBsAntenna, the antenna elements will be equally spaced around the center of Tx
     	double wavelength = speedOfLight / freq_c;
+	std::cout << neighbourPositions.size() << std::endl;
+	std::cout << NumBsAntenna << std::endl;
     	bsAntennaPositions.resize(neighbourPositions.size(),
 			vector<array<double,3>>(NumBsAntenna));
     	for(size_t i = 0; i < neighbourPositions.size(); i++){
@@ -1483,7 +1485,8 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		bsPos[j] = neighbourPositions[j];
 	}
 	recomputeDownCoefficients(msPos[bsId],bsPos);
-	for(size_t i=0; i<numberOfMobileStations; i++){
+	// Comment in the following lines to print the down table
+/*	for(size_t i=0; i<numberOfMobileStations; i++){
 		std::cout << "MS: " << i << std::endl;
 		for(size_t j=0; j<bsPos.size(); j++){
 			std::cout << "\tBS: " << j << std::endl;
@@ -1496,6 +1499,7 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 			}
 		}
 	}
+*/
 	recomputeUpCoefficients(msPos,bsPos);
 }
 
@@ -1987,35 +1991,60 @@ void METISChannel::handleMessage(cMessage* msg){
 	delete msg;
 }
 
-double METISChannel::calcSINR(int RB, vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId){
+double METISChannel::calcUpSINR(int RB, 
+		std::forward_list<TransInfoMs*> &interferers,
+		int msId,
+		double transPower){
 	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
 	double received = 0;
 	double interference = 0;
-	if(!up){
-		for(int j = 0; j < neighbourPositions.size(); j++){
-			if(j!=bsId){
-				interference += coeffDownTable[msId][j][SINRCounter][RB];
-			}
+	forward_list<TransInfoMs*>::iterator prev(interferers.before_begin());
+	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
+		if((*it)->getCreationTime()<simTime()){
+			interference += (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB];
 		}
-		received = coeffDownTable[msId][bsId][SINRcounter][RB];
-	}
-	else{
-		for(int j = 0; j < neighbourPositions.size(); j++){
-			if(j!=bsId){
-				for(size_t i=0; i<coeffUpTable[j][0].size(); i++){
-					interference += coeffUpTable[j][0][i][SINRCounter][RB];
-				}
-			}
+		else{
+			delete *it;
+			interferers.erase_after(prev);
+			it=prev;
+
 		}
-		received = coeffUpTable[bsId][0][msId][SINRcounter][RB];
-		
 	}
+	received = transPower * coeffUpTable[bsId][0][msId][SINRcounter][RB];
 	interference += getTermalNoise(300,180000);
 	// Convert to db scale
-	//std::cout << 10 * log10( SINRtable[msId][SINRcounter][RB] / interference ) << std::endl;
-	//std::cout << "Gain: " << 10 * log10( SINRtable[msId][SINRcounter][RB] ) << "  MS: " << msId << std::endl;
-	//std::cout << "Simtime: " << simTime() << " Counter: " << std::round( simTime().dbl() *1000.0*4.0) << std::endl;
 	return 10 * log10( received / interference );
+}
+
+double METISChannel::calcDownSINR(int RB, 
+		std::forward_list<TransInfoBs*> &interferers,
+		int msId,
+		double transPower){
+	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
+	double received = 0;
+	double interference = 0;
+	forward_list<TransInfoBs*>::iterator prev(interferers.before_begin());
+	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
+		if((*it)->getCreationTime()<simTime()){
+			interference += (*it)->getPower() * coeffDownTable[msId][(*it)->getBsId()][SINRCounter][RB];
+		}
+		else{
+			delete *it;
+			interferers.erase_after(prev);
+			it=prev;
+
+		}
+	}
+	received = transPower * coeffDownTable[msId][bsId][SINRcounter][RB];
+	interference += getTermalNoise(300,180000);
+	// Convert to db scale
+	return 10 * log10( received / interference );
+}
+
+double METISChannel::calcSINR(int RB, vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId){
+	// Return 1.0, this method is not used with the METIS channel
+	// See calcDownSINR/calcUpSINR instead
+	return -1.0;
 }
 
 vec METISChannel::calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId){

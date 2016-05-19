@@ -94,6 +94,7 @@ void BsMac::sendDelayedToNeighbourCells(cMessage *msg, simtime_t delay)  {
     NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
     for(NeighbourMap::iterator i = map->begin(); i != map->end(); i++)  {
         if(i->first != bsId)  { //skip the own cell
+	    std::cout << "Send Msg to Cell " << i->first << std::endl;
             sendDelayed(msg->dup(), delay, "toCell", (i->second).second);
         }
     }

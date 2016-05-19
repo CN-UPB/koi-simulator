@@ -129,26 +129,7 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			vector<double> instSINR;
 			int currentRessourceBlock = bundle->getRBs(0);
 
-			vector<int> bsId;
-			vector<double> power;
-			vector<Position> pos;
-
-			bsId.push_back(bundle->getBsId());
-			bsId.push_back(bundle->getBsId());
-
-			NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
-//			for(NeighbourMap::iterator it = map->begin(); it != map->end(); it++)  {
-//				if(it->first == bundle->getBsId())
-//					continue; //skip the own bs; cant interfere
-//
-//				if(currentChannel == bsChannels[(it->second).first]){
-//					pos.push_back(bsPositions[(it->second).first]);
-//					power.push_back(1.0);
-//					bsId.push_back(it->first);
-//				}
-//			}
-
-			instSINR.push_back(channel->calcSINR(currentRessourceBlock,power,pos,bsId,false, msId));
+			instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,transInfos[currentRessourceBlock],msId,bundle->getTransPower()));
 			double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
 			double bler = getBler(bundle->getCqi(), effSINR, this);
 			vec bler_(1);

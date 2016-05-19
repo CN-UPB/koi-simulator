@@ -340,9 +340,19 @@ class METISChannel : public Channel{
 		
 		//! Calculates the current SINR for given interferers and given RB.
 		double calcSINR(int RB, vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId);
-		
+
 		//! Calculates the current SINR for given interferers and all RB.
 		vec calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId);
+
+		double calcUpSINR(int RB, 
+				std::forward_list<TransInfoMs*> &interferers,
+				int msId,
+				double transPower);
+
+		double calcDownSINR(int RB, 
+				std::forward_list<TransInfoBs*> &interferers,
+				int msId,
+				double transPower);
 		
 		//! Updates the MS position if velocity > 0. The interval in which the postion is updated can be set within omnet.ini
 		void updateChannel(Position** msPos);
