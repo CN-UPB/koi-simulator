@@ -820,9 +820,6 @@ METISChannel::computeRaySums(vector<vector<bool>>& LOSCondition,
 			// Cycle through all Receiver antennas (MS)
 			for(int u = 0; u < numReceiverAntenna; u++){
 				// Cycle through all Transmitter antennas (BS)
-				std::cout << "Num Receivers Antenna: " << receiverAntennaPos.size() << " i: " << i << std::endl;
-				std::cout << "Num Receivers: " << numReceivers << " i: " << i << std::endl;
-				std::cout << "Num Antennas: " << receiverAntennaPos[i].size() << " u: " << u << std::endl;
 				for(int s = 0; s < numSenderAntenna; s++){
 					// Cycle through all Paths/Clusters
 					clusterIdx = 0;
@@ -1300,8 +1297,6 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 
 		//Assign LOS Conditions:
 		vector<vector<bool>> LOSCondition(genLosCond(senderPos,receiverPos));
-		std::cout << "ReceiverPos size: " << receiverPos.size() << std::endl;
-		std::cout << "LOSCond size Dim 1: " << LOSCondition.size() << std::endl;
 
 		vector<vector<double>> sigma_ds_LOS(receiverPos.size(),
 				vector<double>(senderPos.size()));
