@@ -39,7 +39,30 @@ class MsMac : public cSimpleModule  {
         inline simtime_t positionResendTime();
         Position initMsPosition(int quadrant, double alpha, double beta, double gamma);
 	Position initMsPositionLinear();
+	Position initMsPositionRand();
         void updateDisplayString();
+	/**
+	 * @enum Placement
+	 * All possible methods to determine initial Mobile Station placement
+	 */
+	enum Placement: int{uniformRand,params,bySector,linear};
+
+	/**
+	 * @var MsMac::Placement MsMac::uniformRand
+	 * Place mobile stations uniformly at random in the cell.
+	 */
+	/**
+	 * @var MsMac::Placement MsMac::params
+	 * Place mobile stations as set in the initMsXPos,initMsYPos params.
+	 */
+	/**
+	 * @var MsMac::Placement MsMac::bySector
+	 * Place mobile stations randomly into cell sectors.
+	 */
+	/**
+	 * @var MsMac::Placement MsMac::linear
+	 * Place mobile stations linearly along a "road".
+	 */
 
     protected:
         virtual void initialize();

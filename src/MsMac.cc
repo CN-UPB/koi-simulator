@@ -167,6 +167,19 @@ Position MsMac::initMsPositionLinear()  { //for MS Position along a straight roa
 	return msPos;
 }
 
+Position MsMac::initMsPositionRand(){
+	double angle = uniform(0,360);
+	// Choose radius between 10m and the cell radius
+	// 10 meters is the minimum dist for the METIS model
+	double distToBs = uniform(10,radius);
+	// Convert angle to radians for math library functions
+	angle = angle * (M_PI/180);
+	Position initPos;
+	initPos.x = initBsPos.x+distToBs*std::cos(angle);
+	initPos.y = initBsPos.y+distToBs*std::sin(angle);
+	return initPos;
+}
+
 void MsMac::initialize()  {
     	positionResendInterval = par("positionResendInterval");
     	msId = par("msId");
@@ -186,16 +199,38 @@ void MsMac::initialize()  {
     	packetLength = par("packetLength");
 	transmissionPower = par("transmissionPower");
 
-        //msPosition = initMsPosition(initQuadrant, initPosAlpha, initPosBeta, initPosGamma); //for random MS positions in hexagonal cell
-    	msPosition = initMsPositionLinear(); //for MS position along a straight road
+	switch((int)par("positioning")){
+		case MsMac::Placement::params:
+			msPosition.x = par("initMsXPos");
+			msPosition.y = par("initMsYPos");
+			break;
+		case MsMac::Placement::bySector:
+			msPosition = initMsPosition(initQuadrant, 
+					initPosAlpha, 
+					initPosBeta, 
+					initPosGamma); //for random MS positions in hexagonal cell
+			break;
+		case MsMac::Placement::linear:
+			msPosition = initMsPositionLinear(); //for MS position along a straight road
+			break;
+		case MsMac::Placement::uniformRand:
+			msPosition = initMsPositionRand();
+			break;
+		default:
+			// TODO Notify the user that the value for MS positioning
+			// is invalid.
+			std::cout << "Invalid Ms placement algorithm " << (int) par("positioning") << std::endl;
+	}
+        
 	//for Tkenv
 	updateDisplayString();
 	
 	//TODO: get from ini
 	SINR_ = zeros(100);
 
+    // disable resending of MS positions for now, we have no movement	
     //resend the ms position every x times to the BsMac layer
-    scheduleAt(simTime() + initOffset + tti - epsilon, new cMessage("RESEND_POS")); //originally set to simTime() + initOffset 
+    //scheduleAt(simTime() + initOffset + tti - epsilon, new cMessage("RESEND_POS")); //originally set to simTime() + initOffset 
 
     //every tti send transmit requests to stream scheduler
     scheduleAt(simTime() + initOffset + 2*tti-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));

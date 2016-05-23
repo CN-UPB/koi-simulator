@@ -4,6 +4,8 @@ simple MsMac  {
     	int msId;
     	double initBsXPos;
     	double initBsYPos;
+	double initMsXPos = default(0.0);
+	double initMsYPos = default(0.0);
 	int initQuadrant;
         int currentChannel;
     	double initOffset @unit(s);
@@ -18,6 +20,12 @@ simple MsMac  {
 	int downResourceBlocks;
 	int packetLength = default(1500b) @unit(b);
 	double transmissionPower = default(1.0);
+	// The positioning algorithm for Mobile Stations inside their cell
+	// 0 - Uniformely random anywhere in the cell
+	// 1 - Use the positions given as OMNet parameters (initMsXPos,initMsXPos)
+	// 2 - Use initial placement by sector
+	// 3 - Use linear placement simulating a straight road
+	int positioning = default(0);
     	
         @display("i=block/mac");
         
