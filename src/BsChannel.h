@@ -19,6 +19,7 @@
 #include "TransInfoMs_m.h"
 #include <vector>
 #include <forward_list>
+#include <ostream>
 
 class BsChannel : public cSimpleModule  {
     private:
@@ -56,6 +57,9 @@ class BsChannel : public cSimpleModule  {
 	 * packet receival.
 	 */ 
 	std::vector<std::forward_list<TransInfoMs*>> transInfos;
+
+	std::ostream& outputDownSINR(std::ostream& out);
+	std::ostream& outputUpSINR(std::ostream& out);
 
     protected:
         virtual void initialize();
