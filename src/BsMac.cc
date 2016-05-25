@@ -81,6 +81,10 @@ void BsMac::initialize()  {
 
     //every tti send transmit requests to stream scheduler
     scheduleAt(simTime() + initOffset + 2*tti-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
+
+    #ifndef NDEBUG
+    scheduleAt(simTime()+initOffset,new cMessage("DEBUG"));
+    #endif
 }
 
 /* important: this method does not delete the msg! */
@@ -270,6 +274,11 @@ void BsMac::handleMessage(cMessage *msg)  {
 			}
 		}
 		scheduleAt(simTime() + tti-epsilon, msg);
+	}
+	else if(msg->isName("DEBUG")){
+		// forward debug messages to BS channel
+		send(msg->dup(),"toBsChannel",0);
+		delete msg;
 	}
     }
     else if(msg->isName("BS_POSITION_MSG"))  {

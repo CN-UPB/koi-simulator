@@ -1492,21 +1492,6 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		bsPos[j] = neighbourPositions[j];
 	}
 	recomputeDownCoefficients(msPos[bsId],bsPos);
-	// Comment in the following lines to print the down table
-/*	for(size_t i=0; i<numberOfMobileStations; i++){
-		std::cout << "MS: " << i << std::endl;
-		for(size_t j=0; j<bsPos.size(); j++){
-			std::cout << "\tBS: " << j << std::endl;
-			for(size_t t=0; t<timeSamples; t++){
-				std::cout << "\t\tTS: " << t << std::endl;
-				for(size_t r=0; r<downRBs; r++){
-					std::cout << "\t\t\tRB " << r << ": " << coeffDownTable[i][j][t][r] << std::endl;
-				}
-
-			}
-		}
-	}
-*/
 	recomputeUpCoefficients(msPos,bsPos);
 }
 
@@ -1991,6 +1976,16 @@ void METISChannel::handleMessage(cMessage* msg){
 			//std::cout << "Counter: " << SINRcounter << std::endl;
 		}
 	}
+	else if(msg->isName("DEBUG")){
+		ofstream upTables;
+		upTables.open("coeff_table_up.dat",std::ofstream::trunc);
+		printCoeffUpTables(upTables);
+		upTables.close();
+		ofstream downTables;
+		downTables.open("coeff_table_down.dat",std::ofstream::trunc);
+		printCoeffDownTables(downTables);
+		downTables.close();
+	}
 	delete msg;
 }
 
@@ -2071,6 +2066,36 @@ double METISChannel::getTermalNoise(double temp, double bandwidth){
 double METISChannel::calcPathloss(double dist){
 	//Placeholder
 	return 1.0;
+}
+
+std::ostream& METISChannel::printCoeffUpTables(std::ostream& out){
+	out << "BS" << "\t" << "MS" << "\t" << "Time" << "\t" << "RB" << "\t" << "Coeff" << std::endl;
+	for(size_t i=0; i<coeffUpTable.size(); i++){
+		for(size_t j=0; j<coeffUpTable[i][0].size(); j++){
+			for(size_t t=0; t<timeSamples; t++){
+				for(size_t r=0; r<downRBs; r++){
+					out << i << "\t" << j << "\t" << t << "\t" << r << "\t" << coeffUpTable[i][0][j][t][r] << std::endl;
+				}
+
+			}
+		}
+	}
+	return out;
+}
+
+std::ostream& METISChannel::printCoeffDownTables(std::ostream& out){
+	out << "MS" << "\t" << "BS" << "\t" << "Time" << "\t" << "RB" << "\t" << "Coeff" << std::endl;
+	for(size_t i=0; i<coeffDownTable.size(); i++){
+		for(size_t j=0; j<coeffDownTable[i].size(); j++){
+			for(size_t t=0; t<timeSamples; t++){
+				for(size_t r=0; r<downRBs; r++){
+					out << i << "\t" << j << "\t" << t << "\t" << r << "\t" << coeffDownTable[i][j][t][r] << std::endl;
+				}
+
+			}
+		}
+	}
+	return out;
 }
 
 METISChannel::~METISChannel(){

@@ -19,6 +19,7 @@
 #include <vector>
 #include <tuple>
 #include <array>
+#include <ostream>
 
 using std::vector;
 using std::array;
@@ -318,6 +319,16 @@ class METISChannel : public Channel{
 		void recomputeUpCoefficients(const vector<vector<Position>>& msPositions,
 				const vector<Position>& bsPositions);
 
+		/**
+		 * @brief Output the Up coefficient table to out stream
+		 */
+		std::ostream& printCoeffUpTables(std::ostream& out);
+
+		/**
+		 * @brief Output the Down coefficient table to out stream
+		 */
+		std::ostream& printCoeffDownTables(std::ostream& out);
+
 	public:
 		//! Constructor of METIS Channel subclass.
 		METISChannel(){
@@ -358,7 +369,7 @@ class METISChannel : public Channel{
 		
 		//! Updates the MS position if velocity > 0. The interval in which the postion is updated can be set within omnet.ini
 		void updateChannel(Position** msPos);
-		
+
 		//! Destructor of METIS Channel subclass.
 		virtual ~METISChannel();
 };

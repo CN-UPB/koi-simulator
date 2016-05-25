@@ -163,6 +163,10 @@ void BsChannel::handleMessage(cMessage *msg)  {
 	}
         delete msPos;
     }
+    else if(msg->isName("DEBUG")){
+    	// Forward DEBUG message to the actual channel
+	channel->handleMessage(msg);
+    }
     else if(msg->arrivedOn("fromMs"))  {
 		//std::cout << "received fromMs Message." << std::endl;
         assert(msg->isName("DATA_BUNDLE") == true);
