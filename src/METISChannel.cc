@@ -1978,11 +1978,13 @@ void METISChannel::handleMessage(cMessage* msg){
 	}
 	else if(msg->isName("DEBUG")){
 		ofstream upTables;
-		upTables.open("coeff_table_up.dat",std::ofstream::trunc);
+		std::string fname("coeff_table_up_"+std::to_string(bsId)+".dat");
+		upTables.open(fname,std::ofstream::trunc);
 		printCoeffUpTables(upTables);
 		upTables.close();
 		ofstream downTables;
-		downTables.open("coeff_table_down.dat",std::ofstream::trunc);
+		fname = "coeff_table_down_"+std::to_string(bsId)+".dat";
+		downTables.open(fname,std::ofstream::trunc);
 		printCoeffDownTables(downTables);
 		downTables.close();
 	}
