@@ -151,10 +151,9 @@ void BsChannel::handleMessage(cMessage *msg)  {
     else if(msg->isName("BS_MS_POSITIONS"))  {
         //save the postitions of the mobile stations
         BsMsPositions *msPos = (BsMsPositions *) msg;
-        int fromBsId = neighbourIdMatching->getDataStrId(msPos->getBsId());
-        //cout << "Ms positions from bs " << fromBsId << " arrived!" << endl;
+        //cout << "Ms positions from bs " << msPos->getBsId() << " arrived at " << bsId << endl;
         for(unsigned int i = 0; i < msPos->getPositionsArraySize(); i++)  {
-            msPositions[fromBsId][i] = msPos->getPositions(i);
+            msPositions[msPos->getBsId()][i] = msPos->getPositions(i);
         }
         if(simTime() >= 1 && this->getIndex()==0){
 		// The channel instance is shared among all BsChannel instances,

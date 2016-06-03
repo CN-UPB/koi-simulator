@@ -1262,6 +1262,7 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 	// that base station is the only receiver for the UP direction in any 
 	// given cell.
 	vector<Position> receiverPos{bsPositions[bsId]};
+	vector<vector<array<double,3>>> receiverAntennaPos{bsAntennaPositions[bsId]};
 	coeffUpTable = vector<vector<vector<vector<vector<double>>>>>(bsPositions.size(),
 			vector<vector<vector<vector<double>>>>(1));
 	for(size_t j=0; j<msPositions.size(); j++){
@@ -1271,18 +1272,17 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 		vector<vector<array<double,3>>> senderAntennaPos(senderPos.size(),
 				vector<array<double,3>>(numSenderAntenna));
 		for(int i = 0; i < senderPos.size(); i++){
-			for(int j = 0; j < (numSenderAntenna/2); j++){
-				senderAntennaPos[i][j][0] = senderPos[i].x - (0.25 * wavelength * (numSenderAntenna - 1 - (j*2.0)));
-				senderAntennaPos[i][j][1] = senderPos[i].y;
-				senderAntennaPos[i][j][2] = heightUE;
+			for(int k = 0; k < (numSenderAntenna/2); k++){
+				senderAntennaPos[i][k][0] = senderPos[i].x - (0.25 * wavelength * (numSenderAntenna - 1 - (k*2.0)));
+				senderAntennaPos[i][k][1] = senderPos[i].y;
+				senderAntennaPos[i][k][2] = heightUE;
 			}
-			for(int j = (numSenderAntenna/2); j < numSenderAntenna ; j++){
-				senderAntennaPos[i][j][0] = senderAntennaPos[i][j-1][0] + (0.5 * wavelength);
-				senderAntennaPos[i][j][1] = senderPos[i].y;
-				senderAntennaPos[i][j][2] = heightUE;
+			for(int k = (numSenderAntenna/2); k < numSenderAntenna ; k++){
+				senderAntennaPos[i][k][0] = senderAntennaPos[i][k-1][0] + (0.5 * wavelength);
+				senderAntennaPos[i][k][1] = senderPos[i].y;
+				senderAntennaPos[i][k][2] = heightUE;
 			}
 		}
-		vector<vector<array<double,3>>> receiverAntennaPos{bsAntennaPositions[bsId]};
 
 		vector<vector<double>> AoA_LOS_dir;
 		vector<vector<double>> ZoA_LOS_dir;
@@ -2002,6 +2002,7 @@ double METISChannel::calcUpSINR(int RB,
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
 		if((*it)->getCreationTime()>=simTime()-tti){
 			interference += (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB];
+			std::cout << "Interference added: " << (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB] << std::endl;
 		}
 		else{
 			delete *it;
@@ -2011,7 +2012,10 @@ double METISChannel::calcUpSINR(int RB,
 		}
 	}
 	received = transPower * coeffUpTable[bsId][0][msId][SINRcounter][RB];
+	std::cout << "Received: " << received << std::endl;
+	std::cout << "Interference before noise: " << interference << std::endl;
 	interference += getTermalNoise(300,180000);
+	std::cout << "Interference after noise: " << interference << std::endl;
 	// Convert to db scale
 	return 10 * log10( received / interference );
 }
