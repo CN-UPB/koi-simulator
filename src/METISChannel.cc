@@ -2000,7 +2000,7 @@ double METISChannel::calcUpSINR(int RB,
 	double interference = 0;
 	forward_list<TransInfoMs*>::iterator prev(interferers.before_begin());
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
-		if((*it)->getCreationTime()<simTime()){
+		if((*it)->getCreationTime()>=simTime()-tti){
 			interference += (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB];
 		}
 		else{
@@ -2025,7 +2025,7 @@ double METISChannel::calcDownSINR(int RB,
 	double interference = 0;
 	forward_list<TransInfoBs*>::iterator prev(interferers.before_begin());
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
-		if((*it)->getCreationTime()<simTime()){
+		if((*it)->getCreationTime()>=simTime()-tti){
 			interference += (*it)->getPower() * coeffDownTable[msId][(*it)->getBsId()][SINRCounter][RB];
 		}
 		else{
