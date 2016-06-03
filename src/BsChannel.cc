@@ -228,7 +228,7 @@ std::ostream& BsChannel::outputDownSINR(std::ostream& out){
 	// we generate for all downlink ressource blocks. We also assume 
 	// that the transmission power used is always 1.
 	forward_list<TransInfoBs> inf;
-	for(int i=0; i<maxNumberOfNeighbours-1; i++){
+	for(int i=0; i<maxNumberOfNeighbours; i++){
 		if(i!=bsId){
 			for(int r=0; r<downResBlocks; r++){
 				TransInfoBs info;
@@ -263,7 +263,7 @@ std::ostream& BsChannel::outputUpSINR(std::ostream& out){
 	// we generate for all uplink ressource blocks. We also assume 
 	// that the transmission power used is always 1.
 	forward_list<TransInfoMs> inf;
-	for(int j=0; j<maxNumberOfNeighbours-1; j++){
+	for(int j=0; j<maxNumberOfNeighbours; j++){
 		if(j!=bsId){
 			int numMs = neighbourIdMatching->getNumberOfMS(j);
 			for(int i=0; i<numMs; i++){
