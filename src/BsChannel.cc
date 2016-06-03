@@ -230,13 +230,11 @@ std::ostream& BsChannel::outputDownSINR(std::ostream& out){
 	forward_list<TransInfoBs> inf;
 	for(int i=0; i<maxNumberOfNeighbours; i++){
 		if(i!=bsId){
-			for(int r=0; r<downResBlocks; r++){
-				TransInfoBs info;
-				info.setRb(r);
-				info.setPower(transPower);
-				info.setBsId(i);
-				inf.push_front(info);
-			}
+			TransInfoBs info;
+			info.setRb(0);
+			info.setPower(transPower);
+			info.setBsId(i);
+			inf.push_front(info);
 		}
 	}
 	for(int i=0; i<numberOfMobileStations; i++){
@@ -267,14 +265,12 @@ std::ostream& BsChannel::outputUpSINR(std::ostream& out){
 		if(j!=bsId){
 			int numMs = neighbourIdMatching->getNumberOfMS(j);
 			for(int i=0; i<numMs; i++){
-				for(int r=0; r<upResBlocks; r++){
-					TransInfoMs info;
-					info.setRb(r);
-					info.setPower(transPower);
-					info.setBsId(j);
-					info.setMsId(i);
-					inf.push_front(info);
-				}
+				TransInfoMs info;
+				info.setRb(0);
+				info.setPower(transPower);
+				info.setBsId(j);
+				info.setMsId(i);
+				inf.push_front(info);
 			}
 		}
 	}
