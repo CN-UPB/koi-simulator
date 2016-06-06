@@ -1,0 +1,95 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{pgfplotstable}
+\usepackage{siunitx}
+\begin{document}
+\title{Verification of SINR Values for Path Gain in the METIS Simulation}
+\author{Michael Meier\\ Research Group Computer Networks\\ University of Paderborn}
+\maketitle
+
+\section{Introductory Notes}
+	The following sections document the verification process for the \emph{Path Gain} computations in the METIS simulation. The goal is testing whether SINR values are computed correctly for uplink as well as downlink computations for a small scenario with only the path gain/path loss equations of the METIS model. 
+	\subsection{Simulations}
+	The simulations were run with the slighly modified code from the \texttt{verify\_pathloss} branch of the simulator repository. In this branch, all compuations safe the path loss are commented out. Additionally, all BS/MS pairs are considered to have \emph{Line of Sight}.
+	\subsection{Scenario}
+	The scenario consists of two cells with one base station and two mobile stations each. Table \ref{trans:positions} shows the positioning of base and mobile stations. Multiple, randomized simulation runs were not necessary because all path loss based SINR compuations are deterministic.
+	\begin{table}
+		\centering
+		\label{trans:positions}
+		\caption{Transmitter positions in the simulated scenario.}
+		\begin{tabular}{ccc}
+			\toprule
+			Transmitter & X & Y\\
+			\midrule
+			$BS_{0}$ & $30.0$ & $30.0$ \\
+			$BS_{1}$ & $75.0$ & $75.0$ \\
+			$MS_{00}$ & $30.0$ & $44.0$ \\
+			$MS_{01}$ & $30.0$ & $49.0$ \\
+			$MS_{10}$ & $75.0$ & $89.0$ \\
+			$MS_{11}$ & $75.0$ & $94.0$ \\
+			\bottomrule
+		\end{tabular}
+	\end{table}
+	Also important to note is the carrier frequency $f_c=\SI{3.5}{\giga \hertz}$ 
+	
+	\subsection{Equations}
+	Distances between senders and receivers were computed using the \emph{Pythagorean theorem}. The path loss calculations themselves were conducted manually using the equations given for the METIS model in Table 7-11 in \cite{METIS1.2}. 
+	
+	Since the simulation software uses path gain instead of loss internally, the path loss values $P_l$ computed by hand had to be changed like this:
+	\begin{equation}
+	\label{gaineq}
+	P_g = \frac{1}{10^{\frac{P_l}{10}}}
+	\end{equation}
+	
+	To arrive at the interference value for a particular sender/receiver pair, the \emph{Johnson-Nyqist} noise of $7.4555035\cdot10^{-16}$ was added to the path gain values of all possible interferers. For the uplink, this would be the path gain between the base station and all mobile stations from neighbouring cells. Here, we assume all transmissions occur in the same frequency block and thus interference will always occur. For the downlink, the interference is equal to the path gain between the receiving mobile station and all base stations in neighbouring cells.
+	
+	The results of the computations can be found in tables \ref{downlink} and \ref{uplink}. Here, the \emph{SINR} column contains the manually computed values, while the \emph{SINR Simulation} column contains the values from the simulation run.  
+
+\begin{table}[h!]
+  \begin{center}
+    \caption{Verification of simulation values against manual computations for path gain on the downlink.}
+    \label{downlink}
+    \pgfplotstabletypeset[
+      multicolumn names, 
+      col sep=tab,
+      %skip first n=1, 
+	  %columns={MS,BS,d2d,d3d,},	
+	  columns/MS/.style={verb string type},
+      every head row/.style={
+		before row={\toprule},
+		after row={\midrule}}, % have a rule at top
+	  every last row/.style={after row=\bottomrule} % rule at bottom
+    ]{computation_tables_down.txt} % filename/path to file
+  \end{center}
+\end{table}
+
+\begin{table}[h!]
+  \begin{center}
+    \caption{Verification of simulation values against manual computations for path gain on the uplink.}
+    \label{uplink}
+    \pgfplotstabletypeset[
+      multicolumn names, 
+      col sep=tab,
+      %skip first n=1, 
+	  %columns={MS,BS,d2d,d3d,},	
+	  columns/MS/.style={verb string type},
+      every head row/.style={
+		before row={\toprule},
+		after row={\midrule}}, % have a rule at top
+	  every last row/.style={after row=\bottomrule} % rule at bottom
+    ]{computation_tables_up.txt} % filename/path to file
+  \end{center}
+\end{table}
+
+\begin{thebibliography}{9}
+
+
+\bibitem{METIS1.2}
+  METIS Project,
+  Deliverable D1.2: Initial Channel Models Based on Measurements,
+  2014.
+
+\end{thebibliography}
+\end{document}
