@@ -28,7 +28,7 @@ class StreamScheduler: public cSimpleModule{
 		simtime_t tti;
 		std::vector<StreamInfo*> infos;		
 		std::unordered_map<int,std::vector<StreamTransReq*>> requests;
-		std::unordered_map<int,std::unordered_map<int,int>> rbAssignments;
+		std::unordered_map<unsigned long,int> rbAssignments;
 		virtual void scheduleStreams();
 
 	protected:

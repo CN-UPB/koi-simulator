@@ -41,7 +41,7 @@ void StreamScheduler::scheduleStreams(){
 		// by a round robin.
 		int rb = 0;
 		for(auto info:this->infos){
-			this->rbAssignments[info->getSrc()][info->getDest()] = rb%resourceBlocks;
+			this->rbAssignments[info->getStreamId()] = rb%resourceBlocks;
 			rb++;
 			delete info;
 		}
@@ -58,7 +58,7 @@ void StreamScheduler::handleMessage(cMessage *msg){
 			} break;
 		case MessageType::streamTransReq:{
 				StreamTransReq *req = dynamic_cast<StreamTransReq*>(msg);
-				int assignedRB = rbAssignments[req->getSrc()][req->getDest()];
+				int assignedRB = rbAssignments[req->getStreamId()];
 				this->requests[assignedRB].push_back(req);
 			} break;
 		case MessageType::scheduleStreams:{

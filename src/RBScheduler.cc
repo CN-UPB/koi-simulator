@@ -27,6 +27,7 @@ StreamTransSched *RBScheduler::getSchedule(
 		int bestSrc;
 		int bestDest;
 		bool bestBs;
+		unsigned long bestStreamId;
 		// The following code iterates over all transmission requests and finds 
 		// the next packet to be send, according to the scheduler's "compare" 
 		// method.
@@ -54,6 +55,7 @@ StreamTransSched *RBScheduler::getSchedule(
 					bestSrc = bestPacket->getSrc();
 					bestDest = bestPacket->getDest();
 					bestBs = currReq->getBs();					
+					bestStreamId = currReq->getStreamId();
 				}
 				index++;
 			}
@@ -62,6 +64,7 @@ StreamTransSched *RBScheduler::getSchedule(
 		StreamTransSched *schedule = new StreamTransSched();
 		schedule->setSrc(bestSrc);
 		schedule->setDest(bestDest);
+		schedule->setStreamId(bestStreamId);
 		schedule->setRb(this->rbNumber);
 		schedule->setPacketIndex(bestPacketIndex);
 		schedule->setBs(bestBs);

@@ -119,7 +119,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 		StreamInfo *info = dynamic_cast<StreamInfo*>(msg);
 		// Add a packet queue for this stream, using associative containers 
 		// automatic insertion of new entries when subscripting.
-		streamQueues[info->getSrc()][info->getDest()];
+		streamQueues[info->getStreamId()];
 		delete info;
 	}
 	else if(msg->getKind()==MessageType::transInfoBs){
@@ -148,7 +148,6 @@ void BsMac::handleMessage(cMessage *msg)  {
 	    StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
 	    DataPacketBundle *packetBundle = new DataPacketBundle("DATA_BUNDLE");
 
-	    int srcMs = sched->getSrc();
 	    int destMs = sched->getDest();
             vector<double> sinr_values;
 	    sinr_values.push_back(SINR_(destMs,sched->getRb()));
@@ -166,9 +165,9 @@ void BsMac::handleMessage(cMessage *msg)  {
             if(channel_capacity > 0)  {
                 packetBundle->setPacketsArraySize(1);
 		KoiData *packet = dynamic_cast<KoiData*>(
-				streamQueues[srcMs][destMs].get(
+				streamQueues[sched->getStreamId()].get(
 					sched->getPacketIndex()));
-		streamQueues[srcMs][destMs].remove(packet);
+		streamQueues[sched->getStreamId()].remove(packet);
 		packetBundle->setPackets(0, *packet);
 		packetBundle->setRBsArraySize(1);
 		packetBundle->setRBs(0,sched->getRb());
@@ -254,23 +253,18 @@ void BsMac::handleMessage(cMessage *msg)  {
 	else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
 		// Send requests for each stream to the 
 		// scheduler if that stream has packets.
-		for(auto iterSrc=this->streamQueues.begin(); iterSrc!=streamQueues.end();
-				++iterSrc){
-			if(!iterSrc->second.empty()){
-				for(auto iterDest=iterSrc->second.begin(); 
-						iterDest!=iterSrc->second.end();
-						++iterDest){
-					if(!iterDest->second.empty()){
-						StreamTransReq *req = new StreamTransReq();
-						KoiData *queueHead = dynamic_cast<KoiData*>(iterDest->second.front());
-						req->setSrc(iterSrc->first);
-						req->setDest(iterDest->first);
-						req->setPeriod(queueHead->getInterarrival());
-						req->setPackets(&(iterDest->second));
-						req->setBs(true);
-						send(req,"toScheduler");
-					}
-				}
+		for(auto iter=this->streamQueues.begin(); iter!=streamQueues.end();
+				++iter){
+			if(!iter->second.empty()){
+				StreamTransReq *req = new StreamTransReq();
+				KoiData *queueHead = dynamic_cast<KoiData*>(iter->second.front());
+				req->setSrc(queueHead->getSrc());
+				req->setDest(queueHead->getDest());
+				req->setStreamId(iter->first);
+				req->setPeriod(queueHead->getInterarrival());
+				req->setPackets(&(iter->second));
+				req->setBs(true);
+				send(req,"toScheduler");
 			}
 		}
 		scheduleAt(simTime() + tti-epsilon, msg);
@@ -295,7 +289,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 	KoiData packet;
 	for(unsigned int i=0; i<bundle->getPacketsArraySize(); i++){
 		packet = bundle->getPackets(i);
-		streamQueues[packet.getSrc()][packet.getDest()].insert(packet.dup());
+		streamQueues[packet.getStreamId()].insert(packet.dup());
 	}
 	delete bundle;
     }

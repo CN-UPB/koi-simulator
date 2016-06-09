@@ -17,5 +17,6 @@ message StreamTransReq  {
 	simtime_t period; // The (average) time between two packets in this stream
 	QueuePtr packets; // The current packet queue for this stream   
 	bool bs; // Is this request originating from the Base Station?
+	unsigned long streamId; // The unique ID identifying the stream this schedule concerns
 	kind = MessageType::streamTransReq;
 }

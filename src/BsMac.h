@@ -39,7 +39,7 @@ class BsMac : public cSimpleModule  {
 
         simtime_t tti;
         simtime_t epsilon;
-	unordered_map<int,unordered_map<int,cQueue>> streamQueues;
+	unordered_map<unsigned long,cQueue> streamQueues;
 
     protected:
         virtual void initialize();

@@ -19,7 +19,7 @@ using namespace std;
 
 class MsMac : public cSimpleModule  {
     private:
-	unordered_map<int,cQueue> streamQueues;
+	unordered_map<unsigned long,cQueue> streamQueues;
         Position msPosition;
         int msId;
         int bsId;
