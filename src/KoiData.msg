@@ -15,6 +15,7 @@ packet KoiData {
 	int resourceBlock;
 	int src; // The ID of the mobile station which created the message
 	int dest; // The ID of the target mobile station
+	unsigned long streamId; // Unique ID of the stream this packet belongs to
 	int trafficType @enum(TrafficType); // The type of traffic, periodic or event based
 	kind = MessageType::koidata;
 }

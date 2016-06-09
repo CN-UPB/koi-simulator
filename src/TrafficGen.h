@@ -12,12 +12,19 @@
 #pragma once
 
 #include "includes.h"
-#include <vector>
+#include <unordered_map>
 
 class TrafficGen: public cSimpleModule{
 	private:
+		struct StreamDef{
+			unsigned long streamId;
+			int destBsId;
+			int destMsId;
+			double period;
+			bool d2d;
+		};
 		int bsId;
-		std::vector<int> commPartners;
+		std::unordered_map<unsigned long,StreamDef> streams;
 		double deadline;
 		double initOffset;
 		int msId;
