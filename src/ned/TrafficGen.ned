@@ -1,7 +1,7 @@
 simple TrafficGen {
 	parameters:
 		int bsId;
-		string commPartners;
+		string commTable = default("comm_table.xml");
 		double deadline @unit(s);
 		double initOffset @unit(s);
 		int msId;

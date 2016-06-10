@@ -17,6 +17,18 @@
 class TrafficGen: public cSimpleModule{
 	private:
 		struct StreamDef{
+			StreamDef(unsigned long streamId,
+					int destBsId,
+					int destMsId,
+					double period,
+					bool d2d)
+				:streamId(streamId),
+				destBsId(destBsId),
+				destMsId(destMsId),
+				period(period),
+				d2d(d2d)
+			{}
+			StreamDef() = default;
 			unsigned long streamId;
 			int destBsId;
 			int destMsId;
@@ -29,8 +41,9 @@ class TrafficGen: public cSimpleModule{
 		double initOffset;
 		int msId;
 		int packetLength;
-		double period;
 		bool periodicTraffic;
+		static std::vector<StreamDef> parseCommTable(
+				const std::string& path,int bsId, int msId);
 	
 	protected:
 		virtual void initialize();
