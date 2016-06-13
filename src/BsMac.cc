@@ -33,7 +33,7 @@ void BsMac::initialize()  {
     bsId = par("bsId");
     currentChannel = par("currentChannel");
     maxNumberOfNeighbours = par("maxNumberOfNeighbours");
-    resourceBlocks = par("resourceBlocks");
+    resourceBlocks = par("downResourceBlocks");
     numberOfMobileStations = par("numberOfMobileStations");
     sinr_est = 0;
     transmissionPower = par("transmissionPower");
@@ -263,7 +263,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 				req->setStreamId(iter->first);
 				req->setPeriod(queueHead->getInterarrival());
 				req->setPackets(&(iter->second));
-				req->setBs(true);
+				req->setMessageDirection(MessageDirection::down);
 				send(req,"toScheduler");
 			}
 		}

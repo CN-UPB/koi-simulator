@@ -9,6 +9,7 @@ using QueuePtr = const cQueue*;
 
 class noncobject QueuePtr;
 enum MessageType;
+enum MessageDirection;
 
 message StreamTransReq  {
 	
@@ -16,7 +17,7 @@ message StreamTransReq  {
 	int dest; // The MS to which the Packet should be send
 	simtime_t period; // The (average) time between two packets in this stream
 	QueuePtr packets; // The current packet queue for this stream   
-	bool bs; // Is this request originating from the Base Station?
+	int messageDirection @enum(MessageDirection); // The direction of the message, up, down or D2D
 	unsigned long streamId; // The unique ID identifying the stream this schedule concerns
 	kind = MessageType::streamTransReq;
 }

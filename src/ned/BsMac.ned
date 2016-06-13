@@ -4,8 +4,8 @@ simple BsMac  {
     	int numberOfMobileStations;
     	int bsId;
         int currentChannel;
+	int downResourceBlocks;
         int SlidingWindowSize;
-	int resourceBlocks;
         double SmoothingFactor;
         bool useSinr;
         string AverageType;

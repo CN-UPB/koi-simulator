@@ -22,3 +22,9 @@ enum MessageType: short {
 	scheduleStreams,
 	scheduleRBs
 };
+
+enum MessageDirection: int {
+	up,
+	down,
+	d2d
+};

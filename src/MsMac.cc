@@ -303,7 +303,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 			req->setStreamId(iter->first);
 			req->setPeriod(queueHead->getInterarrival());
 			req->setPackets(&(iter->second));
-			req->setBs(false);
+			req->setMessageDirection(MessageDirection::up);
 			send(req,"toScheduler");
 		}
 	}

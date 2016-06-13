@@ -19,7 +19,8 @@ Define_Module(StreamScheduler);
 
 void StreamScheduler::initialize(){
 	this->initOffset = par("initOffset");
-	this->resourceBlocks = par("resourceBlocks");
+	this->downRB = par("downResourceBlocks");
+	this->upRB = par("upResourceBlocks");
 	this->numberOfMs = par("numberOfMobileStations");
 	this->infos = vector<StreamInfo*>();
 	this->streamSchedPeriod = par("streamSchedPeriod");
@@ -39,10 +40,15 @@ void StreamScheduler::scheduleStreams(){
 		this->rbAssignments.clear();
 		// This simple algorithm assigns streams to resource blocks 
 		// by a round robin.
-		int rb = 0;
+		int rbUp = 0;
+		int rbDown = 0;
 		for(auto info:this->infos){
-			this->rbAssignments[info->getStreamId()] = rb%resourceBlocks;
-			rb++;
+			this->rbAssignments[info->getStreamId()][MessageDirection::up] 
+				= std::make_pair<MessageDirection,int>(MessageDirection::up,rbUp%upRB);
+			this->rbAssignments[info->getStreamId()][MessageDirection::down] 
+				= std::make_pair<MessageDirection,int>(MessageDirection::down,rbDown%downRB);
+			rbUp++;
+			rbDown++;
 			delete info;
 		}
 		// Remove all stream infos
@@ -58,33 +64,49 @@ void StreamScheduler::handleMessage(cMessage *msg){
 			} break;
 		case MessageType::streamTransReq:{
 				StreamTransReq *req = dynamic_cast<StreamTransReq*>(msg);
-				int assignedRB = rbAssignments[req->getStreamId()];
-				this->requests[assignedRB].push_back(req);
+				ResAssign& assignment = rbAssignments[req->getStreamId()][req->getMessageDirection()];
+				this->requests[assignment.first][assignment.second].push_back(req);
 			} break;
 		case MessageType::scheduleStreams:{
 				this->scheduleStreams();
 				scheduleAt(simTime()+this->streamSchedPeriod,msg);
 			} break;
 		case MessageType::scheduleRBs:
-			for(auto iter=this->requests.begin();
-					iter!=requests.end();
-					++iter){
-				TransReqList *lst = new TransReqList();
-				lst->setRequests(iter->second);
-				// Clear all transmission requests for this 
-				// stream from the stream schedulers queue.
-				iter->second.clear();
-				send(lst,"toRB",iter->first);
+			// Iterate over all message directions (up/down)
+			for(auto iterDir=this->requests.begin();
+					iterDir!=requests.end();
+					++iterDir){
+				// Iterate over all Resource blocks in the current 
+				// transmission direction
+				for(auto iterRb=iterDir->second.begin();
+						iterRb!=iterDir->second.end();
+						++iterRb){
+					TransReqList *lst = new TransReqList();
+					lst->setRequests(iterRb->second);
+					// Clear all transmission requests for this 
+					// stream from the stream schedulers queue.
+					iterRb->second.clear();
+					switch(iterDir->first){
+						case MessageDirection::up:
+							send(lst,"upRB$o",iterRb->first);
+							break;
+						case MessageDirection::down:
+							send(lst,"downRB$o",iterRb->first);
+							break;
+					}
+				}
 			}
 			scheduleAt(simTime()+tti,msg);
 			break;
 		case MessageType::streamSched:{
 				StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
-				if(sched->getBs()){
-					send(sched,"toBs");
-				}
-				else{
-					send(sched,"toMs",sched->getSrc());
+				switch(sched->getMessageDirection()){
+					case MessageDirection::up:
+						send(sched,"toMs",sched->getSrc());
+						break;
+					case MessageDirection::down:
+						send(sched,"toBs");
+						break;
 				}
 			} break;
 		default:

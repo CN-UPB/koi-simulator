@@ -7,13 +7,14 @@ cplusplus {{
 }}
 
 enum MessageType;
+enum MessageDirection;
 
 message StreamTransSched  {
 	int src; // The MS from which the packet was originally send
 	int dest; // The MS to which the Packet should be send
 	int rb; // The resource block this stream should use
 	int packetIndex; // The index of the packet to be send in the packet queue
-	bool bs; // Is this schedule intended for the BS or a MS?
+	int messageDirection @enum(MessageDirection); // The transmission direction of this schedule
 	unsigned long streamId; // The unique ID identifying the stream this schedule concerns
 	kind = MessageType::streamSched;
 }

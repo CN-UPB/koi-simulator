@@ -1,7 +1,8 @@
 module Scheduler{
 	parameters:
 		double initOffset @unit(s);
-		int resourceBlocks;
+		int upResourceBlocks;
+		int downResourceBlocks;
 		int numberOfMobileStations;
 		double streamSchedPeriod @unit(s);
 		double tti @unit(s);
@@ -15,18 +16,23 @@ module Scheduler{
 	submodules:
 		streamSched: <streamSchedType> like StreamScheduler{
 			initOffset = initOffset;
-			resourceBlocks = resourceBlocks;
 			numberOfMobileStations = numberOfMobileStations;
 			streamSchedPeriod = streamSchedPeriod;
 			tti = tti;
 		}
-		rbSchedulers[resourceBlocks]: <rbSchedType> like RBScheduler{
+		rbSchedulersUp[upResourceBlocks]: <rbSchedType> like RBScheduler{
+			rbNumber = index;
+		}
+		rbSchedulersDown[downResourceBlocks]: <rbSchedType> like RBScheduler{
 			rbNumber = index;
 		}
 	connections:
-		for i=0..resourceBlocks-1 {
-			rbSchedulers[i].toScheduler --> streamSched.fromRB[i];
-			streamSched.toRB[i] --> rbSchedulers[i].fromScheduler;
+		for i=0..upResourceBlocks-1 {
+			rbSchedulersUp[i].scheduler <--> streamSched.upRB[i];
+		}
+
+		for i=0..downResourceBlocks-1 {
+			rbSchedulersDown[i].scheduler <--> streamSched.downRB[i];
 		}
 
 		fromBs --> streamSched.fromBs;

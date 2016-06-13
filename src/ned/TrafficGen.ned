@@ -6,7 +6,6 @@ simple TrafficGen {
 		double initOffset @unit(s);
 		int msId;
 		int packetLength @unit(b);
-		double period @unit(s);
 		bool periodicTraffic;
 	gates:
 		input fromMac;
