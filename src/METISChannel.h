@@ -291,6 +291,7 @@ class METISChannel : public Channel{
 				const vector<Position>& senderPos,
 				double heightReceivers,
 				double heightSenders,
+				bool up,
 				int numRBs,
 				int numReceiverAntenna,
 				int numSenderAntenna,

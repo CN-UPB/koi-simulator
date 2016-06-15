@@ -967,6 +967,7 @@ vector<vector<vector<vector<double>>>> METISChannel::computeCoeffs(
 		const vector<Position>& senderPos,
 		double heightReceivers,
 		double heightSenders,
+		bool up,
 		int numRBs,
 		int numReceiverAntenna,
 		int numSenderAntenna,
@@ -998,7 +999,17 @@ vector<vector<vector<vector<double>>>> METISChannel::computeCoeffs(
 			pathloss = CalcPathloss(dist2D, dist3D, LOSCondition[i][idIdx]);
 			for(int t = 0; t < timeSamples; t++){
 				for(int f = 0; f < numRBs; f++){
-					double freq_ = freq_c + f*180000;
+					double freq_;
+					if(up){
+						// Computing values for UP
+						// resource blocks
+						freq_ = freq_c + (f+1)*180000;
+					}
+					else{
+						// Computing values for DOWN
+						// resource blocks
+						freq_ = freq_c - f*180000;
+					}
 					res = complex<double>(0.0,0.0);
 					if(LOSCondition[i][idIdx]){
 						n_clusters = N_cluster_LOS;
@@ -1239,6 +1250,7 @@ void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions
 				senderPos,
 				heightUE,
 				heightBS,
+				false,
 				downRBs,
 				numReceiverAntenna,
 				numSenderAntenna,
@@ -1459,6 +1471,7 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 					senderPos,
 					heightBS,
 					heightUE,
+					true,
 					upRBs,
 					numReceiverAntenna,
 					numSenderAntenna,
