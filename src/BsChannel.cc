@@ -49,9 +49,9 @@ void BsChannel::initialize()  {
     string eesm_beta = par("eesm_beta");
     eesm_beta_values = vec(eesm_beta);
     
-    // This counter counts how many neighbour have already transmitted all necessary VR information.
-    // Initialized with one because BS knows its own VR.
-    init_counter = 1;
+    // This counter counts how many neighbour have already transmitted all 
+    // necessary position information.
+    init_counter = 0;
     
     // Counts the received schedules from the own mac.
     scheduleCatch = false;
@@ -80,10 +80,6 @@ void BsChannel::initialize()  {
     // Prepare MS positions vector with correct sizes for each cell
     msPositions.resize(neighbourIdMatching->numberOfNeighbours(), 
 		    vector<Position>());
-    for(size_t j = 0; j < msPositions.size();j++){
-    	msPositions[j].resize(neighbourIdMatching->getNumberOfMS(j));
-    }
-
     //the position of the base stations
     bsPosition.x = par("xPos");
     bsPosition.y = par("yPos");
@@ -96,8 +92,6 @@ void BsChannel::initialize()  {
             schedules[i][j] = -1;
     }
     if(this->getIndex() == 0){
-		scheduleAt(simTime() + 750*tti - epsilon, new cMessage("TEST_MATRIX")); //set to 750*tti
-		
 		PtrExchange Pointer;
 		Pointer.ptr = (uintptr_t) channel;
 		PointerExchange *PtrMessage = new PointerExchange("POINTER_EXCHANGE2");
@@ -131,33 +125,26 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		}
 		delete msg;
 	}
-	else if(msg->isName("TEST_MATRIX")){
-		channel->init(this, msPositions, neighbourPositions);
-		//scheduleAt(simTime() + tti, msg);
-		delete msg;
-    }
 	else if(msg->isName("BS_POSITION_MSG")) {
-        PositionExchange *bsPos = (PositionExchange *) msg;
-        neighbourPositions[bsPos->getId()] = bsPos->getPosition();
-        delete msg;
-    }
+		PositionExchange *bsPos = (PositionExchange *) msg;
+		neighbourPositions[bsPos->getId()] = bsPos->getPosition();
+		init_counter++;
+		delete msg;
+	}
     else if(msg->getKind()==MessageType::transInfoMs){
     	TransInfoMs *info = dynamic_cast<TransInfoMs*>(msg);
 	transInfos[info->getRb()].push_front(info);
-	std::cout << "Bs " << bsId << " received TransInfo from " << info->getMsId() << std::endl;
     }
     else if(msg->isName("BS_MS_POSITIONS"))  {
         //save the postitions of the mobile stations
         BsMsPositions *msPos = (BsMsPositions *) msg;
-        //cout << "Ms positions from bs " << msPos->getBsId() << " arrived at " << bsId << endl;
+	msPositions[msPos->getBsId()].resize(msPos->getPositionsArraySize());
         for(unsigned int i = 0; i < msPos->getPositionsArraySize(); i++)  {
             msPositions[msPos->getBsId()][i] = msPos->getPositions(i);
         }
-        if(simTime() >= 1 && this->getIndex()==0){
-		// The channel instance is shared among all BsChannel instances,
-		// thus only one BsChannel actually needs to call the update 
-		// method.
-		//channel->updateChannel(msPositions); 
+	init_counter++;
+        if(this->getIndex()==0 && init_counter==2*neighbourPositions.size()){
+		channel->init(this, msPositions, neighbourPositions);
 	}
         delete msPos;
     }

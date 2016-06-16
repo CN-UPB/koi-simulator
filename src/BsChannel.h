@@ -33,7 +33,7 @@ class BsChannel : public cSimpleModule  {
         bool useSimpleChannelCalc;
         int simpleChannelCalcNops;
         int bsId;
-        int init_counter;
+        size_t init_counter;
         int numberOfVR;
         Position bsPosition;
         double packetLoss;
