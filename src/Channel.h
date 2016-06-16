@@ -31,7 +31,7 @@ class Channel{
 
 	public:
 		// Initialize your Channel through ini access via module pointer. The MS/BS Positions may not be needed for every channel.
-		virtual bool init(cSimpleModule* module, Position** msPositions, std::map <int,Position> neighbourPositions) = 0;
+		virtual bool init(cSimpleModule* module, const vector<vector<Position>>& msPositions, std::map <int,Position> neighbourPositions)=0;
 		// It may be necessary for the Channel to receive Message from other LPs.
 		// Note: If you send a msg with kind x, it is received with kind (x+1) by neighbour cells
 		// When it has the name "CHANNEL_INFO"
@@ -45,7 +45,7 @@ class Channel{
 		// Calculates the current SINR for given interferers and a given RB.
 		virtual vec calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId) = 0;
 		// Updates the Channel if necessary for moving MS
-		virtual void updateChannel(Position** msPos) = 0;
+		virtual void updateChannel(const vector<vector<Position>>& msPos) = 0;
 		        
 		// Store positions of sender/receiver/interferes (Id because pointer is shared)
 		void setSenderPosition(Position p, double power, int Id) { senderPosition[Id] = p; senderPower[Id] = power; }
@@ -60,11 +60,11 @@ class Channel{
 				int msId,
 				double transPower){return 0.0;}
 
-        Position getSenderPosition(int Id) { return senderPosition.at(Id); }
-        void setTargetPosition(Position p, int Id) { targetPosition[Id] = p; }
-        Position getTargetPosition(int Id) { return targetPosition.at(Id); }
-        void clearInterfererPostitions(int Id) { interfererPositions.at(Id).clear(); interfererPower.at(Id).clear(); }
-        void addInterfererPosition(Position p, double power, int Id) { interfererPositions.at(Id).push_back(p); interfererPower.at(Id).push_back(power); }
+		Position getSenderPosition(int Id) { return senderPosition.at(Id); }
+		void setTargetPosition(Position p, int Id) { targetPosition[Id] = p; }
+		Position getTargetPosition(int Id) { return targetPosition.at(Id); }
+		void clearInterfererPostitions(int Id) { interfererPositions.at(Id).clear(); interfererPower.at(Id).clear(); }
+		void addInterfererPosition(Position p, double power, int Id) { interfererPositions.at(Id).push_back(p); interfererPower.at(Id).push_back(power); }
 
 		virtual ~Channel(){}
 };

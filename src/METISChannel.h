@@ -104,7 +104,7 @@ class METISChannel : public Channel{
 				vector<vector<double>>& sigma_sf_NLOS);
 
 		//! Recalculate all position dependent values, e.g. SINR
-		void recomputeMETISParams(Position **msPositions);
+		void recomputeMETISParams(const vector<vector<Position>>& msPositions);
 
 		//! Generate the spatial correlation between the MS for LOS links.
 		void generateAutoCorrelation_LOS(const vector<Position>& senders,
@@ -338,7 +338,7 @@ class METISChannel : public Channel{
 		}
 		
 		//! Initialize the METIS channel through ini access via OMNeT++ module pointer.
-		bool init(cSimpleModule* module, Position** msPositions, std::map <int,Position> neighbourPositions);
+		bool init(cSimpleModule* module,const vector<vector<Position>>& msPositions, std::map <int,Position> neighbourPositions);
 
 		//! Generate the channel coefficients every positionResendInterval
 		//void METISChannel::calcChannel_METIS();
@@ -369,7 +369,7 @@ class METISChannel : public Channel{
 				double transPower);
 		
 		//! Updates the MS position if velocity > 0. The interval in which the postion is updated can be set within omnet.ini
-		void updateChannel(Position** msPos);
+		void updateChannel(const vector<vector<Position>>& msPos);
 
 		//! Destructor of METIS Channel subclass.
 		virtual ~METISChannel();

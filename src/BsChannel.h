@@ -40,7 +40,7 @@ class BsChannel : public cSimpleModule  {
         bool scheduleCatch;
         simtime_t tti;
         simtime_t epsilon;
-        Position **msPositions;
+        std::vector<std::vector<Position>> msPositions;
         NeighbourIdMatching *neighbourIdMatching;          // map the bsId to the pos in the data structures
         std::map <int,Position> neighbourPositions;
         std::vector<VisibilityRegion> VR;

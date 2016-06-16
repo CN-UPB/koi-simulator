@@ -74,17 +74,15 @@ void BsChannel::initialize()  {
 		schedulePower[i] = new double[numberOfMobileStations];
 	}
 
-    //stores the pos of all ms from all bs
-    msPositions = new Position*[neighbourIdMatching->numberOfNeighbours()];
-    if(bsId == 3){
-		std::cout << "Num of Neighbours: " << neighbourIdMatching->numberOfNeighbours() << std::endl;
-	}
-    for(int i = 0; i < neighbourIdMatching->numberOfNeighbours(); i++)  {
-        msPositions[i] = new Position[numberOfMobileStations]; //TODO change to dynamic size per bs; when uneven partition is allowed
-    }
-
     // Prepare transmission info lists for every UP ressource block
     transInfos.resize(upResBlocks);
+
+    // Prepare MS positions vector with correct sizes for each cell
+    msPositions.resize(neighbourIdMatching->numberOfNeighbours(), 
+		    vector<Position>());
+    for(size_t j = 0; j < msPositions.size();j++){
+    	msPositions[j].resize(neighbourIdMatching->getNumberOfMS(j));
+    }
 
     //the position of the base stations
     bsPosition.x = par("xPos");
@@ -308,11 +306,9 @@ BsChannel::~BsChannel()  {
     ev << "-------------------------------------------------------" << endl;*/
 
     for(int i = 0; i < neighbourIdMatching->numberOfNeighbours(); ++i)  {
-        delete[] msPositions[i];
 	delete[] schedulePower[i];
         delete[] schedules[i];
     }
-    delete[] msPositions;
     delete[] schedulePower;
     delete[] schedules;
     delete neighbourIdMatching;

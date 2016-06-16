@@ -81,7 +81,7 @@ class Cost2100Channel : public Channel{
 		// Constructor
 		Cost2100Channel(){bsId = -1;}
 		// Initialize your Channel through ini access via module pointer.
-		bool init(cSimpleModule* module, Position** msPositions, std::map <int,Position> neighbourPositions);
+		bool init(cSimpleModule* module, const vector<vector<Position>>& msPositions, std::map <int,Position> neighbourPositions);
 		// It may be necessary for the Channel to receive Message from other LPs.
 		void handleMessage(cMessage* msg);
 		// Computes the pathloss for a given distance using an arbitrary model.
@@ -93,7 +93,7 @@ class Cost2100Channel : public Channel{
 		// Calculates the current SINR for given interferers and given RB.
 		vec calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId);
 		// Updates the Channel if necessary for moving MS
-		void updateChannel(Position** msPos);
+		void updateChannel(const vector<vector<Position>>& msPos);
 		//Destructor
 		~Cost2100Channel();
 };

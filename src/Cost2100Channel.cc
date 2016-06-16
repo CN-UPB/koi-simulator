@@ -49,7 +49,7 @@ inline double dist(vec const &pos1, vec const &pos2){
 	return sqrt(pow(pos1(0) - pos2(0),2) + pow(pos1(1) - pos2(1),2) + pow(pos1(2) - pos2(2),2));
 }
 
-bool Cost2100Channel::init(cSimpleModule* module, Position** msPositions, std::map <int,Position> neighbourPositions){
+bool Cost2100Channel::init(cSimpleModule* module, const vector<vector<Position>>& msPositions, std::map <int,Position> neighbourPositions){
 	
 	//cout << "Start Initialization of Channel: " << module->getParentModule()->getParentModule()->getIndex() << endl;
 	
@@ -1279,7 +1279,7 @@ vec Cost2100Channel::calcSINR(vector<double> &power, vector<Position> &pos, vect
     return result;
 }
 
-void Cost2100Channel::updateChannel(Position** msPos){
+void Cost2100Channel::updateChannel(const vector<vector<Position>>& msPos){
 	//Position[numberOfMobileStations] = msPos[bsId] // datastr instead of BS ID???
 	//TODO:
 }

@@ -73,7 +73,7 @@ double METISChannel::ray_offset[20] = {
 * @param neighbourPositions Positions of the Neighbour BS.
 * @return True if initialization was successful, false otherwise
 */
-bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map <int,Position> neighbourPositions){
+bool METISChannel::init(cSimpleModule* module, const vector<vector<Position>>& msPositions, std::map <int,Position> neighbourPositions){
 	// Basic Initialization
 	this->neighbourPositions = neighbourPositions;
 	maxNumberOfNeighbours = module->par("maxNumberOfNeighbours");
@@ -1488,7 +1488,7 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 	
 }
 
-void METISChannel::recomputeMETISParams(Position** msPositions){
+void METISChannel::recomputeMETISParams(const vector<vector<Position>>& msPositions){
 	int numMs;
 	vector<vector<Position>> msPos(neighbourPositions.size(),
 			vector<Position>());
@@ -2076,7 +2076,7 @@ vec METISChannel::calcSINR(vector<double> &power, vector<Position> &pos, vector<
 	return result;
 }
 
-void METISChannel::updateChannel(Position** msPos){
+void METISChannel::updateChannel(const vector<vector<Position>>& msPos){
 	recomputeMETISParams(msPos);
 }
 
