@@ -2015,9 +2015,10 @@ double METISChannel::calcUpSINR(int RB,
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
 		if((*it)->getCreationTime()>=simTime()-tti){
 			interference += (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB];
-			std::cout << "Interference added: " << (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB] << std::endl;
+			std::cout << "ADDED: " << "Threshold: " << simTime()-tti << " CreationTime: " << (*it)->getCreationTime() << std::endl;
 		}
 		else{
+			std::cout << "DELETED: " << "Threshold: " << simTime()-tti << " CreationTime: " << (*it)->getCreationTime() << std::endl;
 			delete *it;
 			interferers.erase_after(prev);
 			it=prev;
@@ -2025,10 +2026,7 @@ double METISChannel::calcUpSINR(int RB,
 		}
 	}
 	received = transPower * coeffUpTable[bsId][0][msId][SINRcounter][RB];
-	std::cout << "Received: " << received << std::endl;
-	std::cout << "Interference before noise: " << interference << std::endl;
 	interference += getTermalNoise(300,180000);
-	std::cout << "Interference after noise: " << interference << std::endl;
 	// Convert to db scale
 	return 10 * log10( received / interference );
 }
@@ -2044,8 +2042,10 @@ double METISChannel::calcDownSINR(int RB,
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
 		if((*it)->getCreationTime()>=simTime()-tti){
 			interference += (*it)->getPower() * coeffDownTable[msId][(*it)->getBsId()][SINRCounter][RB];
+			std::cout << "ADDED: " << "Threshold: " << simTime()-tti << " CreationTime: " << (*it)->getCreationTime() << std::endl;
 		}
 		else{
+			std::cout << "DELETED: " << "Threshold: " << simTime()-tti << " CreationTime: " << (*it)->getCreationTime() << std::endl;
 			delete *it;
 			interferers.erase_after(prev);
 			it=prev;
@@ -2053,7 +2053,10 @@ double METISChannel::calcDownSINR(int RB,
 		}
 	}
 	received = transPower * coeffDownTable[msId][bsId][SINRcounter][RB];
+	std::cout << "Received: " << received << std::endl;
+	std::cout << "Interference before noise: " << interference << std::endl;
 	interference += getTermalNoise(300,180000);
+	std::cout << "Interference after noise: " << interference << std::endl;
 	// Convert to db scale
 	return 10 * log10( received / interference );
 }

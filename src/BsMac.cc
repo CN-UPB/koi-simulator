@@ -303,8 +303,11 @@ void BsMac::handleMessage(cMessage *msg)  {
     else if(msg->arrivedOn("fromCell")){
 	if(msg->getKind()==MessageType::transInfoMs){
 		// Forward transmission info from neighbouring MS to BS 
-		// channels via the BS PHY
-		send(msg,"toPhy");
+		// channels
+		for(int i = 0; i < numberOfMobileStations; i++)  {
+			send(msg->dup(), "toBsChannel", i);
+		}
+		delete msg;
 	}
     }
 }

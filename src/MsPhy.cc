@@ -7,6 +7,7 @@
 
 #include "MsPhy.h"
 #include "SINR_m.h"
+#include "MessageTypes.h"
 
 Define_Module(MsPhy);
 
@@ -14,7 +15,7 @@ void MsPhy::initialize()  {
 }
 
 void MsPhy::handleMessage(cMessage *msg)  {
-	if(msg->isName("SINR_ESTIMATION"))  {
+    if(msg->isName("SINR_ESTIMATION"))  {
         send(msg, "toMac");
     }
     else if(msg->isName("MS_POS_UPDATE"))  {
@@ -22,8 +23,12 @@ void MsPhy::handleMessage(cMessage *msg)  {
     }
     //currently it only forward the packets
     else if(msg->arrivedOn("fromMac"))  {
-        //ev << "Forwarding packet/packets to the data channel" << endl;
-        send(msg, "toChannel");
+	if(msg->getKind()==MessageType::transInfoBs){
+		send(msg,"toMsChannel");
+	}
+	else{
+		send(msg, "toChannel");
+	}
     }
     else if(msg->arrivedOn("fromChannel"))  {
         //ev << "Forwarding packet/packets to the mac layer" << endl;

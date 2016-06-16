@@ -290,6 +290,9 @@ void MsMac::handleMessage(cMessage *msg)  {
         }
         delete schedule;
     }
+    else if(msg->getKind()==MessageType::transInfoBs){
+    	send(msg,"toPhy");
+    }
     else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
 	// Send requests for each stream originating from this MS to the 
 	// scheduler if that stream has packets.

@@ -141,12 +141,12 @@ void BsChannel::handleMessage(cMessage *msg)  {
 	else if(msg->isName("BS_POSITION_MSG")) {
         PositionExchange *bsPos = (PositionExchange *) msg;
         neighbourPositions[bsPos->getId()] = bsPos->getPosition();
-	std::cout << "Bs " << bsId << " Received Position for BS " << bsPos->getId() << std::endl;
         delete msg;
     }
     else if(msg->getKind()==MessageType::transInfoMs){
     	TransInfoMs *info = dynamic_cast<TransInfoMs*>(msg);
 	transInfos[info->getRb()].push_front(info);
+	std::cout << "Bs " << bsId << " received TransInfo from " << info->getMsId() << std::endl;
     }
     else if(msg->isName("BS_MS_POSITIONS"))  {
         //save the postitions of the mobile stations

@@ -120,6 +120,11 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		bsPositions[dataStrPos] = bsPos->getPosition();
 		delete msg;
 	}
+	else if(msg->getKind()==MessageType::transInfoBs){
+		TransInfoBs *info = dynamic_cast<TransInfoBs*>(msg);
+		transInfos[info->getRb()].push_front(info);
+		std::cout << "Received TransInfo from BS " << info->getBsId() << std::endl;
+	}
 	else if(msg->arrivedOn("fromBs"))  {
 		if(msg->isName("DATA_BUNDLE")){
 			//the channel receives the packet in a bundle
@@ -146,10 +151,6 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			 **/
 			// For now, all packets are received successfully
 			sendDelayed(bundle, tti - epsilon, "toPhy");
-		}
-		else if(msg->getKind()==MessageType::transInfoBs){
-			TransInfoBs *info = dynamic_cast<TransInfoBs*>(msg);
-			transInfos[info->getRb()].push_front(info);
 		}
 	}
 	
