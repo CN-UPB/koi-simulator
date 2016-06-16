@@ -7,7 +7,7 @@ scheduling simulations.
 For installation/build instructions, please consult the INSTALL file.
 
 To execute an example simulation, build the simulation code as described in 
-the INSTALL file. Then, change into the ``simulations`` subdirectory and 
-execute::
+the INSTALL file. Then, change into the ``simulations/example/``
+subdirectory and execute::
 
-	$ ../src/koisim -n "./;../src/ned"
+	$ ../../src/koisim -n "./;../../src/ned"
