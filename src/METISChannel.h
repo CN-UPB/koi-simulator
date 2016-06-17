@@ -60,11 +60,20 @@ class METISChannel : public Channel{
 		vector<vector<array<double,3>>> bsAntennaPositions;				/*!< Position vector of Base Station antenna */
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
 		double vel;
+		double wavelength;
 		double XPR_Mean_LOS;
 		double XPR_Std_LOS;
 		double XPR_Mean_NLOS;
 		double XPR_Std_NLOS;
 		bool initialized;					/*!< True iff METISChannel::init has been called */
+		
+		/**
+		 * @brief Calculate Antenna positions for the given transmitters
+		 */
+		vector<vector<array<double,3>>> computeAntennaPos(
+				const vector<Position>& transmitterPos,
+				int numAntennas,
+				double heightAntennas);
 		
 		//! Calculates the pathloss for a given distance.
 		double CalcPathloss(double dist2D, double dist3D, bool LOS);

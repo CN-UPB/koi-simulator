@@ -66,6 +66,27 @@ double METISChannel::ray_offset[20] = {
 		2.1551, -2.1551
 	};
 
+vector<vector<array<double,3>>> METISChannel::computeAntennaPos(
+		const vector<Position>& transmitterPos,
+		int numAntennas,
+		double heightAntennas){
+	vector<vector<array<double,3>>> antennaPos(transmitterPos.size(),
+			vector<array<double,3>>(numAntennas));
+	for(int i = 0; i < transmitterPos.size(); i++){
+		for(int k = 0; k < (numAntennas/2); k++){
+			antennaPos[i][k][0] = transmitterPos[i].x - (0.25 * wavelength * (numAntennas - 1 - (k*2.0)));
+			antennaPos[i][k][1] = transmitterPos[i].y;
+			antennaPos[i][k][2] = heightAntennas;
+		}
+		for(int k = (numAntennas/2); k < numAntennas ; k++){
+			antennaPos[i][k][0] = antennaPos[i][k-1][0] + (0.5 * wavelength);
+			antennaPos[i][k][1] = transmitterPos[i].y;
+			antennaPos[i][k][2] = heightAntennas;
+		}
+	}
+	return antennaPos;	
+}
+
 /**
 * Function, that initializes all large scale and small scale parameters according to METIS specifications.
 * @param module OMNeT++ module, which calls this function to allow later .ini access.
@@ -117,24 +138,13 @@ bool METISChannel::init(cSimpleModule* module, const vector<vector<Position>>& m
 	// One Channel module per base station
     	// Half wavelength distance between antennas; give the position of Tx and Rx antennas in GCS
 	// For even value of NumBsAntenna, the antenna elements will be equally spaced around the center of Tx
-    	double wavelength = speedOfLight / freq_c;
-    	bsAntennaPositions.resize(neighbourPositions.size(),
-			vector<array<double,3>>(NumBsAntenna));
-    	for(size_t i = 0; i < neighbourPositions.size(); i++){
-		for(int j = 0; j < (NumBsAntenna/2); j++){
-			bsAntennaPositions[i][j][0] = neighbourPositions[i].x - (0.25 * wavelength * (NumBsAntenna - 1 - (j*2.0)));
-			bsAntennaPositions[i][j][1] = neighbourPositions[i].y;
-			bsAntennaPositions[i][j][2] = heightBS;
-		}
-
-		for(int j = (NumBsAntenna/2); j < NumBsAntenna; j++){
-			bsAntennaPositions[i][j][0] = bsAntennaPositions[i][j-1][0] + (0.5 * wavelength);
-			bsAntennaPositions[i][j][1] = neighbourPositions[i].y;
-			bsAntennaPositions[i][j][2] = heightBS;
-		}
-
+    	wavelength = speedOfLight / freq_c;
+	vector<Position> tmpPos(neighbourPositions.size());
+	for(size_t i = 0; i<neighbourPositions.size(); i++){
+		tmpPos[i] = neighbourPositions[i];
 	}
-	
+	bsAntennaPositions = computeAntennaPos(tmpPos,NumBsAntenna,
+			heightBS);
 		
 	// Get position resend interval (Stationary MS assumed during this interval)
 	timeSamples = module->par("positionResendInterval");
@@ -1048,7 +1058,6 @@ vector<vector<vector<vector<double>>>> METISChannel::computeCoeffs(
 
 void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions,
 		const vector<Position>& bsPositions){
-    	double wavelength = speedOfLight / freq_c;
 	int numReceiverAntenna = NumMsAntenna;
 	int numSenderAntenna = NumBsAntenna;
     
@@ -1057,20 +1066,8 @@ void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions
     	// Copy BS Positions
 	vector<Position> senderPos(bsPositions);
 
-	vector<vector<array<double,3>>> receiverAntennaPos(receiverPos.size(),
-			vector<array<double,3>>(numReceiverAntenna));
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		for(int j = 0; j < (numReceiverAntenna/2); j++){
-			receiverAntennaPos[i][j][0] = receiverPos[i].x - (0.25 * wavelength * (numReceiverAntenna - 1 - (j*2.0)));
-			receiverAntennaPos[i][j][1] = receiverPos[i].y;
-			receiverAntennaPos[i][j][2] = heightUE;
-		}
-		for(int j = (numReceiverAntenna/2); j < numReceiverAntenna ; j++){
-			receiverAntennaPos[i][j][0] = receiverAntennaPos[i][j-1][0] + (0.5 * wavelength);
-			receiverAntennaPos[i][j][1] = receiverPos[i].y;
-			receiverAntennaPos[i][j][2] = heightUE;
-		}
-	}
+	vector<vector<array<double,3>>> receiverAntennaPos(computeAntennaPos(
+				receiverPos,numReceiverAntenna,heightUE));
 	vector<vector<array<double,3>>>& senderAntennaPos = bsAntennaPositions;
 
 	vector<vector<double>> AoA_LOS_dir;
@@ -1264,7 +1261,6 @@ void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions
 
 void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPositions,
 		const vector<Position>& bsPositions){
-    	double wavelength = speedOfLight / freq_c;
 	int numReceiverAntenna = NumBsAntenna;
 	int numSenderAntenna = NumMsAntenna;
 	// Copy BS Positions
@@ -1279,20 +1275,8 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 		// Copy MS Positions
 		vector<Position> senderPos(msPositions[j]);
 
-		vector<vector<array<double,3>>> senderAntennaPos(senderPos.size(),
-				vector<array<double,3>>(numSenderAntenna));
-		for(int i = 0; i < senderPos.size(); i++){
-			for(int k = 0; k < (numSenderAntenna/2); k++){
-				senderAntennaPos[i][k][0] = senderPos[i].x - (0.25 * wavelength * (numSenderAntenna - 1 - (k*2.0)));
-				senderAntennaPos[i][k][1] = senderPos[i].y;
-				senderAntennaPos[i][k][2] = heightUE;
-			}
-			for(int k = (numSenderAntenna/2); k < numSenderAntenna ; k++){
-				senderAntennaPos[i][k][0] = senderAntennaPos[i][k-1][0] + (0.5 * wavelength);
-				senderAntennaPos[i][k][1] = senderPos[i].y;
-				senderAntennaPos[i][k][2] = heightUE;
-			}
-		}
+		vector<vector<array<double,3>>> senderAntennaPos(computeAntennaPos(
+					senderPos,numSenderAntenna,heightUE));
 
 		vector<vector<double>> AoA_LOS_dir;
 		vector<vector<double>> ZoA_LOS_dir;
