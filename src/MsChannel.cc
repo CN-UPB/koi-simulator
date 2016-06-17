@@ -123,7 +123,6 @@ void MsChannel::handleMessage(cMessage *msg)  {
 	else if(msg->getKind()==MessageType::transInfoBs){
 		TransInfoBs *info = dynamic_cast<TransInfoBs*>(msg);
 		transInfos[info->getRb()].push_front(info);
-		std::cout << "Received TransInfo from BS " << info->getBsId() << std::endl;
 	}
 	else if(msg->arrivedOn("fromBs"))  {
 		if(msg->isName("DATA_BUNDLE")){
@@ -140,7 +139,6 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			vec bler_(1);
 			bler_.set(0,bler);
 			double per = getPer(bler_);
-			std::cout << "SINR DOWN" << " At " << msId <<": " << effSINR << std::endl;
 
 			/**
 			  if(uniform(0,1) > per){

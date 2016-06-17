@@ -184,7 +184,6 @@ void BsChannel::handleMessage(cMessage *msg)  {
 	instSINR.push_back(channel->calcUpSINR(currentRessourceBlock,transInfos[currentRessourceBlock],bundle->getMsId(),bundle->getTransPower()));
 
 	double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
-	std::cout << "SINR UP" << " At " << bundle->getBsId() << " from " << bundle->getMsId() <<": " << effSINR << std::endl;
 	//cout << "Effektive SINR (Up): " << effSINR << endl;
 	double bler = getBler(bundle->getCqi(), effSINR, this);
 	//cout << "Block Error Rate(Up): " << bler << endl;
