@@ -118,8 +118,6 @@ bool METISChannel::init(cSimpleModule* module, const vector<vector<Position>>& m
     	// Half wavelength distance between antennas; give the position of Tx and Rx antennas in GCS
 	// For even value of NumBsAntenna, the antenna elements will be equally spaced around the center of Tx
     	double wavelength = speedOfLight / freq_c;
-	std::cout << neighbourPositions.size() << std::endl;
-	std::cout << NumBsAntenna << std::endl;
     	bsAntennaPositions.resize(neighbourPositions.size(),
 			vector<array<double,3>>(NumBsAntenna));
     	for(size_t i = 0; i < neighbourPositions.size(); i++){

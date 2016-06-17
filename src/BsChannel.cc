@@ -129,6 +129,9 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		PositionExchange *bsPos = (PositionExchange *) msg;
 		neighbourPositions[bsPos->getId()] = bsPos->getPosition();
 		init_counter++;
+		if(this->getIndex()==0 && init_counter==2*maxNumberOfNeighbours){
+			channel->init(this, msPositions, neighbourPositions);
+		}
 		delete msg;
 	}
     else if(msg->getKind()==MessageType::transInfoMs){
@@ -143,7 +146,7 @@ void BsChannel::handleMessage(cMessage *msg)  {
             msPositions[msPos->getBsId()][i] = msPos->getPositions(i);
         }
 	init_counter++;
-        if(this->getIndex()==0 && init_counter==2*neighbourPositions.size()){
+        if(this->getIndex()==0 && init_counter==2*maxNumberOfNeighbours){
 		channel->init(this, msPositions, neighbourPositions);
 	}
         delete msPos;
