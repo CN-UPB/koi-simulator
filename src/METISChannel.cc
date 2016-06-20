@@ -2222,7 +2222,12 @@ double METISChannel::calcUpSINR(int RB,
 	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
 		if((*it)->getCreationTime()>=simTime()-tti){
-			interference += (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB];
+			if((*it)->getMessageDirection()==MessageDirection::up){
+				interference += (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB];
+			}
+			else if((*it)->getMessageDirection()==MessageDirection::d2dUp){
+				interference += (*it)->getPower() * coeffUpD2DTable[(*it)->getBsId()][msId][(*it)->getMsId()][SINRCounter][RB];
+			}
 		}
 		else{
 			delete *it;
@@ -2246,7 +2251,12 @@ double METISChannel::calcDownSINR(int RB,
 	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
 		if((*it)->getCreationTime()>=simTime()-tti){
-			interference += (*it)->getPower() * coeffDownTable[msId][(*it)->getBsId()][SINRCounter][RB];
+			if((*it)->getMessageDirection()==MessageDirection::down){
+				interference += (*it)->getPower() * coeffDownTable[msId][(*it)->getBsId()][SINRCounter][RB];
+			}
+			else if((*it)->getMessageDirection()==MessageDirection::d2dDown){
+				interference += (*it)->getPower() * coeffDownD2DTable[(*it)->getBsId()][msId][(*it)->getMsId()][SINRCounter][RB];
+			}
 		}
 		else{
 			delete *it;
@@ -2255,6 +2265,51 @@ double METISChannel::calcDownSINR(int RB,
 		}
 	}
 	received = transPower * coeffDownTable[msId][bsId][SINRcounter][RB];
+	interference += getTermalNoise(300,180000);
+	// Convert to db scale
+	return 10 * log10( received / interference );
+}
+
+double METISChannel::calcD2DSINR(int RB, 
+		std::forward_list<TransInfo*> &interferers,
+		int sendMsID,
+		int receiveMsId,
+		MessageDirection direction,
+		double transPower){
+	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
+	double received = 0;
+	double interference = 0;
+	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
+	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
+		if((*it)->getCreationTime()>=simTime()-tti){
+			if(direction==MessageDirection::d2dDown){
+				if((*it)->getMessageDirection()==MessageDirection::down){
+					// The sender is a neighbouring BS, 
+					// link coefficients for those to all 
+					// local MS are stored in the 
+					// normal downlink table.
+					interference += (*it)->getPower() * coeffDownTable[receiveMsId][(*it)->getBsId()][SINRCounter][RB];
+				}
+				else if((*it)->getMessageDirection()==MessageDirection::d2dDown){
+					interference += (*it)->getPower() * coeffDownD2DTable[(*it)->getBsId()][receiveMsId][(*it)->getMsId()][SINRCounter][RB];
+				}
+			}
+			else if(direction==MessageDirection::d2dUp){
+				interference += (*it)->getPower() * coeffUpD2DTable[(*it)->getBsId()][receiveMsId][(*it)->getMsId()][SINRCounter][RB];
+			}
+		}
+		else{
+			delete *it;
+			interferers.erase_after(prev);
+			it=prev;
+		}
+	}
+	if(direction==MessageDirection::d2dDown){
+		received = transPower * coeffDownD2DTable[bsId][receiveMsId][sendMsID][SINRCounter][RB];
+	}
+	else{
+		received = transPower * coeffUpD2DTable[bsId][receiveMsId][sendMsID][SINRCounter][RB];
+	}
 	interference += getTermalNoise(300,180000);
 	// Convert to db scale
 	return 10 * log10( received / interference );

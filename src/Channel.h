@@ -59,6 +59,13 @@ class Channel{
 				int msId,
 				double transPower){return 0.0;}
 
+		virtual double calcD2DSINR(int RB, 
+				std::forward_list<TransInfo*> &interferers,
+				int sendMsID,
+				int receiveMsId,
+				MessageDirection direction,
+				double transPower){return 0.0;}
+
 		Position getSenderPosition(int Id) { return senderPosition.at(Id); }
 		void setTargetPosition(Position p, int Id) { targetPosition[Id] = p; }
 		Position getTargetPosition(int Id) { return targetPosition.at(Id); }
