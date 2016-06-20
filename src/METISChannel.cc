@@ -2213,13 +2213,13 @@ void METISChannel::handleMessage(cMessage* msg){
 }
 
 double METISChannel::calcUpSINR(int RB, 
-		std::forward_list<TransInfoMs*> &interferers,
+		std::forward_list<TransInfo*> &interferers,
 		int msId,
 		double transPower){
 	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
 	double received = 0;
 	double interference = 0;
-	forward_list<TransInfoMs*>::iterator prev(interferers.before_begin());
+	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
 		if((*it)->getCreationTime()>=simTime()-tti){
 			interference += (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB];
@@ -2228,7 +2228,6 @@ double METISChannel::calcUpSINR(int RB,
 			delete *it;
 			interferers.erase_after(prev);
 			it=prev;
-
 		}
 	}
 	received = transPower * coeffUpTable[bsId][0][msId][SINRcounter][RB];
@@ -2238,13 +2237,13 @@ double METISChannel::calcUpSINR(int RB,
 }
 
 double METISChannel::calcDownSINR(int RB, 
-		std::forward_list<TransInfoBs*> &interferers,
+		std::forward_list<TransInfo*> &interferers,
 		int msId,
 		double transPower){
 	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
 	double received = 0;
 	double interference = 0;
-	forward_list<TransInfoBs*>::iterator prev(interferers.before_begin());
+	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
 		if((*it)->getCreationTime()>=simTime()-tti){
 			interference += (*it)->getPower() * coeffDownTable[msId][(*it)->getBsId()][SINRCounter][RB];
@@ -2253,7 +2252,6 @@ double METISChannel::calcDownSINR(int RB,
 			delete *it;
 			interferers.erase_after(prev);
 			it=prev;
-
 		}
 	}
 	received = transPower * coeffDownTable[msId][bsId][SINRcounter][RB];

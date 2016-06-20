@@ -359,9 +359,6 @@ class METISChannel : public Channel{
 		//! Initialize the METIS channel through ini access via OMNeT++ module pointer.
 		bool init(cSimpleModule* module,const vector<vector<Position>>& msPositions, std::map <int,Position> neighbourPositions);
 
-		//! Generate the channel coefficients every positionResendInterval
-		//void METISChannel::calcChannel_METIS();
-		
 		//! Allows the OMNeT++ module to pass messages to this METIS channel class.
 		void handleMessage(cMessage* msg);
 		
@@ -378,12 +375,12 @@ class METISChannel : public Channel{
 		vec calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId);
 
 		double calcUpSINR(int RB, 
-				std::forward_list<TransInfoMs*> &interferers,
+				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower);
 
 		double calcDownSINR(int RB, 
-				std::forward_list<TransInfoBs*> &interferers,
+				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower);
 		

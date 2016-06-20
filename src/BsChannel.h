@@ -16,7 +16,7 @@
 #include "VisibilityRegion.h"
 #include "cluster.h"
 #include "Channel.h"
-#include "TransInfoMs_m.h"
+#include "TransInfo_m.h"
 #include <vector>
 #include <forward_list>
 #include <ostream>
@@ -56,7 +56,7 @@ class BsChannel : public cSimpleModule  {
 	 * stations, required for SINR interference computation during 
 	 * packet receival.
 	 */ 
-	std::vector<std::forward_list<TransInfoMs*>> transInfos;
+	std::vector<std::forward_list<TransInfo*>> transInfos;
 
 	std::ostream& outputDownSINR(std::ostream& out);
 	std::ostream& outputUpSINR(std::ostream& out);

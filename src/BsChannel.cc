@@ -134,8 +134,8 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		}
 		delete msg;
 	}
-    else if(msg->getKind()==MessageType::transInfoMs){
-    	TransInfoMs *info = dynamic_cast<TransInfoMs*>(msg);
+    else if(msg->getKind()==MessageType::transInfo){
+    	TransInfo *info = dynamic_cast<TransInfo*>(msg);
 	transInfos[info->getRb()].push_front(info);
     }
     else if(msg->isName("BS_MS_POSITIONS"))  {
@@ -213,18 +213,19 @@ std::ostream& BsChannel::outputDownSINR(std::ostream& out){
 	// stations. We assume that all neighbouring BS are sending and 
 	// we generate for all downlink ressource blocks. We also assume 
 	// that the transmission power used is always 1.
-	forward_list<TransInfoBs> inf;
+	forward_list<TransInfo> inf;
 	for(int i=0; i<maxNumberOfNeighbours; i++){
 		if(i!=bsId){
-			TransInfoBs info;
+			TransInfo info;
 			info.setRb(0);
 			info.setPower(transPower);
 			info.setBsId(i);
+			info.setMessageDirection(MessageDirection::down);
 			inf.push_front(info);
 		}
 	}
 	for(int i=0; i<numberOfMobileStations; i++){
-		forward_list<TransInfoBs*> currInf;
+		forward_list<TransInfo*> currInf;
 		for(auto c:inf){
 			currInf.push_front(c.dup());
 		}
@@ -246,22 +247,23 @@ std::ostream& BsChannel::outputUpSINR(std::ostream& out){
 	// stations. We assume that all neighbouring MS are sending and 
 	// we generate for all uplink ressource blocks. We also assume 
 	// that the transmission power used is always 1.
-	forward_list<TransInfoMs> inf;
+	forward_list<TransInfo> inf;
 	for(int j=0; j<maxNumberOfNeighbours; j++){
 		if(j!=bsId){
 			int numMs = neighbourIdMatching->getNumberOfMS(j);
 			for(int i=0; i<numMs; i++){
-				TransInfoMs info;
+				TransInfo info;
 				info.setRb(0);
 				info.setPower(transPower);
 				info.setBsId(j);
 				info.setMsId(i);
+				info.setMessageDirection(MessageDirection::up);
 				inf.push_front(info);
 			}
 		}
 	}
 	for(int i=0; i<numberOfMobileStations; i++){
-		forward_list<TransInfoMs*> currInf;
+		forward_list<TransInfo*> currInf;
 		for(auto c:inf){
 			currInf.push_front(c.dup());
 		}

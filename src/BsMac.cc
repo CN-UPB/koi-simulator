@@ -20,7 +20,7 @@
 #include "StreamTransReq_m.h"
 #include "StreamTransSched_m.h"
 #include "KoiData_m.h"
-#include "TransInfoBs_m.h"
+#include "TransInfo_m.h"
 #include <algorithm>
 
 using namespace itpp;
@@ -122,10 +122,40 @@ void BsMac::handleMessage(cMessage *msg)  {
 		streamQueues[info->getStreamId()];
 		delete info;
 	}
-	else if(msg->getKind()==MessageType::transInfoBs){
-		for(int i = 0; i < numberOfMobileStations; ++i)  {
-			send(msg->dup(), "toMsMac", i);
+	else if(msg->getKind()==MessageType::transInfo){
+		// Route transmission information according to transmission
+		// direction and origin
+		TransInfo *trans = dynamic_cast<TransInfo*>(msg);
+		if(trans->arrivedOn("fromMsMac")){
+			// The message is transmission information from 
+			// one of the local mobile stations. Forward to 
+			// neighbours.
+			sendToNeighbourCells(trans);
 		}
+		else if(trans->arrivedOn("fromCell")){
+			// Message arrived from neighbouring cell
+			switch(trans->getMessageDirection()){
+				case MessageDirection::up:
+					// Up direction transmission from 
+					// neighbouring MS. This interferes 
+					// with reception at the local BS,
+					// so forward to all local BSChannels
+					for(int i=0; i<numberOfMobileStations; i++){
+						send(trans->dup(),"toBsChannel",i);
+					}
+					break;
+				case MessageDirection::down:
+					// Down direction transmission from 
+					// neighbouring BS. This interferes 
+					// with reception at local MS, so 
+					// forward to local MS
+					for(int i=0; i<numberOfMobileStations; i++){
+						send(trans->dup(),"toMsMac",i);
+					}
+					break;
+			}
+		}
+		
 		delete msg;
 	}
 	else if(msg->isName("POINTER_EXCHANGE2")){
@@ -180,10 +210,14 @@ void BsMac::handleMessage(cMessage *msg)  {
 		packetBundle->setBsId(packet->getBsId());
 		delete packet;
 
-		TransInfoBs *info = new TransInfoBs();
+		TransInfo *info = new TransInfo();
 		info->setBsId(bsId);
 		info->setPower(transmissionPower);
 		info->setRb(sched->getRb());
+		// It is the BS itself sending, not a MS, which we indicate
+		// with an index of -1 for the MS
+		info->setMsId(-1);
+		info->setMessageDirection(MessageDirection::down);
             
 		sendToNeighbourCells(info);
 		delete info;
@@ -292,23 +326,6 @@ void BsMac::handleMessage(cMessage *msg)  {
 		streamQueues[packet.getStreamId()].insert(packet.dup());
 	}
 	delete bundle;
-    }
-    else if(msg->arrivedOn("fromMsMac")){
-	if(msg->getKind()==MessageType::transInfoMs){
-		// Forward transmission info from local MS to neighbour cells
-		sendToNeighbourCells(msg);
-		delete msg;
-	}
-    }
-    else if(msg->arrivedOn("fromCell")){
-	if(msg->getKind()==MessageType::transInfoMs){
-		// Forward transmission info from neighbouring MS to BS 
-		// channels
-		for(int i = 0; i < numberOfMobileStations; i++)  {
-			send(msg->dup(), "toBsChannel", i);
-		}
-		delete msg;
-	}
     }
 }
 

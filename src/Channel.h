@@ -11,8 +11,7 @@
 #include "includes.h"
 #include <itpp/itbase.h>
 #include "Position.h"
-#include "TransInfoBs_m.h"
-#include "TransInfoMs_m.h"
+#include "TransInfo_m.h"
 #include <forward_list>
 
 using namespace std;
@@ -51,12 +50,12 @@ class Channel{
 		void setSenderPosition(Position p, double power, int Id) { senderPosition[Id] = p; senderPower[Id] = power; }
 
 		virtual double calcUpSINR(int RB, 
-				std::forward_list<TransInfoMs*> &interferers,
+				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower){return 0.0;}
 
 		virtual double calcDownSINR(int RB, 
-				std::forward_list<TransInfoBs*> &interferers,
+				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower){return 0.0;}
 

@@ -34,6 +34,7 @@ void MsChannel::initialize()  {
     tti = par("tti");
     msId = par("msId");
     downResourceBlocks = par("downResourceBlocks");
+    upResourceBlocks = par("upResourceBlocks");
     msPosition.x = 6;
     msPosition.y = 21;
     //find the neighbours and store the pair (bsId, position in data structures) in a map
@@ -46,8 +47,9 @@ void MsChannel::initialize()  {
     string eesm_beta = par("eesm_beta");
     eesm_beta_values = vec(eesm_beta);
 
-    // Instantiate a transmission info list for each down ressource block
-    transInfos.resize(downResourceBlocks);
+    // Instantiate a transmission info list for each down/up ressource block
+    transInfosDown.resize(downResourceBlocks);
+    transInfosUp.resize(upResourceBlocks);
     
     scheduleAt(simTime() + 1000 * tti + epsilon, new cMessage("SINR_ESTIMATION")); //originally set to 1000*tti + epsilon
 }
@@ -120,9 +122,17 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		bsPositions[dataStrPos] = bsPos->getPosition();
 		delete msg;
 	}
-	else if(msg->getKind()==MessageType::transInfoBs){
-		TransInfoBs *info = dynamic_cast<TransInfoBs*>(msg);
-		transInfos[info->getRb()].push_front(info);
+	else if(msg->getKind()==MessageType::transInfo){
+		TransInfo *info = dynamic_cast<TransInfo*>(msg);
+		// The transInfo lists are sorted by RB by transmission direction
+		if(info->getMessageDirection()==MessageDirection::up 
+				|| info->getMessageDirection()==MessageDirection::d2dUp){
+			transInfosUp[info->getRb()].push_front(info);
+		}
+		else if(info->getMessageDirection()==MessageDirection::down 
+				|| info->getMessageDirection()==MessageDirection::d2dDown){
+			transInfosDown[info->getRb()].push_front(info);
+		}
 	}
 	else if(msg->arrivedOn("fromBs"))  {
 		if(msg->isName("DATA_BUNDLE")){
@@ -133,7 +143,7 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			vector<double> instSINR;
 			int currentRessourceBlock = bundle->getRBs(0);
 
-			instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,transInfos[currentRessourceBlock],msId,bundle->getTransPower()));
+			instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,transInfosDown[currentRessourceBlock],msId,bundle->getTransPower()));
 			double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
 			double bler = getBler(bundle->getCqi(), effSINR, this);
 			vec bler_(1);

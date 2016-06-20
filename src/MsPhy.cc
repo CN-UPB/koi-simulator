@@ -23,7 +23,7 @@ void MsPhy::handleMessage(cMessage *msg)  {
     }
     //currently it only forward the packets
     else if(msg->arrivedOn("fromMac"))  {
-	if(msg->getKind()==MessageType::transInfoBs){
+	if(msg->getKind()==MessageType::transInfo){
 		send(msg,"toMsChannel");
 	}
 	else{
