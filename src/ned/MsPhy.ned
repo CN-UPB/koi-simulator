@@ -1,5 +1,6 @@
 simple MsPhy  {
 	parameters:
+		int numberOfMobileStations;
     	@display("i=block/ifcard");
     	
     gates:
@@ -9,4 +10,6 @@ simple MsPhy  {
     	
     	input fromMac;
     	output toMac;
+	// Connection to channels of MS in same cell
+	output toMs[numberOfMobileStations];
 }

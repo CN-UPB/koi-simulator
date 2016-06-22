@@ -66,4 +66,7 @@ simple MsChannel  {
 		input fromBs;
 		output toPhy;
 		input fromPhy; //just for own position exchange
+
+		// For receival of D2D messages from local MS
+		input fromMs[];
 }

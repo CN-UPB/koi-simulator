@@ -7,6 +7,7 @@
 
 #include "MsPhy.h"
 #include "SINR_m.h"
+#include "DataPacketBundle_m.h"
 #include "MessageTypes.h"
 
 Define_Module(MsPhy);
@@ -23,12 +24,22 @@ void MsPhy::handleMessage(cMessage *msg)  {
     }
     //currently it only forward the packets
     else if(msg->arrivedOn("fromMac"))  {
-	if(msg->getKind()==MessageType::transInfo){
-		send(msg,"toMsChannel");
-	}
-	else{
-		send(msg, "toChannel");
-	}
+	switch(msg->getKind()){
+		case MessageType::transInfo:
+			send(msg,"toMsChannel");
+			break;
+		case MessageType::bundle:
+			DataPacketBundle *bundle = dynamic_cast<DataPacketBundle*>(msg);
+			switch(bundle->getMessageDirection()){
+				case MessageDirection::up:
+					send(msg, "toChannel");
+					break;
+				case MessageDirection::d2dDown:
+				case MessageDirection::d2dUp:
+					send(msg,"toMs",bundle->getPackets(0).getDest());
+					break;
+			}
+	    }
     }
     else if(msg->arrivedOn("fromChannel"))  {
         //ev << "Forwarding packet/packets to the mac layer" << endl;

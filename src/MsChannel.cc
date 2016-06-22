@@ -125,13 +125,16 @@ void MsChannel::handleMessage(cMessage *msg)  {
 	else if(msg->getKind()==MessageType::transInfo){
 		TransInfo *info = dynamic_cast<TransInfo*>(msg);
 		// The transInfo lists are sorted by RB by transmission direction
-		if(info->getMessageDirection()==MessageDirection::up 
-				|| info->getMessageDirection()==MessageDirection::d2dUp){
-			transInfosUp[info->getRb()].push_front(info);
-		}
-		else if(info->getMessageDirection()==MessageDirection::down 
-				|| info->getMessageDirection()==MessageDirection::d2dDown){
-			transInfosDown[info->getRb()].push_front(info);
+		switch(info->getMessageDirection()){
+			case MessageDirection::d2dUp:
+			case MessageDirection::up:
+				transInfosUp[info->getRb()].push_front(info);
+				break;
+			case MessageDirection::d2dDown:
+			case MessageDirection::down:
+				transInfosDown[info->getRb()].push_front(info);
+				break;
+
 		}
 	}
 	else if(msg->isName("DATA_BUNDLE"))  {
@@ -153,7 +156,6 @@ void MsChannel::handleMessage(cMessage *msg)  {
 							bundle->getMsId(),
 							msId,MessageDirection::d2dDown,
 							bundle->getTransPower()));
-				std::cout << "Received D2D on DOWN" << std::endl;
 				break;
 			case MessageDirection::d2dUp:
 				instSINR.push_back(channel->calcD2DSINR(
@@ -162,7 +164,6 @@ void MsChannel::handleMessage(cMessage *msg)  {
 							bundle->getMsId(),
 							msId,MessageDirection::d2dUp,
 							bundle->getTransPower()));
-				std::cout << "Received D2D on UP" << std::endl;
 				break;
 		}
 		double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);

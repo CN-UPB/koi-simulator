@@ -5,6 +5,7 @@ cplusplus {{
 
 message KoiData;
 enum MessageDirection;
+enum MessageType;
 
 message DataPacketBundle  {
     int msId;
@@ -14,4 +15,5 @@ message DataPacketBundle  {
     int cqi;
     double transPower;
     int messageDirection @enum(MessageDirection);
+    kind = MessageType::bundle;
 }

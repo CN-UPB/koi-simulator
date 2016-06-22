@@ -123,8 +123,10 @@ void StreamScheduler::handleMessage(cMessage *msg){
 			scheduleAt(simTime()+tti,msg);
 			break;
 		case MessageType::streamSched:{
-				StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
+				StreamTransSched *sched = (StreamTransSched*)msg;
 				switch(sched->getMessageDirection()){
+					case MessageDirection::d2dDown:
+					case MessageDirection::d2dUp:
 					case MessageDirection::up:
 						send(sched,"toMs",sched->getSrc());
 						break;

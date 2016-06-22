@@ -135,6 +135,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 		else if(trans->arrivedOn("fromCell")){
 			// Message arrived from neighbouring cell
 			switch(trans->getMessageDirection()){
+				case MessageDirection::d2dUp:
 				case MessageDirection::up:
 					// Up direction transmission from 
 					// neighbouring MS. This interferes 
@@ -142,6 +143,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 					// so forward to all local BSChannels
 					for(int i=0; i<numberOfMobileStations; i++){
 						send(trans->dup(),"toBsChannel",i);
+						send(trans->dup(),"toMsMac",i);
 					}
 					break;
 				case MessageDirection::down:

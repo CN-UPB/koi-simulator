@@ -13,6 +13,7 @@ enum TrafficType {
 enum MessageType: short {
 	traffic,
 	koidata,
+	bundle,
 	streamInfo,
 	streamSched,
 	streamTransReq,
