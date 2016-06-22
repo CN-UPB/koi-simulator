@@ -81,6 +81,7 @@ void RBScheduler::handleMessage(cMessage *msg){
 		StreamTransSched *sched = this->getSchedule(req->getRequests());
 		if(sched!=nullptr){
 			if(sched->getMessageDirection()==MessageDirection::d2d){
+				std::cout << "Generated Sched for D2D Stream" << std::endl;
 				switch(req->getMessageDirection()){
 					case MessageDirection::down:
 						sched->setMessageDirection(MessageDirection::d2dDown);

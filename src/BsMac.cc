@@ -208,6 +208,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 		packetBundle->setCqi(15);
 		packetBundle->setMsId(destMs);
 		packetBundle->setBsId(packet->getBsId());
+		packetBundle->setMessageDirection(sched->getMessageDirection());
 		delete packet;
 
 		TransInfo *info = new TransInfo();

@@ -134,32 +134,52 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			transInfosDown[info->getRb()].push_front(info);
 		}
 	}
-	else if(msg->arrivedOn("fromBs"))  {
-		if(msg->isName("DATA_BUNDLE")){
-			//the channel receives the packet in a bundle
-			DataPacketBundle *bundle = (DataPacketBundle *) msg;
-			// Just forward the packet for now, without error checking etc
+	else if(msg->isName("DATA_BUNDLE"))  {
+		//the channel receives the packet in a bundle
+		DataPacketBundle *bundle = (DataPacketBundle *) msg;
+		// Just forward the packet for now, without error checking etc
 
-			vector<double> instSINR;
-			int currentRessourceBlock = bundle->getRBs(0);
+		vector<double> instSINR;
+		int currentRessourceBlock = bundle->getRBs(0);
 
-			instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,transInfosDown[currentRessourceBlock],msId,bundle->getTransPower()));
-			double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
-			double bler = getBler(bundle->getCqi(), effSINR, this);
-			vec bler_(1);
-			bler_.set(0,bler);
-			double per = getPer(bler_);
-
-			/**
-			  if(uniform(0,1) > per){
-			  sendDelayed(bundle, tti - epsilon, "toPhy");
-			  }else{
-			  delete bundle;
-			  }
-			 **/
-			// For now, all packets are received successfully
-			sendDelayed(bundle, tti - epsilon, "toPhy");
+		switch(bundle->getMessageDirection()){
+			case MessageDirection::down:
+				instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,transInfosDown[currentRessourceBlock],msId,bundle->getTransPower()));
+				break;
+			case MessageDirection::d2dDown:
+				instSINR.push_back(channel->calcD2DSINR(
+							currentRessourceBlock,
+							transInfosDown[currentRessourceBlock],
+							bundle->getMsId(),
+							msId,MessageDirection::d2dDown,
+							bundle->getTransPower()));
+				std::cout << "Received D2D on DOWN" << std::endl;
+				break;
+			case MessageDirection::d2dUp:
+				instSINR.push_back(channel->calcD2DSINR(
+							currentRessourceBlock,
+							transInfosUp[currentRessourceBlock],
+							bundle->getMsId(),
+							msId,MessageDirection::d2dUp,
+							bundle->getTransPower()));
+				std::cout << "Received D2D on UP" << std::endl;
+				break;
 		}
+		double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
+		double bler = getBler(bundle->getCqi(), effSINR, this);
+		vec bler_(1);
+		bler_.set(0,bler);
+		double per = getPer(bler_);
+
+		/**
+		  if(uniform(0,1) > per){
+		  sendDelayed(bundle, tti - epsilon, "toPhy");
+		  }else{
+		  delete bundle;
+		  }
+		 **/
+		// For now, all packets are received successfully
+		sendDelayed(bundle, tti - epsilon, "toPhy");
 	}
 	
 }

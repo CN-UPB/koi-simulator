@@ -276,6 +276,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 		packetBundle->setRBsArraySize(1);
 		packetBundle->setRBs(0,schedule->getRb());
 		packetBundle->setTransPower(transmissionPower);
+		packetBundle->setMessageDirection(schedule->getMessageDirection());
 		// Set CQI to a fixed value until we decide how to compute it
 		//packetBundle->setCqi(cqi);
 		packetBundle->setCqi(15);

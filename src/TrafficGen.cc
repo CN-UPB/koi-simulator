@@ -71,6 +71,7 @@ void TrafficGen::handleMessage(cMessage *msg){
 				pack->setBitLength(this->packetLength);
 				pack->setInterarrival(stream.period);
 				pack->setStreamId(stream.streamId);
+				pack->setD2d(stream.d2d);
 				send(pack,"toMac");
 				scheduleAt(currTime+stream.period,msg);
 				std::cout << "Stream " << stream.streamId << ": " 
