@@ -80,6 +80,16 @@ void RBScheduler::handleMessage(cMessage *msg){
 		TransReqList *req = dynamic_cast<TransReqList*>(msg);
 		StreamTransSched *sched = this->getSchedule(req->getRequests());
 		if(sched!=nullptr){
+			if(sched->getMessageDirection()==MessageDirection::d2d){
+				switch(req->getMessageDirection()){
+					case MessageDirection::down:
+						sched->setMessageDirection(MessageDirection::d2dDown);
+						break;
+					case MessageDirection::up:
+						sched->setMessageDirection(MessageDirection::d2dUp);
+						break;
+				}
+			}
 			send(sched,"scheduler$o");
 		}
 		delete req;

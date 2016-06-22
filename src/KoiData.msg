@@ -10,6 +10,7 @@ enum MessageType;
 packet KoiData {
 	int bsId; // The id of the base station servicing the sending MS
 	bool critical = false;
+	bool d2d; // Does this package belong to a D2D stream
 	simtime_t deadline; // The latest allowed arrival time for the message
 	simtime_t interarrival; // The average time between two messages
 	int resourceBlock;

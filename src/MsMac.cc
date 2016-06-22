@@ -307,7 +307,12 @@ void MsMac::handleMessage(cMessage *msg)  {
 			req->setStreamId(iter->first);
 			req->setPeriod(queueHead->getInterarrival());
 			req->setPackets(&(iter->second));
-			req->setMessageDirection(MessageDirection::up);
+			if(queueHead->getD2d()){
+				req->setMessageDirection(MessageDirection::d2d);
+			}
+			else{
+				req->setMessageDirection(MessageDirection::up);
+			}
 			send(req,"toScheduler");
 		}
 	}

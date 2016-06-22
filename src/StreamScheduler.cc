@@ -43,12 +43,36 @@ void StreamScheduler::scheduleStreams(){
 		int rbUp = 0;
 		int rbDown = 0;
 		for(auto info:this->infos){
-			this->rbAssignments[info->getStreamId()][MessageDirection::up] 
-				= std::make_pair<MessageDirection,int>(MessageDirection::up,rbUp%upRB);
-			this->rbAssignments[info->getStreamId()][MessageDirection::down] 
-				= std::make_pair<MessageDirection,int>(MessageDirection::down,rbDown%downRB);
-			rbUp++;
-			rbDown++;
+			if(info->getD2d()){
+				// If the stream is a D2D link, the scheduler 
+				// does not only need to decide which ressource 
+				// block the stream should use, but also 
+				// which frequency band half, the one assigned 
+				// to down or up traffic.
+				//
+				// We don't need assignments for up/down here 
+				// as D2D streams only have one direction, 
+				// directly from the sending MS to the receiving
+				// MS.
+				if(rbUp/(double)upRB<=rbDown/(double)downRB){
+					this->rbAssignments[info->getStreamId()][MessageDirection::d2d] 
+						= std::make_pair<MessageDirection,int>(MessageDirection::up,rbUp%upRB);
+					rbUp++;
+				}
+				else{
+					this->rbAssignments[info->getStreamId()][MessageDirection::d2d] 
+						= std::make_pair<MessageDirection,int>(MessageDirection::down,rbDown%downRB);
+					rbDown++;
+				}
+			}
+			else{
+				this->rbAssignments[info->getStreamId()][MessageDirection::up] 
+					= std::make_pair<MessageDirection,int>(MessageDirection::up,rbUp%upRB);
+				this->rbAssignments[info->getStreamId()][MessageDirection::down] 
+					= std::make_pair<MessageDirection,int>(MessageDirection::down,rbDown%downRB);
+				rbUp++;
+				rbDown++;
+			}
 			delete info;
 		}
 		// Remove all stream infos

@@ -50,6 +50,7 @@ void TrafficGen::initialize(){
                 info->setDest(stream.destMsId);
                 info->setInterarrival(stream.period);
                 info->setStreamId(stream.streamId);
+		info->setD2d(stream.d2d);
 		send(info,"toMac");
 	}
 }

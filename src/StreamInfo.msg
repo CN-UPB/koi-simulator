@@ -12,5 +12,6 @@ message StreamInfo {
 	unsigned long streamId; // The unique ID of the stream
 	int src;
 	int dest;
+	bool d2d; // Is this stream a D2D link
 	double interarrival; // The average time between two messages in this stream
 }
