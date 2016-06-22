@@ -7,10 +7,13 @@ cplusplus {{
 }}
 
 enum MessageType;
+enum MessageDirection;
 
-message TransInfoBs {
+message TransInfo {
 	int bsId; // The sending base station
 	double power; // The transmission power of the sending station
 	int rb; // The ressource block used for the transmission
-	kind = MessageType::transInfoBs;
+	kind = MessageType::transInfo;
+	int msId; // The sending mobile station
+	int messageDirection @enum(MessageDirection); // The transmission direction of this message
 }

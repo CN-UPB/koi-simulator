@@ -44,6 +44,9 @@ module LteCell  {
 				initBsYPos = yPos;
 				radius = radius;
 				currentChannel = currentChannel;
+			gates:
+				toMs[numberOfMobileStations];
+				fromMs[numberOfMobileStations];
 		}
 	    sched: Scheduler {
 	   	parameters:
@@ -56,6 +59,11 @@ module LteCell  {
 		for i=0..numberOfMobileStations-1  {
 			bs.toMs[i] --> ms[i].fromBs;
 			ms[i].toBs --> bs.fromMs[i];
+		}
+
+		// Connect MS with each other for D2D communication
+		for i=0..numberOfMobileStations-1,for j=0..numberOfMobileStations-1, if i!=j {
+			ms[i].toMs[j] --> ms[j].fromMs[i];
 		}
 
 		//connect BaseStation with other Cells

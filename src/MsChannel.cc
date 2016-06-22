@@ -34,6 +34,7 @@ void MsChannel::initialize()  {
     tti = par("tti");
     msId = par("msId");
     downResourceBlocks = par("downResourceBlocks");
+    upResourceBlocks = par("upResourceBlocks");
     msPosition.x = 6;
     msPosition.y = 21;
     //find the neighbours and store the pair (bsId, position in data structures) in a map
@@ -46,8 +47,9 @@ void MsChannel::initialize()  {
     string eesm_beta = par("eesm_beta");
     eesm_beta_values = vec(eesm_beta);
 
-    // Instantiate a transmission info list for each down ressource block
-    transInfos.resize(downResourceBlocks);
+    // Instantiate a transmission info list for each down/up ressource block
+    transInfosDown.resize(downResourceBlocks);
+    transInfosUp.resize(upResourceBlocks);
     
     scheduleAt(simTime() + 1000 * tti + epsilon, new cMessage("SINR_ESTIMATION")); //originally set to 1000*tti + epsilon
 }
@@ -120,37 +122,65 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		bsPositions[dataStrPos] = bsPos->getPosition();
 		delete msg;
 	}
-	else if(msg->arrivedOn("fromBs"))  {
-		if(msg->isName("DATA_BUNDLE")){
-			//the channel receives the packet in a bundle
-			DataPacketBundle *bundle = (DataPacketBundle *) msg;
-			// Just forward the packet for now, without error checking etc
+	else if(msg->getKind()==MessageType::transInfo){
+		TransInfo *info = dynamic_cast<TransInfo*>(msg);
+		// The transInfo lists are sorted by RB by transmission direction
+		switch(info->getMessageDirection()){
+			case MessageDirection::d2dUp:
+			case MessageDirection::up:
+				transInfosUp[info->getRb()].push_front(info);
+				break;
+			case MessageDirection::d2dDown:
+			case MessageDirection::down:
+				transInfosDown[info->getRb()].push_front(info);
+				break;
 
-			vector<double> instSINR;
-			int currentRessourceBlock = bundle->getRBs(0);
-
-			instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,transInfos[currentRessourceBlock],msId,bundle->getTransPower()));
-			double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
-			double bler = getBler(bundle->getCqi(), effSINR, this);
-			vec bler_(1);
-			bler_.set(0,bler);
-			double per = getPer(bler_);
-			std::cout << "SINR DOWN" << " At " << msId <<": " << effSINR << std::endl;
-
-			/**
-			  if(uniform(0,1) > per){
-			  sendDelayed(bundle, tti - epsilon, "toPhy");
-			  }else{
-			  delete bundle;
-			  }
-			 **/
-			// For now, all packets are received successfully
-			sendDelayed(bundle, tti - epsilon, "toPhy");
 		}
-		else if(msg->getKind()==MessageType::transInfoBs){
-			TransInfoBs *info = dynamic_cast<TransInfoBs*>(msg);
-			transInfos[info->getRb()].push_front(info);
+	}
+	else if(msg->isName("DATA_BUNDLE"))  {
+		//the channel receives the packet in a bundle
+		DataPacketBundle *bundle = (DataPacketBundle *) msg;
+		// Just forward the packet for now, without error checking etc
+
+		vector<double> instSINR;
+		int currentRessourceBlock = bundle->getRBs(0);
+
+		switch(bundle->getMessageDirection()){
+			case MessageDirection::down:
+				instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,transInfosDown[currentRessourceBlock],msId,bundle->getTransPower()));
+				break;
+			case MessageDirection::d2dDown:
+				instSINR.push_back(channel->calcD2DSINR(
+							currentRessourceBlock,
+							transInfosDown[currentRessourceBlock],
+							bundle->getMsId(),
+							msId,MessageDirection::d2dDown,
+							bundle->getTransPower()));
+				break;
+			case MessageDirection::d2dUp:
+				instSINR.push_back(channel->calcD2DSINR(
+							currentRessourceBlock,
+							transInfosUp[currentRessourceBlock],
+							bundle->getMsId(),
+							msId,MessageDirection::d2dUp,
+							bundle->getTransPower()));
+				break;
 		}
+		double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
+		double bler = getBler(bundle->getCqi(), effSINR, this);
+		vec bler_(1);
+		bler_.set(0,bler);
+		double per = getPer(bler_);
+
+		/**
+		  if(uniform(0,1) > per){
+		  sendDelayed(bundle, tti - epsilon, "toPhy");
+		  }else{
+		  delete bundle;
+		  }
+		 **/
+		// For now, all packets are received successfully
+		sendDelayed(bundle, tti - epsilon, "toPhy");
 	}
 	
 }

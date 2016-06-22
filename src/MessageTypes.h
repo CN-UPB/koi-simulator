@@ -13,12 +13,20 @@ enum TrafficType {
 enum MessageType: short {
 	traffic,
 	koidata,
+	bundle,
 	streamInfo,
 	streamSched,
 	streamTransReq,
-	transInfoBs,
-	transInfoMs,
+	transInfo,
 	transReqList,
 	scheduleStreams,
 	scheduleRBs
+};
+
+enum MessageDirection: int {
+	up,
+	down,
+	d2d,
+	d2dDown,
+	d2dUp
 };

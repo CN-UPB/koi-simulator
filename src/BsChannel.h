@@ -16,7 +16,7 @@
 #include "VisibilityRegion.h"
 #include "cluster.h"
 #include "Channel.h"
-#include "TransInfoMs_m.h"
+#include "TransInfo_m.h"
 #include <vector>
 #include <forward_list>
 #include <ostream>
@@ -33,14 +33,14 @@ class BsChannel : public cSimpleModule  {
         bool useSimpleChannelCalc;
         int simpleChannelCalcNops;
         int bsId;
-        int init_counter;
+        size_t init_counter;
         int numberOfVR;
         Position bsPosition;
         double packetLoss;
         bool scheduleCatch;
         simtime_t tti;
         simtime_t epsilon;
-        Position **msPositions;
+        std::vector<std::vector<Position>> msPositions;
         NeighbourIdMatching *neighbourIdMatching;          // map the bsId to the pos in the data structures
         std::map <int,Position> neighbourPositions;
         std::vector<VisibilityRegion> VR;
@@ -56,7 +56,7 @@ class BsChannel : public cSimpleModule  {
 	 * stations, required for SINR interference computation during 
 	 * packet receival.
 	 */ 
-	std::vector<std::forward_list<TransInfoMs*>> transInfos;
+	std::vector<std::forward_list<TransInfo*>> transInfos;
 
 	std::ostream& outputDownSINR(std::ostream& out);
 	std::ostream& outputUpSINR(std::ostream& out);

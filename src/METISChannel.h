@@ -52,6 +52,8 @@ class METISChannel : public Channel{
 		cSimpleModule *initModule;				/*!< Pointer to OMNeT module for intermodule communication */
 		vector<vector<vector<vector<double>>>> coeffDownTable;				/*!< Table to save downlink coefficients */
 		vector<vector<vector<vector<vector<double>>>>> coeffUpTable;				/*!< Table to save uplink coefficients */
+		vector<vector<vector<vector<vector<double>>>>> coeffDownD2DTable;				/*!< Table to save D2D DOWN Rb coefficients */
+		vector<vector<vector<vector<vector<double>>>>> coeffUpD2DTable;				/*!< Table to save D2D UP Rb coefficients */
 		int upRBs;						/*!< Number of up resource blocks*/
 		int downRBs;						/*!< Number of down resource blocks */
 		int SINRcounter;					/*!< If position resend intervall > 1, it counts the current TTI */
@@ -60,11 +62,20 @@ class METISChannel : public Channel{
 		vector<vector<array<double,3>>> bsAntennaPositions;				/*!< Position vector of Base Station antenna */
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
 		double vel;
+		double wavelength;
 		double XPR_Mean_LOS;
 		double XPR_Std_LOS;
 		double XPR_Mean_NLOS;
 		double XPR_Std_NLOS;
 		bool initialized;					/*!< True iff METISChannel::init has been called */
+		
+		/**
+		 * @brief Calculate Antenna positions for the given transmitters
+		 */
+		vector<vector<array<double,3>>> computeAntennaPos(
+				const vector<Position>& transmitterPos,
+				int numAntennas,
+				double heightAntennas);
 		
 		//! Calculates the pathloss for a given distance.
 		double CalcPathloss(double dist2D, double dist3D, bool LOS);
@@ -104,7 +115,7 @@ class METISChannel : public Channel{
 				vector<vector<double>>& sigma_sf_NLOS);
 
 		//! Recalculate all position dependent values, e.g. SINR
-		void recomputeMETISParams(Position **msPositions);
+		void recomputeMETISParams(const vector<vector<Position>>& msPositions);
 
 		//! Generate the spatial correlation between the MS for LOS links.
 		void generateAutoCorrelation_LOS(const vector<Position>& senders,
@@ -291,6 +302,7 @@ class METISChannel : public Channel{
 				const vector<Position>& senderPos,
 				double heightReceivers,
 				double heightSenders,
+				bool up,
 				int numRBs,
 				int numReceiverAntenna,
 				int numSenderAntenna,
@@ -318,6 +330,14 @@ class METISChannel : public Channel{
 		 */
 		void recomputeUpCoefficients(const vector<vector<Position>>& msPositions,
 				const vector<Position>& bsPositions);
+		
+		/**
+		 * @brief Compute the D2D (MS->MS) coefficients
+		 *
+		 * After executing this method, the coeffUpD2D and coeffDownD2D tables will hold 
+		 * the coefficients for the links from all MS to all local MS
+		 */
+		void recomputeD2DCoefficients(const vector<vector<Position>>& msPositions);
 
 		/**
 		 * @brief Output the Up coefficient table to out stream
@@ -337,11 +357,8 @@ class METISChannel : public Channel{
 		}
 		
 		//! Initialize the METIS channel through ini access via OMNeT++ module pointer.
-		bool init(cSimpleModule* module, Position** msPositions, std::map <int,Position> neighbourPositions);
+		bool init(cSimpleModule* module,const vector<vector<Position>>& msPositions, std::map <int,Position> neighbourPositions);
 
-		//! Generate the channel coefficients every positionResendInterval
-		//void METISChannel::calcChannel_METIS();
-		
 		//! Allows the OMNeT++ module to pass messages to this METIS channel class.
 		void handleMessage(cMessage* msg);
 		
@@ -358,17 +375,24 @@ class METISChannel : public Channel{
 		vec calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId);
 
 		double calcUpSINR(int RB, 
-				std::forward_list<TransInfoMs*> &interferers,
+				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower);
 
 		double calcDownSINR(int RB, 
-				std::forward_list<TransInfoBs*> &interferers,
+				std::forward_list<TransInfo*> &interferers,
 				int msId,
+				double transPower);
+
+		double calcD2DSINR(int RB, 
+				std::forward_list<TransInfo*> &interferers,
+				int sendMsID,
+				int receiveMsId,
+				MessageDirection direction,
 				double transPower);
 		
 		//! Updates the MS position if velocity > 0. The interval in which the postion is updated can be set within omnet.ini
-		void updateChannel(Position** msPos);
+		void updateChannel(const vector<vector<Position>>& msPos);
 
 		//! Destructor of METIS Channel subclass.
 		virtual ~METISChannel();

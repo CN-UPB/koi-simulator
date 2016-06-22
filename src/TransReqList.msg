@@ -10,8 +10,10 @@ using ReqVec = std::vector<StreamTransReq*>;
 
 class noncobject ReqVec;
 enum MessageType;
+enum MessageDirection;
 
 message TransReqList {
 	ReqVec requests; // All requests for a given stream for the current TTI
+	int messageDirection @enum(MessageDirection); // The transmission direction of the requests in this message
 	kind = MessageType::transReqList;
 }

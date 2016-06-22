@@ -14,21 +14,25 @@
 #include "RBScheduler.h"
 #include "StreamInfo_m.h"
 #include "StreamTransReq_m.h"
+#include "MessageTypes.h"
 
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 class StreamScheduler: public cSimpleModule{
 
 	private:
+		using ResAssign = std::pair<MessageDirection,int>;
 		simtime_t initOffset;
 		int numberOfMs;
-		int resourceBlocks;
+		int upRB;
+		int downRB;
 		simtime_t streamSchedPeriod;
 		simtime_t tti;
 		std::vector<StreamInfo*> infos;		
-		std::unordered_map<int,std::vector<StreamTransReq*>> requests;
-		std::unordered_map<int,std::unordered_map<int,int>> rbAssignments;
+		std::unordered_map<int,std::unordered_map<int,std::vector<StreamTransReq*>>> requests;
+		std::unordered_map<unsigned long,std::unordered_map<int,ResAssign>> rbAssignments;
 		virtual void scheduleStreams();
 
 	protected:

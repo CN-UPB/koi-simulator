@@ -46,7 +46,7 @@ class ChannelAlternative : public Channel{
 
 	public:
 		// Initialize your Channel through ini access via module pointer.
-		bool init(cSimpleModule* module, Position** msPositions, std::map <int,Position> neighbourPositions);
+		bool init(cSimpleModule* module, const vector<vector<Position>>& msPositions, std::map <int,Position> neighbourPositions);
 		// It may be necessary for the Channel to receive Message from other LPs.
 		void handleMessage(cMessage* msg);
 		// Computes the pathloss for a given distance using an arbitrary model.
@@ -58,7 +58,7 @@ class ChannelAlternative : public Channel{
 		// Calculates the current SINR for given interferers and a given RB.
 		vec calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId);
 		// Updates the Channel if necessary for moving MS
-		void updateChannel(Position** msPos);
+		void updateChannel(const vector<vector<Position>>& msPos);
 		// Calculates Jackes like Fading
 		double calculateFading(int msId, double frequency, double mobile_speed, int intbsID);
 		double calculateLoss(int, double, double, int);

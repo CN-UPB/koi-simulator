@@ -26,7 +26,8 @@ StreamTransSched *RBScheduler::getSchedule(
 		int bestPacketIndex;
 		int bestSrc;
 		int bestDest;
-		bool bestBs;
+		int bestDir;
+		unsigned long bestStreamId;
 		// The following code iterates over all transmission requests and finds 
 		// the next packet to be send, according to the scheduler's "compare" 
 		// method.
@@ -53,7 +54,8 @@ StreamTransSched *RBScheduler::getSchedule(
 					bestPacketIndex = index;
 					bestSrc = bestPacket->getSrc();
 					bestDest = bestPacket->getDest();
-					bestBs = currReq->getBs();					
+					bestDir = currReq->getMessageDirection();
+					bestStreamId = currReq->getStreamId();
 				}
 				index++;
 			}
@@ -62,9 +64,10 @@ StreamTransSched *RBScheduler::getSchedule(
 		StreamTransSched *schedule = new StreamTransSched();
 		schedule->setSrc(bestSrc);
 		schedule->setDest(bestDest);
+		schedule->setStreamId(bestStreamId);
 		schedule->setRb(this->rbNumber);
 		schedule->setPacketIndex(bestPacketIndex);
-		schedule->setBs(bestBs);
+		schedule->setMessageDirection(bestDir);
 		return schedule;
 	}
 	else{
@@ -77,7 +80,17 @@ void RBScheduler::handleMessage(cMessage *msg){
 		TransReqList *req = dynamic_cast<TransReqList*>(msg);
 		StreamTransSched *sched = this->getSchedule(req->getRequests());
 		if(sched!=nullptr){
-			send(sched,"toScheduler");
+			if(sched->getMessageDirection()==MessageDirection::d2d){
+				switch(req->getMessageDirection()){
+					case MessageDirection::down:
+						sched->setMessageDirection(MessageDirection::d2dDown);
+						break;
+					case MessageDirection::up:
+						sched->setMessageDirection(MessageDirection::d2dUp);
+						break;
+				}
+			}
+			send(sched,"scheduler$o");
 		}
 		delete req;
 	}

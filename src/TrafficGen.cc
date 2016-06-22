@@ -8,10 +8,13 @@
 #include "Traffic_m.h"
 #include "StreamInfo_m.h"
 #include "MessageTypes.h"
+#include "omnetpp.h"
 
 #include <iostream>
+#include <vector>
 
 using std::vector;
+using std::string;
 
 Define_Module(TrafficGen);
 
@@ -21,19 +24,20 @@ void TrafficGen::initialize(){
 	this->initOffset = par("initOffset");
 	this->msId = par("msId");
 	this->packetLength = par("packetLength");
-	this->period = par("period");
 	this->periodicTraffic = par("periodicTraffic");
 
-	// convert communication partners string to vector of ints
-	const char *partners = par("commPartners").stringValue();
-	this->commPartners = cStringTokenizer(partners,",").asIntVector();
 	// schedule initial events randomly in [current time,initOffset]
+
+	string xmlPath = par("commTable");
+	vector<StreamDef> parsedStreams(parseCommTable(xmlPath,bsId,msId));
 	simtime_t currTime = simTime();
-	for(int i:this->commPartners){
+	for(StreamDef& stream:parsedStreams){
+		this->streams[stream.streamId] = stream;
 		if(this->periodicTraffic){
 			Traffic *msg = new Traffic();
-			msg->setPartner(i);
+                        msg->setPartner(stream.destMsId);
 			msg->setTrafficType(TrafficType::periodic);
+                        msg->setStreamId(stream.streamId);
 			scheduleAt(currTime+uniform(currTime,currTime+this->initOffset),
 					msg);
 		}
@@ -43,8 +47,10 @@ void TrafficGen::initialize(){
 		// this MS and it's comm partner.
 		StreamInfo *info = new StreamInfo();
 		info->setSrc(msId);
-		info->setDest(i);
-		info->setInterarrival(period);
+                info->setDest(stream.destMsId);
+                info->setInterarrival(stream.period);
+                info->setStreamId(stream.streamId);
+		info->setD2d(stream.d2d);
 		send(info,"toMac");
 	}
 }
@@ -56,27 +62,58 @@ void TrafficGen::handleMessage(cMessage *msg){
 			case MessageType::traffic:
 				Traffic *genMsg = dynamic_cast<Traffic*>(msg);
 				KoiData *pack = new KoiData();
+				StreamDef& stream = streams[genMsg->getStreamId()];
 				pack->setBsId(this->bsId);
 				pack->setDeadline(currTime+this->deadline);
 				pack->setSrc(this->msId);
-				pack->setDest(genMsg->getPartner());
+				pack->setDest(stream.destMsId);
 				pack->setTrafficType(TrafficType::periodic);
 				pack->setBitLength(this->packetLength);
-				pack->setInterarrival(this->period);
+				pack->setInterarrival(stream.period);
+				pack->setStreamId(stream.streamId);
+				pack->setD2d(stream.d2d);
 				send(pack,"toMac");
-				scheduleAt(currTime+this->period,msg);
-				std::cout << "MS " << this->msId << " Generated Msg " << pack->getId() << " to " << pack->getDest() << std::endl;
+				scheduleAt(currTime+stream.period,msg);
+				std::cout << "Stream " << stream.streamId << ": " 
+					<< "MS " << this->msId 
+					<< " Generated Msg " << pack->getId() 
+					<< " to " << pack->getDest() 
+					<< std::endl;
 				break;
 			
 		}
 	}
 	else if(msg->arrivedOn("fromMac")){
 		KoiData *pack = dynamic_cast<KoiData*>(msg);
-		std::cout << "MS " << this->msId 
+		std::cout << "Stream " << pack->getStreamId() << ": " 
+			<< "MS " << this->msId 
 			<< " got message " << pack->getId() 
 			<< " from " << pack->getSrc() 
 			<< " to " << pack->getDest() 
 			<< std::endl;
 		delete pack;
 	}
+}
+
+vector<TrafficGen::StreamDef> TrafficGen::parseCommTable(const string& commTable,
+		int bsId,
+		int msId){
+	vector<TrafficGen::StreamDef> parsedStreams;
+	string xpath("/root/cell[@id='"
+			+std::to_string(bsId)
+			+"']/ms[@id='"+std::to_string(msId)+"']");
+	cXMLElement *msNode = ev.getXMLDocument(commTable.c_str(),
+			xpath.c_str());
+	unsigned long sId;
+	for(cXMLElement *curr=msNode->getFirstChild();curr!=nullptr;
+			curr=curr->getNextSibling()){
+		sId = simulation.getUniqueNumber();
+		parsedStreams.emplace_back(
+			sId,
+			std::stoi(curr->getAttribute("cell")),
+			std::stoi(curr->getAttribute("destid")),
+			std::stod(curr->getAttribute("period")),
+			std::stoi(curr->getAttribute("d2d")));
+	}
+	return parsedStreams;
 }

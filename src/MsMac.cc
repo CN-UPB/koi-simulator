@@ -15,7 +15,7 @@
 #include "StreamTransReq_m.h"
 #include "StreamTransSched_m.h"
 #include "SINR_m.h"
-#include "TransInfoMs_m.h"
+#include "TransInfo_m.h"
 #include <stdlib.h>
 #include <cmath>
 
@@ -268,27 +268,32 @@ void MsMac::handleMessage(cMessage *msg)  {
             if(channel_capacity > 0)  {
                 packetBundle->setPacketsArraySize(1);
 		KoiData *packet = dynamic_cast<KoiData*>(
-				streamQueues[schedule->getDest()].get(
+				streamQueues[schedule->getStreamId()].get(
 					schedule->getPacketIndex()));
-		streamQueues[schedule->getDest()].remove(packet);
+		streamQueues[schedule->getStreamId()].remove(packet);
 		packetBundle->setPackets(0, *packet);
 		delete packet;
 		packetBundle->setRBsArraySize(1);
 		packetBundle->setRBs(0,schedule->getRb());
 		packetBundle->setTransPower(transmissionPower);
+		packetBundle->setMessageDirection(schedule->getMessageDirection());
 		// Set CQI to a fixed value until we decide how to compute it
 		//packetBundle->setCqi(cqi);
 		packetBundle->setCqi(15);
-		TransInfoMs *info = new TransInfoMs();
+		TransInfo *info = new TransInfo();
 		info->setBsId(bsId);
 		info->setMsId(msId);
 		info->setRb(schedule->getRb());
 		info->setPower(transmissionPower);
+		info->setMessageDirection(schedule->getMessageDirection());
 		send(info,"toBsMac");
                 sendDelayed(packetBundle, epsilon, "toPhy");
             }
         }
         delete schedule;
+    }
+    else if(msg->getKind()==MessageType::transInfo){
+    	send(msg,"toPhy");
     }
     else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
 	// Send requests for each stream originating from this MS to the 
@@ -299,10 +304,16 @@ void MsMac::handleMessage(cMessage *msg)  {
 			StreamTransReq *req = new StreamTransReq();
 			KoiData *queueHead = dynamic_cast<KoiData*>(iter->second.front());
 			req->setSrc(this->msId);
-			req->setDest(iter->first);
+			req->setDest(queueHead->getDest());
+			req->setStreamId(iter->first);
 			req->setPeriod(queueHead->getInterarrival());
 			req->setPackets(&(iter->second));
-			req->setBs(false);
+			if(queueHead->getD2d()){
+				req->setMessageDirection(MessageDirection::d2d);
+			}
+			else{
+				req->setMessageDirection(MessageDirection::up);
+			}
 			send(req,"toScheduler");
 		}
 	}
@@ -332,24 +343,23 @@ void MsMac::handleMessage(cMessage *msg)  {
 		SINR_ = sinr_new;
 		send(sinrMessage, "toBsMac");
     }
-    //DataPacket
     else if(msg->arrivedOn("fromApp"))  {
+	// Packet arrived for sending from traffic generator
 	switch(msg->getKind()){
 		case MessageType::streamInfo:{
 			// Add queue for the new stream
 			StreamInfo *tmp = dynamic_cast<StreamInfo*>(msg);
-			this->streamQueues[tmp->getDest()];
+			this->streamQueues[tmp->getStreamId()];
 			send(tmp->dup(),"toScheduler");
 			send(tmp->dup(),"toBsMac");
 			delete msg;
 		} break;
 		case MessageType::koidata:{
 			KoiData *data = dynamic_cast<KoiData*>(msg);
-			this->streamQueues[data->getDest()].insert(data);
+			this->streamQueues[data->getStreamId()].insert(data);
 		} break;
 	}
     }
-    //DataPacket
     else if(msg->arrivedOn("fromPhy"))  {
 	// Unpack the data bundle and forward data packets to app
 	if(msg->isName("DATA_BUNDLE")){

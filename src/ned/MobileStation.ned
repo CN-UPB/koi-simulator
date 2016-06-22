@@ -27,6 +27,10 @@ module MobileStation
 	input fromScheduler;
 	output toScheduler;
 
+    	// Links to MS in same cell for D2D transmissions
+    	input fromMs[];
+    	output toMs[];
+
     submodules:
         app: TrafficGen  {
         	parameters:
@@ -51,13 +55,17 @@ module MobileStation
         phy: MsPhy  {
         	parameters:
         		@display("p=50,190");
+		gates:
+			toMs[sizeof(fromMs)];
         }
         dataChn: MsChannel  {
         	parameters:
-				msId = msId;
+			msId = msId;
         		bsId = bsId;
-                currentChannel = currentChannel;
+                	currentChannel = currentChannel;
         		@display("p=50,260");
+		gates:
+			fromMs[sizeof(fromMs)];
         }
     connections:
         app.toMac --> mac.fromApp;
@@ -72,4 +80,10 @@ module MobileStation
         fromBs --> dataChn.fromBs;
 	fromScheduler --> mac.fromScheduler;
 	mac.toScheduler --> toScheduler;
+
+	// For D2D message traffic
+	for i=0..sizeof(fromMs)-1  {
+		phy.toMs[i] --> toMs[i];
+		fromMs[i] --> dataChn.fromMs[i];
+	}
 }

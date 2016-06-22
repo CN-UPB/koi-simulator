@@ -11,7 +11,7 @@
 #include "Position.h"
 #include "NeighbourIdMatching.h"
 #include "Channel.h"
-#include "TransInfoBs_m.h"
+#include "TransInfo_m.h"
 #include <vector>
 #include <forward_list>
 
@@ -24,6 +24,7 @@ class MsChannel : public cSimpleModule  {
         int simpleChannelCalcNops;
         int currentChannel;
         int downResourceBlocks;
+        int upResourceBlocks;
         simtime_t epsilon;
         simtime_t tti;
         double packetLoss;
@@ -36,10 +37,11 @@ class MsChannel : public cSimpleModule  {
 	/**
 	 * Holds transmission information for the current TTI
 	 *
-	 * The vector holds lists of TransInfoBs messages, sorted by the resource 
+	 * The vector holds lists of TransInfo messages, sorted by the resource 
 	 * block the transmission uses.
 	 */
-	std::vector<std::forward_list<TransInfoBs*>> transInfos;
+	std::vector<std::forward_list<TransInfo*>> transInfosUp;
+	std::vector<std::forward_list<TransInfo*>> transInfosDown;
 
     protected:
         virtual void initialize();

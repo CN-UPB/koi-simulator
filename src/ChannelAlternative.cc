@@ -13,7 +13,7 @@ using namespace std;
 using namespace itpp;
 
 // Initialize your Channel through ini access via module pointer.
-bool ChannelAlternative::init(cSimpleModule* module, Position** msPositions, std::map <int,Position> neighbourPositions){
+bool ChannelAlternative::init(cSimpleModule* module, const vector<vector<Position>>& msPositions, std::map <int,Position> neighbourPositions){
 	int nrCells = module->getParentModule()->getParentModule()->getParentModule()->par("numberOfCells");
 	tenlogk = module->par("tenlogk");
 	alpha = module->par("alpha");
@@ -225,7 +225,7 @@ vec ChannelAlternative::calcSINR(vector<double> &power, vector<Position> &pos, v
 }
 
 // Updates the Channel if necessary for moving MS
-void ChannelAlternative::updateChannel(Position** msPos){
+void ChannelAlternative::updateChannel(const vector<vector<Position>>& msPos){
 	int fromBsId = neighbourIdMatching->getDataStrId(myBsID);
 	for(int i = 0; i < nrMSs; i++){
 		msXposition[i] = msPos[fromBsId][i].x;

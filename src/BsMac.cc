@@ -20,7 +20,7 @@
 #include "StreamTransReq_m.h"
 #include "StreamTransSched_m.h"
 #include "KoiData_m.h"
-#include "TransInfoBs_m.h"
+#include "TransInfo_m.h"
 #include <algorithm>
 
 using namespace itpp;
@@ -33,7 +33,7 @@ void BsMac::initialize()  {
     bsId = par("bsId");
     currentChannel = par("currentChannel");
     maxNumberOfNeighbours = par("maxNumberOfNeighbours");
-    resourceBlocks = par("resourceBlocks");
+    resourceBlocks = par("downResourceBlocks");
     numberOfMobileStations = par("numberOfMobileStations");
     sinr_est = 0;
     transmissionPower = par("transmissionPower");
@@ -119,13 +119,45 @@ void BsMac::handleMessage(cMessage *msg)  {
 		StreamInfo *info = dynamic_cast<StreamInfo*>(msg);
 		// Add a packet queue for this stream, using associative containers 
 		// automatic insertion of new entries when subscripting.
-		streamQueues[info->getSrc()][info->getDest()];
+		streamQueues[info->getStreamId()];
 		delete info;
 	}
-	else if(msg->getKind()==MessageType::transInfoBs){
-		for(int i = 0; i < numberOfMobileStations; ++i)  {
-			send(msg->dup(), "toMsMac", i);
+	else if(msg->getKind()==MessageType::transInfo){
+		// Route transmission information according to transmission
+		// direction and origin
+		TransInfo *trans = dynamic_cast<TransInfo*>(msg);
+		if(trans->arrivedOn("fromMsMac")){
+			// The message is transmission information from 
+			// one of the local mobile stations. Forward to 
+			// neighbours.
+			sendToNeighbourCells(trans);
 		}
+		else if(trans->arrivedOn("fromCell")){
+			// Message arrived from neighbouring cell
+			switch(trans->getMessageDirection()){
+				case MessageDirection::d2dUp:
+				case MessageDirection::up:
+					// Up direction transmission from 
+					// neighbouring MS. This interferes 
+					// with reception at the local BS,
+					// so forward to all local BSChannels
+					for(int i=0; i<numberOfMobileStations; i++){
+						send(trans->dup(),"toBsChannel",i);
+						send(trans->dup(),"toMsMac",i);
+					}
+					break;
+				case MessageDirection::down:
+					// Down direction transmission from 
+					// neighbouring BS. This interferes 
+					// with reception at local MS, so 
+					// forward to local MS
+					for(int i=0; i<numberOfMobileStations; i++){
+						send(trans->dup(),"toMsMac",i);
+					}
+					break;
+			}
+		}
+		
 		delete msg;
 	}
 	else if(msg->isName("POINTER_EXCHANGE2")){
@@ -148,7 +180,6 @@ void BsMac::handleMessage(cMessage *msg)  {
 	    StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
 	    DataPacketBundle *packetBundle = new DataPacketBundle("DATA_BUNDLE");
 
-	    int srcMs = sched->getSrc();
 	    int destMs = sched->getDest();
             vector<double> sinr_values;
 	    sinr_values.push_back(SINR_(destMs,sched->getRb()));
@@ -166,9 +197,9 @@ void BsMac::handleMessage(cMessage *msg)  {
             if(channel_capacity > 0)  {
                 packetBundle->setPacketsArraySize(1);
 		KoiData *packet = dynamic_cast<KoiData*>(
-				streamQueues[srcMs][destMs].get(
+				streamQueues[sched->getStreamId()].get(
 					sched->getPacketIndex()));
-		streamQueues[srcMs][destMs].remove(packet);
+		streamQueues[sched->getStreamId()].remove(packet);
 		packetBundle->setPackets(0, *packet);
 		packetBundle->setRBsArraySize(1);
 		packetBundle->setRBs(0,sched->getRb());
@@ -179,12 +210,17 @@ void BsMac::handleMessage(cMessage *msg)  {
 		packetBundle->setCqi(15);
 		packetBundle->setMsId(destMs);
 		packetBundle->setBsId(packet->getBsId());
+		packetBundle->setMessageDirection(sched->getMessageDirection());
 		delete packet;
 
-		TransInfoBs *info = new TransInfoBs();
+		TransInfo *info = new TransInfo();
 		info->setBsId(bsId);
 		info->setPower(transmissionPower);
 		info->setRb(sched->getRb());
+		// It is the BS itself sending, not a MS, which we indicate
+		// with an index of -1 for the MS
+		info->setMsId(-1);
+		info->setMessageDirection(MessageDirection::down);
             
 		sendToNeighbourCells(info);
 		delete info;
@@ -254,23 +290,18 @@ void BsMac::handleMessage(cMessage *msg)  {
 	else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
 		// Send requests for each stream to the 
 		// scheduler if that stream has packets.
-		for(auto iterSrc=this->streamQueues.begin(); iterSrc!=streamQueues.end();
-				++iterSrc){
-			if(!iterSrc->second.empty()){
-				for(auto iterDest=iterSrc->second.begin(); 
-						iterDest!=iterSrc->second.end();
-						++iterDest){
-					if(!iterDest->second.empty()){
-						StreamTransReq *req = new StreamTransReq();
-						KoiData *queueHead = dynamic_cast<KoiData*>(iterDest->second.front());
-						req->setSrc(iterSrc->first);
-						req->setDest(iterDest->first);
-						req->setPeriod(queueHead->getInterarrival());
-						req->setPackets(&(iterDest->second));
-						req->setBs(true);
-						send(req,"toScheduler");
-					}
-				}
+		for(auto iter=this->streamQueues.begin(); iter!=streamQueues.end();
+				++iter){
+			if(!iter->second.empty()){
+				StreamTransReq *req = new StreamTransReq();
+				KoiData *queueHead = dynamic_cast<KoiData*>(iter->second.front());
+				req->setSrc(queueHead->getSrc());
+				req->setDest(queueHead->getDest());
+				req->setStreamId(iter->first);
+				req->setPeriod(queueHead->getInterarrival());
+				req->setPackets(&(iter->second));
+				req->setMessageDirection(MessageDirection::down);
+				send(req,"toScheduler");
 			}
 		}
 		scheduleAt(simTime() + tti-epsilon, msg);
@@ -295,23 +326,9 @@ void BsMac::handleMessage(cMessage *msg)  {
 	KoiData packet;
 	for(unsigned int i=0; i<bundle->getPacketsArraySize(); i++){
 		packet = bundle->getPackets(i);
-		streamQueues[packet.getSrc()][packet.getDest()].insert(packet.dup());
+		streamQueues[packet.getStreamId()].insert(packet.dup());
 	}
 	delete bundle;
-    }
-    else if(msg->arrivedOn("fromMsMac")){
-	if(msg->getKind()==MessageType::transInfoMs){
-		// Forward transmission info from local MS to neighbour cells
-		sendToNeighbourCells(msg);
-		delete msg;
-	}
-    }
-    else if(msg->arrivedOn("fromCell")){
-	if(msg->getKind()==MessageType::transInfoMs){
-		// Forward transmission info from neighbouring MS to BS 
-		// channels via the BS PHY
-		send(msg,"toPhy");
-	}
     }
 }
 
