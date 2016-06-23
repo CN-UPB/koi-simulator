@@ -2097,24 +2097,21 @@ double METISChannel::CalcPathloss(double dist2D, double dist3D, bool LOS){
 	double distBP = 4 * (heightUE - 1.0) * (heightBS - 1.0) * (freq_c / speedOfLight); // Breakpoint Distance
 	double pl_a;
 	
+	// TODO Reinsert minimum distance checks
+	// The following METIS fomulas normally have a minimum distance 
+	// requirement. To allow for easy random placement of mobile 
+	// stations without having to account for that minimum distance
+	// requirements, the checks were removed until another model 
+	// can be implemented.
 	if(LOS){
-		if(dist2D < 10.0 || dist2D > 5000.0){
-			// LOS: 2D distance must be between 10 and 5000 meters.
-			std::cout << "WARNING: LOS Distance outside of allowed boundaries!";
-		}else if(heightUE >= 1.5 && ( dist2D < distBP )){
+		if(heightUE >= 1.5 && ( dist2D < distBP )){
 			// If the 2D distance is below the breakpoint distance (see Document 36873, page 23 for reference)
 			pathloss = 22.0 * log10(dist3D) + 28.0 + 20.0 * log10(freq_c/1000000000);
 		}else{
 			pathloss = 22.0 * log10(dist3D) + 28.0 + 20.0 * log10(freq_c/1000000000) - 9.0 * log10( pow(distBP,2) + pow((heightBS - heightUE),2) );
 		}
 	}else{
-		//pl_a = 36.7 * log10(dist3D) + 23.15 + 26 * log10(freq_c / 1000000000) - 0.3 * (heightUE);
-		//pl_a = pow(10,pl_a/10);
-		
-		if(dist2D < 10.0 || dist2D > 2000.0 || heightUE > 22.5){
-			// NLOS: 2D distance must be between 10 and 2000 meters.
-			std::cout << "WARNING: NLOS Distance outside of allowed boundaries!";
-		}else if(heightUE >= 1.5 && ( dist2D < distBP )){
+		if(heightUE >= 1.5 && ( dist2D < distBP )){
 			// If the 2D distance is below the breakpoint distance (see Document 36873, page 23 for reference)
 			pathloss = 22.0 * log10(dist3D) + 28.0 + 20.0 * log10(freq_c/1000000000);
 		}else{
