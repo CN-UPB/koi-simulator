@@ -7,11 +7,11 @@
 // <h3>Submodules</h3>
 // A MobileStation's submodules fullfill the following tasks:<br>
 // 
-// <p><strong>app:</strong> The <em>app</em> module is responsible for 
+// <p><strong>app:</strong> The <em>TrafficGen</em> module is responsible for 
 // generating and consuming traffic. To that end, it communicates with the 
 // <em>mac</em> to send and receive packets.
 //				
-// <p><strong>mac:</strong> The <em>mac</em> is the core module of the MobileStation.
+// <p><strong>mac:</strong> The <em>MsMac</em> is the core module of the MobileStation.
 // It holds all central information, like current position. It also holds 
 // all packets awaiting transmission and serves as a communication hub,
 // forwarding traffic from other compound modules to the intended MobileStation 
@@ -21,7 +21,7 @@
 // without having to go through the <em>phy</em> module. To determine 
 // which packet to send, it is connected to the local cell's Scheduler.
 //
-// <p><strong>phy:</strong> The <em>phy</em> module is merely a relay, 
+// <p><strong>phy:</strong> The <em>BsPhy</em> module is merely a relay, 
 // forwarding messages to other MobileStation or BaseStation modules and 
 // forwarding messages received from those via the <em>dataChn</em> to the <em>mac</em>.
 //
