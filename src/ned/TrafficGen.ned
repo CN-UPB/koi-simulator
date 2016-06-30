@@ -9,11 +9,13 @@
 //
 // @todo Add documentation page for the XML format for the comm table file 
 //
-// Packets are generated according to each stream's unique period and then 
-// send to the MobileStation's <em>mac</em> for storage and transmission.
+// Packets of type KoiData are generated according to each stream's unique 
+// period and then send to the MobileStation's <em>mac</em> for storage and
+// transmission.
 //
 // At the beginning of each simulation, the module also sends out information 
-// messages, informing all interested parties about it's communication streams.
+// messages (StreamInfo), informing all interested parties about it's 
+// communication streams.
 //
 // The traffic generator is also intended as the sink for any traffic packets 
 // it's MobileStation receives, e.g. for logging/measurement purposes.
