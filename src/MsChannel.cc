@@ -25,7 +25,6 @@ Define_Module(MsChannel);
 
 void MsChannel::initialize()  {
     maxNumberOfNeighbours = par("maxNumberOfNeighbours");
-    packetLoss = par("packetLoss");
     bsId = par("bsId");
     epsilon = par("epsilon");
     tti = par("tti");
