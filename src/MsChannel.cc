@@ -25,10 +25,7 @@ Define_Module(MsChannel);
 
 void MsChannel::initialize()  {
     maxNumberOfNeighbours = par("maxNumberOfNeighbours");
-    useSimpleChannelCalc = par("useSimpleChannelCalc");
-    simpleChannelCalcNops = par("simpleChannelCalcNops");
     packetLoss = par("packetLoss");
-    currentChannel = par("currentChannel");
     bsId = par("bsId");
     epsilon = par("epsilon");
     tti = par("tti");

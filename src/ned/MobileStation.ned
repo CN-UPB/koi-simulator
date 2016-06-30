@@ -117,7 +117,6 @@ module MobileStation
         	parameters:
 			msId = msId;
         		bsId = bsId;
-                	currentChannel = currentChannel;
         		@display("p=50,260");
 		gates:
 			fromMs[sizeof(fromMs)];
