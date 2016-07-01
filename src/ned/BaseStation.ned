@@ -24,7 +24,8 @@
 // <p><strong>dataChn:</strong> The <em>BsChannel</em> submodule receives all 
 // simulation traffic KoiData packets directed to the BaseStation. It computes 
 // SINR values with the METISChannel class and determines whether a packet has 
-// been received successfully, and if so, forwards it to the BsMac.
+// been received successfully, and if so, forwards it to the BsMac. There is 
+// one channel per MobileStation in the local cell.
 module BaseStation
 {
     parameters:
