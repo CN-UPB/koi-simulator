@@ -1,17 +1,39 @@
+// Round Robin scheduling for the StreamScheduler
+//
+// This implementation of the StreamScheduler interface assigns streams 
+// to resource block through round robin. After receiving all StreamInfo 
+// messages, the scheduler iterates jointly over them and the list 
+// of available resource blocks. If the list of resource blocks is exhausted 
+// before all streams are assigned, the assigment starts again with the front 
+// of the resource block list.
 simple RoundRobinStreamSched like StreamScheduler{
 	parameters:
+		// Offset from the simulation start reserved for initialization messages.
+		// No traffic is generated/send before it.
 		double initOffset @unit(s);
+		// The number of resource blocks for uplink transmissions
 		int upResourceBlocks;
+		// The number of resource blocks for downlink transmissions
 		int downResourceBlocks;
+		// The number of MobileStations in the local cell
 		int numberOfMobileStations;
+		// The period after which assignments of streams to resource blocks 
+		// are recomputed.
 		double streamSchedPeriod @unit(s);
+		// Length of single transmission time interval
 		double tti @unit(s);
 		@class("StreamScheduler");
 	gates:
+		// For schedule exchange with the local BaseStation.
 		input fromBs;
+		// For Scheduling communication with the local MobileStations.
 		input fromMs[numberOfMobileStations];
+		// For schedule exchange with the local BaseStation.
 		output toBs;
+		// For Scheduling communication with the local MobileStations.
 		output toMs[numberOfMobileStations];
+		// For communication with uplink resource schedulers.
 		inout upRB[upResourceBlocks];
+		// For communication with downlink resource schedulers.
 		inout downRB[downResourceBlocks];
 }
