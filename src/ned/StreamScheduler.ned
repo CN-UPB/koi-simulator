@@ -6,6 +6,7 @@ moduleinterface StreamScheduler {
 		int numberOfMobileStations;
 		double streamSchedPeriod @unit(s);
 		double tti @unit(s);
+		@display("i=block/dispatch");
 	gates:
 		input fromBs;
 		input fromMs[numberOfMobileStations];
