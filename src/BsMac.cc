@@ -47,14 +47,6 @@ void BsMac::initialize()  {
     // Currently: Random init SINR.
     SINR_ = zeros(numberOfMobileStations,resourceBlocks);
     
-    // EESM Beta values for effective SINR
-    string eesm_beta = par("eesm_beta");
-    eesm_beta_values = vec(eesm_beta);
-
-    // Read Block Error Rate Table
-    string bler = par("bler_table");
-    blerTable = mat(bler);
-
     //find the neighbours and store the pair (bsId, position in data structures) in a map
     cModule *cell = getParentModule()->getParentModule();
     neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
