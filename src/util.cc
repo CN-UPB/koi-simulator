@@ -6,6 +6,7 @@
  */
 
 #include "util.h"
+#include <numeric>
 
 using namespace itpp;
 using namespace std;
@@ -219,4 +220,13 @@ double getPer(vec bler){
 		}
 		return result;
 	}
+}
+
+int lcm(int a, int b){
+  int temp = itpp::gcd(a,b);
+  return temp ? (a/temp)*b : 0;
+}
+
+int lcmSequence(const vector<int>& elems){
+  return std::accumulate(++(elems.begin()),elems.end(),elems[0],lcm);
 }

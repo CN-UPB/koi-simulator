@@ -26,3 +26,7 @@ double getBler(int cqi, double sinr, cSimpleModule* module);
 double getEffectiveSINR(vector<double> sinrValues, vec eesm_beta_values);
 
 double getPer(vec bler);
+
+int lcm(int a, int b);
+
+int lcmSequence(const vector<int>& elems);
