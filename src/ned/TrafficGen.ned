@@ -7,8 +7,6 @@
 // generation process between this module's parent MobileStation and any 
 // other MobileStation in the current LteCell.
 //
-// @todo Add documentation page for the XML format for the comm table file 
-//
 // Packets of type KoiData are generated according to each stream's unique 
 // period and then send to the MobileStation's <em>mac</em> for storage and
 // transmission.
@@ -28,10 +26,6 @@ simple TrafficGen {
 		int bsId;
 		// Path to the communication table file with stream definitions
 		string commTable = default("comm_table.xml");
-		// The deadline for all packets generated here. This is an 
-		// offset added to each packet's creation time to arrive 
-		// at the actual deadline.
-		double deadline @unit(s);
 		// This is an initialization offset. Generation of traffic 
 		// packets only starts this many seconds after simulation start.
 		double initOffset @unit(s);

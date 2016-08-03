@@ -147,25 +147,27 @@
 //<root>
 //	<cell id="0">
 //		<ms id="0">
-//			<stream cell="0" destid="1" period="0.5" d2d="0" />
+//			<stream cell="0" destid="1" period="0.5" d2d="0" deadline="1.0" />
 //		</ms>
 //		<ms id="1">
-//			<stream cell="0" destid="0" period="0.5" d2d="0" />
+//			<stream cell="0" destid="0" period="0.5" d2d="0" deadline="1.0" />
 //		</ms>
 //	</cell>
 //	<cell id="1">
 //		<ms id="0">
-//			<stream cell="1" destid="1" period="0.5" d2d="0" />
+//			<stream cell="1" destid="1" period="0.5" d2d="0" deadline="1.0" />
 //		</ms>
 //		<ms id="1">
-//			<stream cell="1" destid="0" period="0.5" d2d="0" />
+//			<stream cell="1" destid="0" period="0.5" d2d="0" deadline="1.0" />
 //		</ms>
 //	</cell>
 //</root>
 // </pre>
 // This file defines streams for two cells with two MobileStations each. For 
 // each local pair, two streams are set up, one for each direction. 
-// All streams have similar periods of 0.5 seconds. There can be an arbitrary 
+// All streams have similar periods of 0.5 seconds and similar deadlines of 1 second. 
+// Both parameters, <tt>deadline</tt> and <tt>period</tt>, are expected in seconds.
+// There can be an arbitrary 
 // number of <tt><stream></tt> elements in each <tt><ms></tt> element. 
 // Care needs to be taken to make sure that all ids are correct and MobileStation 
 // modules corresponding to them exist. As inter cell communication is 

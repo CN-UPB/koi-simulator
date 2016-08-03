@@ -14,4 +14,5 @@ message StreamInfo {
 	int dest;
 	bool d2d; // Is this stream a D2D link
 	double interarrival; // The average time between two messages in this stream
+        double deadline; // The relative deadline for this stream's packets
 }

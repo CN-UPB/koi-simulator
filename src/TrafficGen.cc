@@ -20,7 +20,6 @@ Define_Module(TrafficGen);
 
 void TrafficGen::initialize(){
 	this->bsId = par("bsId");
-	this->deadline = par("deadline");
 	this->initOffset = par("initOffset");
 	this->msId = par("msId");
 	this->packetLength = par("packetLength");
@@ -51,6 +50,7 @@ void TrafficGen::initialize(){
                 info->setInterarrival(stream.period);
                 info->setStreamId(stream.streamId);
 		info->setD2d(stream.d2d);
+                info->setDeadline(stream.deadline);
 		send(info,"toMac");
 	}
 }
@@ -64,7 +64,7 @@ void TrafficGen::handleMessage(cMessage *msg){
 				KoiData *pack = new KoiData();
 				StreamDef& stream = streams[genMsg->getStreamId()];
 				pack->setBsId(this->bsId);
-				pack->setDeadline(currTime+this->deadline);
+				pack->setDeadline(currTime+stream.deadline);
 				pack->setSrc(this->msId);
 				pack->setDest(stream.destMsId);
 				pack->setTrafficType(TrafficType::periodic);
@@ -113,7 +113,8 @@ vector<TrafficGen::StreamDef> TrafficGen::parseCommTable(const string& commTable
 			std::stoi(curr->getAttribute("cell")),
 			std::stoi(curr->getAttribute("destid")),
 			std::stod(curr->getAttribute("period")),
-			std::stoi(curr->getAttribute("d2d")));
+			std::stoi(curr->getAttribute("d2d")),
+			std::stod(curr->getAttribute("deadline")));
 	}
 	return parsedStreams;
 }

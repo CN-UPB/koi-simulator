@@ -21,11 +21,13 @@ class TrafficGen: public cSimpleModule{
 					int destBsId,
 					int destMsId,
 					double period,
+                                        double deadline,
 					bool d2d)
 				:streamId(streamId),
 				destBsId(destBsId),
 				destMsId(destMsId),
 				period(period),
+                                deadline(deadline),
 				d2d(d2d)
 			{}
 			StreamDef() = default;
@@ -33,11 +35,11 @@ class TrafficGen: public cSimpleModule{
 			int destBsId;
 			int destMsId;
 			double period;
+                        double deadline;
 			bool d2d;
 		};
 		int bsId;
 		std::unordered_map<unsigned long,StreamDef> streams;
-		double deadline;
 		double initOffset;
 		int msId;
 		int packetLength;
