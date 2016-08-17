@@ -227,6 +227,25 @@ int lcm(int a, int b){
   return temp ? (a/temp)*b : 0;
 }
 
+int integerOoM(double val){
+  // Find out which order of magnitude moves the decimal point out of the 
+  // number, leaving only a natural number behind.
+  // If the value has no fractional component, return 0 (10^0 = 1)
+  double tmp;
+  if(std::modf(val,&tmp)==0.0){
+    return 0;
+  }
+  // Kickstart the process with the tenth logarithm of the value
+  int oom = std::floor(std::log10(val));
+  double curr(val*std::pow(10,oom));
+  while(std::modf(curr,&tmp)!=0.0){
+    curr *= 10;
+    ++oom;
+  }
+  return oom;
+}
+
+
 int lcmSequence(const vector<int>& elems){
   return std::accumulate(++(elems.begin()),elems.end(),elems[0],lcm);
 }

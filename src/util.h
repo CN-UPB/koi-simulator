@@ -30,3 +30,5 @@ double getPer(vec bler);
 int lcm(int a, int b);
 
 int lcmSequence(const vector<int>& elems);
+
+int integerOoM(double val);
