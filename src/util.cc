@@ -245,6 +245,26 @@ int integerOoM(double val){
   return oom;
 }
 
+double lcmSequence(const vector<double>& elems){
+  // First, we need all the input numbers as integers, because LCM
+  // (and GCD, which the algorithm is based on) are only defined for natural
+  // numbers. Rounding is out of the question. 
+  // Instead, represent all numbers in the format x*10^y with such y that 
+  // x is an integer.
+  int largestOoM(0);
+  int curr;
+  for(const double& val:elems){
+    curr = integerOoM(val);
+    if(curr>largestOoM){
+      largestOoM = curr;
+    }
+  }
+  auto makeInt = [&largestOoM](double v) 
+    -> int {return v*std::pow(10,largestOoM);};
+  vector<int> intVals;
+  std::transform(elems.begin(),elems.end(),intVals.begin(),makeInt);
+  return lcmSequence(intVals)*std::pow(10,-largestOoM);
+}
 
 int lcmSequence(const vector<int>& elems){
   return std::accumulate(++(elems.begin()),elems.end(),elems[0],lcm);

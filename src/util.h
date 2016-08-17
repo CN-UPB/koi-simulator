@@ -29,6 +29,8 @@ double getPer(vec bler);
 
 int lcm(int a, int b);
 
+double lcmSequence(const vector<double>& elems);
+
 int lcmSequence(const vector<int>& elems);
 
 int integerOoM(double val);
