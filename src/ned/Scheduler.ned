@@ -69,7 +69,6 @@ module Scheduler
         streamSched: <streamSchedType> like StreamScheduler {
             initOffset = initOffset;
             numberOfMobileStations = numberOfMobileStations;
-            streamSchedPeriod = streamSchedPeriod;
             tti = tti;
             @display("p=69,79");
         }

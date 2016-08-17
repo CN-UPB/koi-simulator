@@ -261,7 +261,7 @@ double lcmSequence(const vector<double>& elems){
   }
   auto makeInt = [&largestOoM](double v) 
     -> int {return v*std::pow(10,largestOoM);};
-  vector<int> intVals;
+  vector<int> intVals(elems.size());
   std::transform(elems.begin(),elems.end(),intVals.begin(),makeInt);
   return lcmSequence(intVals)*std::pow(10,-largestOoM);
 }
