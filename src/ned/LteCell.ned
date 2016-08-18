@@ -61,6 +61,15 @@ module LteCell
         double streamSchedPeriod @unit(s);
 	// The id of the BaseStation in this LteCell. This id is unique.
         int bsId;
+        // Result gathering statistics
+        @statistic[generatedPackets](source="count(genPackets)";
+            record=last);
+        @statistic[receivedPackets](source="count(recPackets)"; 
+            record=last);
+        @statistic[packetsMissedDeadlines](source="count(missedDL)";
+            record=last);
+        @statistic[avgLateness](source="mean(missedDL)";
+            record=last);
 
         @display("p=$xPos,$yPos;r=$radius,,black;i=block/network2_l;bgb=330,202");
 

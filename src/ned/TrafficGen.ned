@@ -38,6 +38,15 @@ simple TrafficGen {
 		// traffic. This is only used to set the correct information 
 		// flags on generated packets.
 		bool periodicTraffic = default(true);
+                // Result gathering statistics
+                @statistic[generatedPackets](source="count(genPackets)";
+                  record=last);
+                @statistic[receivedPackets](source="count(recPackets)"; 
+                  record=last);
+                @statistic[packetsMissedDeadlines](source="count(missedDL)";
+                  record=last);
+                @statistic[avgLateness](source="mean(missedDL)";
+                  record=last);
 	gates:
 		// For incoming messages and packets from the <em>mac</em>.
 		input fromMac;

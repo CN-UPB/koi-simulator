@@ -24,8 +24,9 @@ void TrafficGen::initialize(){
 	this->msId = par("msId");
 	this->packetLength = par("packetLength");
 	this->periodicTraffic = par("periodicTraffic");
-
-	// schedule initial events randomly in [current time,initOffset]
+        this->genPackets = registerSignal("genPackets");
+        this->recPackets = registerSignal("recPackets");
+        this->missedDL = registerSignal("missedDL");
 
 	string xmlPath = par("commTable");
 	vector<StreamDef> parsedStreams(parseCommTable(xmlPath,bsId,msId));
@@ -37,6 +38,7 @@ void TrafficGen::initialize(){
                         msg->setPartner(stream.destMsId);
 			msg->setTrafficType(TrafficType::periodic);
                         msg->setStreamId(stream.streamId);
+                        // schedule initial events randomly in [current time,initOffset]
 			scheduleAt(currTime+uniform(currTime,currTime+this->initOffset),
 					msg);
 		}
@@ -79,6 +81,8 @@ void TrafficGen::handleMessage(cMessage *msg){
 					<< " Generated Msg " << pack->getId() 
 					<< " to " << pack->getDest() 
 					<< std::endl;
+                                // Emit signal for statistics gathering
+                                emit(genPackets,true);
 				break;
 			
 		}
@@ -91,6 +95,10 @@ void TrafficGen::handleMessage(cMessage *msg){
 			<< " from " << pack->getSrc() 
 			<< " to " << pack->getDest() 
 			<< std::endl;
+                emit(recPackets,true);
+                if(pack->getDeadline()>simTime()){
+                  emit(missedDL,pack->getDeadline()-simTime());
+                }
 		delete pack;
 	}
 }
