@@ -76,11 +76,13 @@ void TrafficGen::handleMessage(cMessage *msg){
 				pack->setD2d(stream.d2d);
 				send(pack,"toMac");
 				scheduleAt(currTime+stream.period,msg);
+                                /**
 				std::cout << "Stream " << stream.streamId << ": " 
 					<< "MS " << this->msId 
 					<< " Generated Msg " << pack->getId() 
 					<< " to " << pack->getDest() 
 					<< std::endl;
+                                */
                                 // Emit signal for statistics gathering
                                 emit(genPackets,true);
 				break;
@@ -89,12 +91,14 @@ void TrafficGen::handleMessage(cMessage *msg){
 	}
 	else if(msg->arrivedOn("fromMac")){
 		KoiData *pack = dynamic_cast<KoiData*>(msg);
+                /**
 		std::cout << "Stream " << pack->getStreamId() << ": " 
 			<< "MS " << this->msId 
 			<< " got message " << pack->getId() 
 			<< " from " << pack->getSrc() 
 			<< " to " << pack->getDest() 
 			<< std::endl;
+                */
                 emit(recPackets,true);
                 if(pack->getDeadline()>simTime()){
                   emit(missedDL,pack->getDeadline()-simTime());
@@ -121,8 +125,8 @@ vector<TrafficGen::StreamDef> TrafficGen::parseCommTable(const string& commTable
 			std::stoi(curr->getAttribute("cell")),
 			std::stoi(curr->getAttribute("destid")),
 			std::stod(curr->getAttribute("period")),
-			std::stoi(curr->getAttribute("d2d")),
-			std::stod(curr->getAttribute("deadline")));
+			std::stod(curr->getAttribute("deadline")),
+			std::stoi(curr->getAttribute("d2d")));
 	}
 	return parsedStreams;
 }
