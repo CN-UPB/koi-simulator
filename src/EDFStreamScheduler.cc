@@ -52,7 +52,8 @@ void EDFStreamScheduler::getViability(vector<EDFStream>& streams,
   // transmission quality per channel/resource block.
   for(EDFStream& s:streams){
     for(EDFRb& rb:blocks){
-      if((s.direction==rb.direction) && dblrand()>0.5){
+      if(((s.direction==rb.direction) || s.direction==MessageDirection::d2d) 
+          && dblrand()>0.5){
         rb.viableStreams.push_back(&s);
         s.viableRbs.push_back(&rb);
       }
