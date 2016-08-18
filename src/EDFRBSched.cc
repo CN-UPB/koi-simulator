@@ -9,6 +9,8 @@
 
 #include "EDFRBSched.h"
 
+Define_Module(EDFRBSched);
+
 bool EDFRBSched::comparator(const KoiData *left, const KoiData *right) const{
 	return left->getDeadline()<right->getDeadline();
 }
