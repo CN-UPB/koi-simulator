@@ -38,6 +38,7 @@ class StreamScheduler: public cSimpleModule{
 		std::unordered_map<unsigned long,std::unordered_map<int,ResAssign>> rbAssignments;
 		virtual void initialize();
 		virtual void handleMessage(cMessage *msg);
+                virtual void printAssignment();
 	
 	public:
 		~StreamScheduler() = default;

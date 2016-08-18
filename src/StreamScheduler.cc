@@ -94,6 +94,7 @@ void StreamScheduler::handleMessage(cMessage *msg){
 		case MessageType::scheduleStreams:{
 				this->scheduleStreams();
 				scheduleAt(simTime()+this->streamSchedPeriod,msg);
+                                this->printAssignment();
 			} break;
 		case MessageType::scheduleRBs:
 			// Iterate over all message directions (up/down)
@@ -140,4 +141,19 @@ void StreamScheduler::handleMessage(cMessage *msg){
 				  << "StreamScheduler handleMessage"
 				  << std::endl;
 	}
+}
+
+void StreamScheduler::printAssignment(){
+  std::cout << "Stream" << "\t" << "Band" << "\t" << "RB" << std::endl;
+  for(auto iterStream=this->rbAssignments.begin();
+      iterStream!=this->rbAssignments.end();
+      ++iterStream){
+    for(auto iterDir=iterStream->second.begin();
+        iterDir!=iterStream->second.end();
+        ++iterDir){
+      std::cout << iterStream->first << "\t"
+        << iterDir->second.first << "\t"
+        << iterDir->second.second << std::endl;
+    }
+  }
 }
