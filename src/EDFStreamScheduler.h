@@ -70,6 +70,9 @@ struct EDFRb{
 
 class EDFStreamScheduler: public StreamScheduler{
   private:
+    simsignal_t unscheduled;
+    simsignal_t scheduledStreams;
+    simsignal_t utilizedRb;
     virtual void getViability(std::vector<EDFStream>& streams,
         std::vector<EDFRb>& blocks);
     virtual bool schedulabilityTest(const EDFRb& rb, const EDFStream& newStream);

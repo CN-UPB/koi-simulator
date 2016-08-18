@@ -35,6 +35,9 @@ void EDFStreamScheduler::initialize(){
   // and is -1 in the beginning.
   this->streamSchedPeriod = par("streamSchedPeriod");
   this->tti = par("tti");
+  this->unscheduled = registerSignal("unscheduled");
+  this->scheduledStreams = registerSignal("scheduledStreams");
+  this->utilizedRb = registerSignal("utilizedRb");
   // Produce the first schedule right at the init offset
   // We will need to make certain that all mobile stations have reported 
   // their streams at the time the first schedule is computed.
@@ -121,7 +124,11 @@ void EDFStreamScheduler::scheduleStreams(){
 
     simtime_t e(tti);
     // Schedule the streams on the resource blocks
+    bool scheduled;
+    int unscheduledStreams = 0;
+    int schedStreams = 0;
     for(EDFStream s:streams){
+      scheduled = false;
       auto compareRbUtil = [](const EDFRb* first, const EDFRb* second)
         -> bool {return first->utilization > second->utilization;};
       std::sort(s.viableRbs.begin(),s.viableRbs.end(),compareRbUtil);
@@ -130,10 +137,21 @@ void EDFStreamScheduler::scheduleStreams(){
           rb->utilization += e.dbl()/std::min(s.period,s.deadline);
           // Schedule streams s on resource block rb
           this->rbAssignments[s.id][s.d2d ? MessageDirection::d2d : s.direction]
-            = std::make_pair<MessageDirection,int>((MessageDirection&&)s.direction,(int&&)rb->id);
+            = std::make_pair<MessageDirection,int>((MessageDirection&&)rb->direction,(int&&)rb->id);
+          scheduled = true;
+          schedStreams++;
+          break;
         }
       }
+      if(!scheduled){
+        ++unscheduledStreams;
+      }
     }
+    emit(scheduledStreams,schedStreams);
+    emit(unscheduled,unscheduledStreams);
+    // Find out how many resource blocks are in use
+    auto utilizedRbPred = [](EDFRb& rb) -> bool {return rb.utilization>0.0;};
+    emit(utilizedRb,std::count_if(blocks.begin(),blocks.end(),utilizedRbPred));
     // Set validity period for schedule to least common multiple of the 
     // periods of all streams.
     this->streamSchedPeriod = computeSchedulingInterval(streams);

@@ -23,6 +23,9 @@ simple EDFStreamSched like StreamScheduler{
 		double streamSchedPeriod = -1s @unit(s);
 		// Length of single transmission time interval
 		double tti @unit(s);
+                @statistic[unscheduled](record=max);
+                @statistic[scheduledStreams](record=max);
+                @statistic[utilizedRb](record=max);
 		@class("EDFStreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.
