@@ -2312,21 +2312,6 @@ double METISChannel::calcD2DSINR(int RB,
 	return 10 * log10( received / interference );
 }
 
-double METISChannel::calcSINR(int RB, vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId){
-	// Return 1.0, this method is not used with the METIS channel
-	// See calcDownSINR/calcUpSINR instead
-	return -1.0;
-}
-
-vec METISChannel::calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId){
-	vec result(downRBs);
-	for(int i = 0; i < downRBs; i++){
-		result.set(i,calcSINR(i, power, pos, bsId_, up, msId));
-	}
-	//Placeholder
-	return result;
-}
-
 void METISChannel::updateChannel(const vector<vector<Position>>& msPos){
 	recomputeMETISParams(msPos);
 }

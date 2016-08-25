@@ -19,14 +19,13 @@
 #include "VisibilityRegionMessage_m.h"
 #include "ClusterMessage_m.h"
 #include "Schedule_m.h"
-#include "SimpleChannelCalc.h"
-#include "Cost2100Channel.h"
-#include "ChannelAlternative.h"
 #include "util.h"
 #include "METISChannel.h"
+
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <stdexcept>
 
 Define_Module(BsChannel);
 
@@ -58,12 +57,14 @@ void BsChannel::initialize()  {
     
     int ch = par("channelModel");
     
-    if(ch == 0){
+    switch(ch){
+      case 0:
 	    channel = new METISChannel();
-    }else if(ch == 1){
-	    channel = new Cost2100Channel();
-    }else{
-	    channel = new ChannelAlternative();
+            break;
+      default:
+            throw std::invalid_argument("Invalid channelModel value");
+    }
+    if(ch == 0){
     }
       
     // Save the CURRENT Direction of the schedule for next TTI for all Neighbours

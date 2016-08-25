@@ -78,7 +78,8 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		if(!channel){
 			std::cout << "ERROR NULL POINTER!" << std::endl;
 		}
-		vec sinr = channel->calcSINR(power, pos, bsId_, false, msId);
+                vec sinr;
+		//vec sinr = channel->calcSINR(power, pos, bsId_, false, msId);
 		//cout << "SINR: " << sinr << endl;
 		//cout << "Nr: " << power.size() << " " << pos.size() << " " << bsId_.size() << endl;
 

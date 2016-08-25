@@ -39,10 +39,6 @@ class Channel{
 		virtual double calcPathloss(double dist) = 0;
 		// Computes the Termal Noise.
 		virtual double getTermalNoise(double temp, double bandwidth) = 0;
-		// Calculates the current SINR for given interferers and a given RB.
-		virtual double calcSINR(int RB, vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId) = 0;
-		// Calculates the current SINR for given interferers and a given RB.
-		virtual vec calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId) = 0;
 		// Updates the Channel if necessary for moving MS
 		virtual void updateChannel(const vector<vector<Position>>& msPos) = 0;
 		        
