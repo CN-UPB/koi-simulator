@@ -390,6 +390,21 @@ class METISChannel : public Channel{
 				int receiveMsId,
 				MessageDirection direction,
 				double transPower);
+
+		double calcAvgUpSINR(int RB, 
+				std::forward_list<TransInfo*> &interferers,
+				int msId,
+				double transPower);
+
+		double calcAvgDownSINR(int RB, 
+				std::forward_list<TransInfo*> &interferers,
+				double transPower);
+
+		double calcAvgD2DDownSINR(int RB, 
+				std::forward_list<TransInfo*> &interferers,
+				int msId,
+				double transPower);
+
 		
 		//! Updates the MS position if velocity > 0. The interval in which the postion is updated can be set within omnet.ini
 		void updateChannel(const vector<vector<Position>>& msPos);

@@ -2312,6 +2312,52 @@ double METISChannel::calcD2DSINR(int RB,
 	return 10 * log10( received / interference );
 }
 
+double METISChannel::calcAvgUpSINR(int RB, 
+            std::forward_list<TransInfo*> &interferers,
+            int msId,
+            double transPower){
+  // Compute SINR for MS->BS communication
+  double res = calcUpSINR(RB,interferers,msId,transPower);
+  // Add the average over all possible D2D connections to all local MS
+  for(int i=0; i<numberOfMobileStations;++i){
+    if(i!=msId){
+      res += calcD2DSINR(RB,interferers,msId,i,MessageDirection::d2dUp,
+          transPower);
+    }
+  }
+  // Return the average over all SINR values
+  // numberOfMobileStations is the number of values from the D2D computations,
+  // +1 from the MS->BS computation.
+  return res/(numberOfMobileStations+1);
+}
+
+double METISChannel::calcAvgDownSINR(int RB, 
+            std::forward_list<TransInfo*> &interferers,
+            double transPower){
+  // Compute SINR for DOWN resource blocks for base stations.
+  double res = 0.0;
+  // Average over SINR values for all local mobile stations
+  for(int i=0; i<numberOfMobileStations;++i){
+    res += calcDownSINR(RB,interferers,i,transPower);
+  }
+  return res/numberOfMobileStations;
+}
+
+double METISChannel::calcAvgD2DDownSINR(int RB, 
+            std::forward_list<TransInfo*> &interferers,
+            int msId,
+            double transPower){
+  // Calculate average SINR for DOWN resource blocks when used for D2D by MS
+  double res = 0.0;
+  // Average over SINR values for all local mobile stations
+  for(int i=0; i<numberOfMobileStations;++i){
+    if(msId!=i){
+      res += calcD2DSINR(RB,interferers,msId,i,MessageDirection::d2dDown,transPower);
+    }
+  }
+  return res/numberOfMobileStations;
+}
+
 void METISChannel::updateChannel(const vector<vector<Position>>& msPos){
 	recomputeMETISParams(msPos);
 }
