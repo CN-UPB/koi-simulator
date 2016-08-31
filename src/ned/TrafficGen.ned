@@ -38,6 +38,8 @@ simple TrafficGen {
 		// traffic. This is only used to set the correct information 
 		// flags on generated packets.
 		bool periodicTraffic = default(true);
+                // The transmission time interval
+                double tti @unit(s);
                 // Result gathering statistics
                 @statistic[generatedPackets](source="count(genPackets)";
                   record=last);

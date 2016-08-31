@@ -24,6 +24,7 @@ void TrafficGen::initialize(){
 	this->msId = par("msId");
 	this->packetLength = par("packetLength");
 	this->periodicTraffic = par("periodicTraffic");
+        this->tti = par("tti")
         this->genPackets = registerSignal("genPackets");
         this->recPackets = registerSignal("recPackets");
         this->missedDL = registerSignal("missedDL");
@@ -38,8 +39,9 @@ void TrafficGen::initialize(){
                         msg->setPartner(stream.destMsId);
 			msg->setTrafficType(TrafficType::periodic);
                         msg->setStreamId(stream.streamId);
-                        // schedule initial events randomly in [current time,initOffset]
-			scheduleAt(currTime+uniform(currTime,currTime+this->initOffset),
+                        // schedule initial events randomly in 
+                        // [initOffset,initOffset+4*tti]
+			scheduleAt(uniform(initOffset,initOffset+(4*tti)),
 					msg);
 		}
 		// Send stream notification message, which will inform the 
