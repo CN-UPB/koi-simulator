@@ -234,7 +234,7 @@ void MsMac::initialize()  {
     //scheduleAt(simTime() + initOffset + tti - epsilon, new cMessage("RESEND_POS")); //originally set to simTime() + initOffset 
 
     //every tti send transmit requests to stream scheduler
-    scheduleAt(simTime() + initOffset + 2*tti-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
+    scheduleAt(simTime() + initOffset-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
     
     // Send MS Position once at the very beginning for cluster generation
     PositionExchange *posEx = new PositionExchange("MS_POS_UPDATE");

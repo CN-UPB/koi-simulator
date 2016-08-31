@@ -64,9 +64,7 @@ void BsChannel::initialize()  {
       default:
             throw std::invalid_argument("Invalid channelModel value");
     }
-    if(ch == 0){
-    }
-      
+
     // Save the CURRENT Direction of the schedule for next TTI for all Neighbours
     scheduleDirection = new int[neighbourIdMatching->numberOfNeighbours()];
     maxPower = new double[neighbourIdMatching->numberOfNeighbours()];
@@ -97,7 +95,7 @@ void BsChannel::initialize()  {
 		Pointer.ptr = (uintptr_t) channel;
 		PointerExchange *PtrMessage = new PointerExchange("POINTER_EXCHANGE2");
 		PtrMessage->setPtr(Pointer);
-		sendDelayed(PtrMessage, 999*tti , "toPhy"); //set to 999*tti originally
+		send(PtrMessage, "toPhy"); //set to 999*tti originally
 		
 	}
 }

@@ -71,8 +71,9 @@ void BsMac::initialize()  {
     //exchange the bs positions one time at the sim begin
     scheduleAt(simTime(), new cMessage("BS_POSITION_INIT"));
 
-    //every tti send transmit requests to stream scheduler
-    scheduleAt(simTime() + initOffset + 2*tti-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
+    // At the end of each tti, send transmit request to scheduler for next 
+    // tti.
+    scheduleAt(simTime() + initOffset-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
 
     #ifndef NDEBUG
     scheduleAt(simTime()+initOffset,new cMessage("DEBUG"));
