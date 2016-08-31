@@ -41,6 +41,7 @@ class TrafficGen: public cSimpleModule{
 		int bsId;
 		std::unordered_map<unsigned long,StreamDef> streams;
 		double initOffset;
+                double tti;
 		int msId;
 		int packetLength;
 		bool periodicTraffic;
