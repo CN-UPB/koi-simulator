@@ -12,6 +12,7 @@
 
 #include "includes.h"
 #include "RBScheduler.h"
+#include "SINR_m.h"
 #include "StreamInfo_m.h"
 #include "StreamTransReq_m.h"
 #include "MessageTypes.h"
@@ -38,6 +39,7 @@ class StreamScheduler: public cSimpleModule{
 		std::unordered_map<unsigned long,std::unordered_map<int,ResAssign>> rbAssignments;
 		virtual void initialize();
 		virtual void handleMessage(cMessage *msg);
+                virtual void handleSINREstimate(SINR *msg);
                 virtual void printAssignment();
 	
 	public:

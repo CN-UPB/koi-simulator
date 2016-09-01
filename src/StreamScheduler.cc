@@ -136,6 +136,11 @@ void StreamScheduler::handleMessage(cMessage *msg){
 						break;
 				}
 			} break;
+                case MessageType::sinrEst:{
+                                SINR *sinrEst = dynamic_cast<SINR*>(msg);
+                                this->handleSINREstimate(sinrEst);        
+                        } break;
+                        
 		default:
 			std::cerr << "Received invalid Message in "
 				  << "StreamScheduler handleMessage"
@@ -156,4 +161,9 @@ void StreamScheduler::printAssignment(){
         << iterDir->second.second << std::endl;
     }
   }
+}
+
+void StreamScheduler::handleSINREstimate(SINR *msg){
+  // SINR Estimates are not used in the default Round Robin scheduler
+  delete msg;
 }

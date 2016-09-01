@@ -94,12 +94,10 @@ void MsChannel::handleMessage(cMessage *msg)  {
                   // We only need the down SINR estimate, because the 
                   // base station only ever uses DOWN resource blocks.
                   bsSINREst->setDownArraySize(downResourceBlocks);
-                  std::cout << "Here" << std::endl;
                   for(int i = 0; i < downResourceBlocks; i++){
                     bsSINREst->setDown(i,
                         channel->calcAvgDownSINR(i,transInfosDown[i],1.0));
                   }
-                  std::cout << "Here" << std::endl;
                   // Route message to BS via MsPhy and MsMac
                   send(bsSINREst,"toPhy");
                 }
