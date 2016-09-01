@@ -97,7 +97,7 @@ void BsChannel::initialize()  {
 		PtrMessage->setPtr(Pointer);
 		send(PtrMessage, "toPhy"); //set to 999*tti originally
 		
-	}
+    }
 }
 
 simtime_t BsChannel::getProcessingDelay(cMessage *msg)  {

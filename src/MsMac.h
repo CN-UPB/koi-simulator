@@ -33,7 +33,8 @@ class MsMac : public cSimpleModule  {
         double radius;
 	vector<double> velocity;
         Position initBsPos; //just used for position centering in Tkenv ms pos calc in init
-        vec SINR_;
+        vector<double> sinrUp;
+        vector<double> sinrDown;
 	double transmissionPower;
 
         inline simtime_t positionResendTime();

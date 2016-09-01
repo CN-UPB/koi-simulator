@@ -42,11 +42,6 @@ void BsMac::initialize()  {
     tti = par("tti");
     epsilon = par("epsilon");
     
-    // We need an default SINR to start with, for the first schedule, but 
-    // cannot calculate it without the previous schedule, which is non existent.
-    // Currently: Random init SINR.
-    SINR_ = zeros(numberOfMobileStations,resourceBlocks);
-    
     //find the neighbours and store the pair (bsId, position in data structures) in a map
     cModule *cell = getParentModule()->getParentModule();
     neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
@@ -160,14 +155,15 @@ void BsMac::handleMessage(cMessage *msg)  {
 		delete msg;
 	}
 	else if(msg->isName("SINR_ESTIMATION")){
-		SINR *sinrMessage = (SINR *) msg;
-		vec sinr_new;
-		int msId = sinrMessage->getMsId();
-		for(int i = 0;i < resourceBlocks; i++){
-			sinr_new.ins(i,sinrMessage->getSINR(i));
-		}
-		SINR_.set_row(msId,sinr_new);
-		delete msg;
+          SINR *sinrMessage = (SINR *) msg;
+          // Clear the old estimates
+          sinrDown.clear();
+          sinrDown.resize(sinrMessage->getDownArraySize());
+          for(int i = 0;i < sinrMessage->getDownArraySize(); i++){
+            sinrDown[i] = sinrMessage->getDown(i);
+          }
+          // Provide the estimates to the scheduler, too
+          send(msg,"toScheduler");
 	}
     else if(msg->getKind()==MessageType::streamSched)  {
 	    StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
@@ -175,7 +171,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 
 	    int destMs = sched->getDest();
             vector<double> sinr_values;
-	    sinr_values.push_back(SINR_(destMs,sched->getRb()));
+	    //sinr_values.push_back(SINR_(destMs,sched->getRb()));
             
             double channel_capacity = getChannelCapacity(sinr_values);
 	    /**

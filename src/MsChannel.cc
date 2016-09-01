@@ -27,6 +27,7 @@ void MsChannel::initialize()  {
     maxNumberOfNeighbours = par("maxNumberOfNeighbours");
     bsId = par("bsId");
     epsilon = par("epsilon");
+    initOffset = par("initOffset");
     tti = par("tti");
     msId = par("msId");
     downResourceBlocks = par("downResourceBlocks");
@@ -47,7 +48,7 @@ void MsChannel::initialize()  {
     transInfosDown.resize(downResourceBlocks);
     transInfosUp.resize(upResourceBlocks);
     
-    scheduleAt(simTime() + 1000 * tti + epsilon, new cMessage("SINR_ESTIMATION")); //originally set to 1000*tti + epsilon
+    scheduleAt(simTime()+initOffset-epsilon, new cMessage("SINR_ESTIMATION")); //originally set to 1000*tti + epsilon
 }
 
 simtime_t MsChannel::getProcessingDelay(cMessage *msg)  {
@@ -58,43 +59,53 @@ simtime_t MsChannel::getProcessingDelay(cMessage *msg)  {
 }
 
 void MsChannel::handleMessage(cMessage *msg)  {
-	if(msg->isName("SINR_ESTIMATION"))  {
-		vector<double> power;
-		vector<Position> pos;
-		vector<int> bsId_;
+	if(msg->isName("SINR_ESTIMATION")){
+		SINR *sinrMessage = new SINR();
+                sinrMessage->setBsId(bsId);
+                sinrMessage->setMsId(msId);
 
-		bsId_.push_back(bsId);
-		bsId_.push_back(bsId);
-
-		//interferer are all the neighbouring bs
-		NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
-		for(NeighbourMap::iterator it = map->begin(); it != map->end(); ++it)  {
-			if(it->first != bsId){
-				bsId_.push_back(it->first);
-			}
-
-
-		}
-		if(!channel){
-			std::cout << "ERROR NULL POINTER!" << std::endl;
-		}
-                vec sinr;
-		//vec sinr = channel->calcSINR(power, pos, bsId_, false, msId);
-		//cout << "SINR: " << sinr << endl;
-		//cout << "Nr: " << power.size() << " " << pos.size() << " " << bsId_.size() << endl;
-
-		delete msg;
-		scheduleAt(simTime() + tti, new cMessage("SINR_ESTIMATION"));
-
-		SINR *sinrMessage = new SINR("SINR_ESTIMATION");
-		sinrMessage->setSINRArraySize(downResourceBlocks);
-		//std::cout << "SINR at RB 0 = " << sinr(0) << std::endl;
+                // Set SINR estimation to the average SINR value over all 
+                // possible transmission recipients in the previous tti.
+		sinrMessage->setDownArraySize(downResourceBlocks);
 		for(int i = 0; i < downResourceBlocks; i++){
-			sinrMessage->setSINR(i,sinr(i));
+			sinrMessage->setDown(i,
+                            channel->calcAvgD2DDownSINR(i,transInfosDown[i],msId,1.0));
 		}
-		//std::cout << "Send SINR Estimation from MS " << msId << std::endl;
-		//std::cout << sinr << std::endl;
+		sinrMessage->setUpArraySize(upResourceBlocks);
+		for(int i = 0; i < upResourceBlocks; i++){
+			sinrMessage->setUp(i,
+                            channel->calcAvgUpSINR(i,transInfosUp[i],msId,1.0));
+		}
+                if(msId==0){
+                  // We need to compute the SINR estimate for the local base 
+                  // station too, because the BS does not have all the 
+                  // necessary transmission information available. 
+                  // To prevent doing unncessary work, only each cell's 
+                  // mobile station with the ID 0 computes the BS's 
+                  // SINR estimate.
+                  //
+                  // TODO Think of a better way to do this
+                  
+                  SINR *bsSINREst = new SINR();
+                  bsSINREst->setBsId(bsId);
+                  // Special value to note that this is the SINR for 
+                  // a base station
+                  bsSINREst->setMsId(-1);
+                  // We only need the down SINR estimate, because the 
+                  // base station only ever uses DOWN resource blocks.
+                  bsSINREst->setDownArraySize(downResourceBlocks);
+                  std::cout << "Here" << std::endl;
+                  for(int i = 0; i < downResourceBlocks; i++){
+                    bsSINREst->setDown(i,
+                        channel->calcAvgDownSINR(i,transInfosDown[i],1.0));
+                  }
+                  std::cout << "Here" << std::endl;
+                  // Route message to BS via MsPhy and MsMac
+                  send(bsSINREst,"toPhy");
+                }
+                // Route extimate to MsMac via MsPhy
 		send(sinrMessage,"toPhy");
+		scheduleAt(simTime() + tti, msg);
 	}
 	else if(msg->isName("CHANNEL_INFO"))  {
 		// Whenever you receive a message called CHANNEL_INFO forward it to channel.

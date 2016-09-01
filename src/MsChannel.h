@@ -27,6 +27,7 @@ class MsChannel : public cSimpleModule  {
         int upResourceBlocks;
         simtime_t epsilon;
         simtime_t tti;
+        simtime_t initOffset;
         double packetLoss;
         Position msPosition;
         int bsId;

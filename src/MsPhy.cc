@@ -16,10 +16,7 @@ void MsPhy::initialize()  {
 }
 
 void MsPhy::handleMessage(cMessage *msg)  {
-    if(msg->isName("SINR_ESTIMATION"))  {
-        send(msg, "toMac");
-    }
-    else if(msg->isName("MS_POS_UPDATE"))  {
+    if(msg->isName("MS_POS_UPDATE"))  {
         send(msg, "toMsChannel");
     }
     //currently it only forward the packets

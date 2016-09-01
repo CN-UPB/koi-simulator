@@ -30,7 +30,7 @@ class BsMac : public cSimpleModule  {
         double initOffset;
         vector<bool> *msPosUpdateArrived;
         Position *msPositions;
-        mat SINR_;
+        vector<double> sinrDown;
         NeighbourIdMatching *neighbourIdMatching; //matching for bsId <-> dataStrPos
         int ownDataStrId; //pos in the dataStr for bsId
         vec eesm_beta_values;

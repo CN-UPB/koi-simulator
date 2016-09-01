@@ -24,7 +24,7 @@ void TrafficGen::initialize(){
 	this->msId = par("msId");
 	this->packetLength = par("packetLength");
 	this->periodicTraffic = par("periodicTraffic");
-        this->tti = par("tti")
+        this->tti = par("tti");
         this->genPackets = registerSignal("genPackets");
         this->recPackets = registerSignal("recPackets");
         this->missedDL = registerSignal("missedDL");

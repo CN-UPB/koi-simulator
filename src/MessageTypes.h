@@ -20,7 +20,8 @@ enum MessageType: short {
 	transInfo,
 	transReqList,
 	scheduleStreams,
-	scheduleRBs
+	scheduleRBs,
+	sinrEst
 };
 
 enum MessageDirection: int {

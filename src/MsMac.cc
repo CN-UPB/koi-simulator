@@ -226,9 +226,6 @@ void MsMac::initialize()  {
 	//for Tkenv
 	updateDisplayString();
 	
-	//TODO: get from ini
-	SINR_ = zeros(100);
-
     // disable resending of MS positions for now, we have no movement	
     //resend the ms position every x times to the BsMac layer
     //scheduleAt(simTime() + initOffset + tti - epsilon, new cMessage("RESEND_POS")); //originally set to simTime() + initOffset 
@@ -254,7 +251,7 @@ void MsMac::handleMessage(cMessage *msg)  {
             
             vector<double> sinr_values;
             vector<double> RBs;
-	    sinr_values.push_back(SINR_(schedule->getRb()));
+	    //sinr_values.push_back(SINR_(schedule->getRb()));
             
             double channel_capacity = getChannelCapacity(sinr_values);
 	    /**
@@ -333,16 +330,28 @@ void MsMac::handleMessage(cMessage *msg)  {
         send(posEx, "toBsMac");
         scheduleAt(positionResendTime(), msg);
     }
-    else if(msg->isName("SINR_ESTIMATION"))  {
-		SINR *sinrMessage = (SINR *) msg;
-		// Add MS ID Information, MS Channel doesnt have that information.
-		sinrMessage->setMsId(msId);
-		vec sinr_new(downResourceBlocks);
-		for(int i = 0;i < downResourceBlocks; i++){
-			sinr_new.set(i,sinrMessage->getSINR(i));
-		}
-		SINR_ = sinr_new;
-		send(sinrMessage, "toBsMac");
+    else if(msg->getKind()==MessageType::sinrEst)  {
+        SINR *sinrMessage = (SINR *) msg;
+        if(sinrMessage->getBsId()==-1){
+          // This message is intended for the local Base Station, forward it
+          send(sinrMessage, "toBsMac");
+        }
+        else{
+          // Clear the old estimates
+          sinrUp.clear();
+          sinrUp.resize(sinrMessage->getUpArraySize());
+          sinrDown.clear();
+          sinrDown.resize(sinrMessage->getDownArraySize());
+          // Set the new estimates
+          for(int i = 0;i < sinrMessage->getUpArraySize(); i++){
+            sinrUp[i] = sinrMessage->getUp(i);
+          }
+          for(int i = 0;i < sinrMessage->getDownArraySize(); i++){
+            sinrDown[i] = sinrMessage->getDown(i);
+          }
+          // Provide the estimates to the scheduler, too
+          send(msg,"toScheduler");
+        }
     }
     else if(msg->arrivedOn("fromApp"))  {
 	// Packet arrived for sending from traffic generator
