@@ -10,8 +10,10 @@
 #include "RBScheduler.h"
 #include "MessageTypes.h"
 #include "TransReqList_m.h"
+#include <list>
 
 using std::vector;
+using std::list;
 
 Define_Module(RBScheduler);
 
@@ -22,12 +24,9 @@ void RBScheduler::initialize(){
 StreamTransSched *RBScheduler::getSchedule(
 		const std::vector<StreamTransReq*>& reqs){
 	if(!reqs.empty()){
-		KoiData *bestPacket = nullptr;
-		int bestPacketIndex;
-		int bestSrc;
-		int bestDest;
+                list<KoiData*>::const_iterator bestPos;
+                bool init = false;
 		int bestDir;
-		unsigned long bestStreamId;
 		// The following code iterates over all transmission requests and finds 
 		// the next packet to be send, according to the scheduler's "compare" 
 		// method.
@@ -37,36 +36,34 @@ StreamTransSched *RBScheduler::getSchedule(
 			// Iterate over all packets in the queue for the current stream
 			// and find the which has the lowest value according to the 
 			// scheduler's compare method.
-			int index = 0;
 			KoiData *currPacket;
-			for(cQueue::Iterator iterQueue(
-						*(currReq->getPackets()));
-					!iterQueue.end();
+			for(auto iterQueue = (currReq->getPackets())->begin();
+					iterQueue!=(currReq->getPackets())->end();
+                                        ++iterQueue
 					){
-				currPacket = dynamic_cast<KoiData*>(iterQueue++);
-				if(bestPacket==nullptr 
-						|| comparator(currPacket,bestPacket)){
+				currPacket = *iterQueue;
+				if(!init || comparator(currPacket,*bestPos)){
 					// The current packet is better than 
 					// the previous best packet, so it 
 					// becomes the new package to be 
 					// scheduled.
-					bestPacket = currPacket;
-					bestPacketIndex = index;
-					bestSrc = bestPacket->getSrc();
-					bestDest = bestPacket->getDest();
+                                        bestPos = iterQueue;
 					bestDir = currReq->getMessageDirection();
-					bestStreamId = currReq->getStreamId();
+                                        // We need to indicate that the
+                                        // iterator has been initialized, 
+                                        // because a default constructed iterator
+                                        // cannot be checked
+                                        init = true;
 				}
-				index++;
 			}
 			delete currReq;
 		}
 		StreamTransSched *schedule = new StreamTransSched();
-		schedule->setSrc(bestSrc);
-		schedule->setDest(bestDest);
-		schedule->setStreamId(bestStreamId);
+		schedule->setSrc((*bestPos)->getSrc());
+		schedule->setDest((*bestPos)->getDest());
+		schedule->setStreamId((*bestPos)->getStreamId());
 		schedule->setRb(this->rbNumber);
-		schedule->setPacketIndex(bestPacketIndex);
+		schedule->setPacketPos(bestPos);
 		schedule->setMessageDirection(bestDir);
 		return schedule;
 	}

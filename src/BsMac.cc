@@ -185,10 +185,8 @@ void BsMac::handleMessage(cMessage *msg)  {
 	    // For now, only 1 packet will be send per RB in each TTI
             if(channel_capacity > 0)  {
                 packetBundle->setPacketsArraySize(1);
-		KoiData *packet = dynamic_cast<KoiData*>(
-				streamQueues[sched->getStreamId()].get(
-					sched->getPacketIndex()));
-		streamQueues[sched->getStreamId()].remove(packet);
+		KoiData *packet = dynamic_cast<KoiData*>(*(sched->getPacketPos()));
+		streamQueues[sched->getStreamId()].erase(sched->getPacketPos());
 		packetBundle->setPackets(0, *packet);
 		packetBundle->setRBsArraySize(1);
 		packetBundle->setRBs(0,sched->getRb());
@@ -315,7 +313,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 	KoiData packet;
 	for(unsigned int i=0; i<bundle->getPacketsArraySize(); i++){
 		packet = bundle->getPackets(i);
-		streamQueues[packet.getStreamId()].insert(packet.dup());
+		streamQueues[packet.getStreamId()].push_back(packet.dup());
 	}
 	delete bundle;
     }

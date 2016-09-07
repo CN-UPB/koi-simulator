@@ -9,11 +9,13 @@
 
 #include <itpp/itbase.h>
 #include "includes.h"
+#include "KoiData_m.h"
 #include "Position.h"
 #include "util.h"
+#include "NeighbourIdMatching.h"
 #include <vector>
 #include <unordered_map>
-#include "NeighbourIdMatching.h"
+#include <list>
 
 using namespace std;
 using namespace itpp;
@@ -39,7 +41,7 @@ class BsMac : public cSimpleModule  {
 
         simtime_t tti;
         simtime_t epsilon;
-	unordered_map<unsigned long,cQueue> streamQueues;
+	unordered_map<unsigned long,std::list<KoiData*>> streamQueues;
 
     protected:
         virtual void initialize();

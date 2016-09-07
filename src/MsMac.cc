@@ -265,10 +265,8 @@ void MsMac::handleMessage(cMessage *msg)  {
 	    // For now, only 1 packet will be send per RB in each TTI
             if(channel_capacity > 0)  {
                 packetBundle->setPacketsArraySize(1);
-		KoiData *packet = dynamic_cast<KoiData*>(
-				streamQueues[schedule->getStreamId()].get(
-					schedule->getPacketIndex()));
-		streamQueues[schedule->getStreamId()].remove(packet);
+		KoiData *packet = dynamic_cast<KoiData*>(*(schedule->getPacketPos()));
+		streamQueues[schedule->getStreamId()].erase(schedule->getPacketPos());
 		packetBundle->setPackets(0, *packet);
 		delete packet;
 		packetBundle->setRBsArraySize(1);
@@ -366,7 +364,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 		} break;
 		case MessageType::koidata:{
 			KoiData *data = dynamic_cast<KoiData*>(msg);
-			this->streamQueues[data->getStreamId()].insert(data);
+			this->streamQueues[data->getStreamId()].push_back(data);
 		} break;
 	}
     }

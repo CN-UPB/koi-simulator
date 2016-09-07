@@ -8,18 +8,20 @@
 #pragma once
 
 #include "includes.h"
+#include "KoiData_m.h"
 #include "Position.h"
+#include "util.h"
 #include <itpp/itbase.h>
 #include <algorithm>
+#include <list>
 #include <unordered_map>
-#include "util.h"
 
 using namespace itpp;
 using namespace std;
 
 class MsMac : public cSimpleModule  {
     private:
-	unordered_map<unsigned long,cQueue> streamQueues;
+	unordered_map<unsigned long,list<KoiData*>> streamQueues;
         Position msPosition;
         int msId;
         int bsId;

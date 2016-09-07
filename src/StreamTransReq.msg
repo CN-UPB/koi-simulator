@@ -2,9 +2,10 @@
 // to request the use of a Ressource Block for sending in the current TTI.
 
 cplusplus {{
-#include <omnetpp.h>
 #include "MessageTypes.h"
-using QueuePtr = const cQueue*;
+#include "KoiData_m.h"
+#include <list>
+using QueuePtr = const std::list<KoiData*>*;
 }}
 
 class noncobject QueuePtr;
