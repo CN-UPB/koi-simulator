@@ -169,7 +169,7 @@ void BsMac::handleMessage(cMessage *msg)  {
             vector<double> sinr_values;
 	    //sinr_values.push_back(SINR_(destMs,sched->getRb()));
             
-            double channel_capacity = getChannelCapacity(sinr_values);
+            double channel_capacity = 1;
 	    /**
             int cqi;
             if(sinr_values.size() > 0){
@@ -180,28 +180,37 @@ void BsMac::handleMessage(cMessage *msg)  {
             **/
 	    // For now, only 1 packet will be send per RB in each TTI
             if(channel_capacity > 0)  {
-		KoiData *packet = dynamic_cast<KoiData*>(*(sched->getPacketPos()));
-		streamQueues[sched->getStreamId()].erase(sched->getPacketPos());
-		packet->setResourceBlock(sched->getRb());
-		packet->setTransPower(transmissionPower);
-		// Set CQI for a fixed value until we decide on how to 
-		// compute it
-		//packetBundle->setCqi(cqi);
-		packet->setCqi(15);
-		packet->setMessageDirection(sched->getMessageDirection());
+                KoiData *currPacket = nullptr;
+                for(auto streamIter = streamQueues.begin();
+                    streamIter!=streamQueues.end(); ++streamIter){
+                  list<KoiData*>& currList = streamIter->second;
+                  for(auto packetIter = currList.begin(); 
+                      packetIter!=currList.end();){
+                    currPacket = *packetIter;
+                    if(currPacket->getScheduled()){
+                      packetIter = currList.erase(packetIter);
+                      currPacket->setTransPower(transmissionPower);
+                      // Set CQI for a fixed value until we decide on how to 
+                      // compute it
+                      currPacket->setCqi(15);
+                      sendDelayed(currPacket, epsilon, "toPhy");
 
-		TransInfo *info = new TransInfo();
-		info->setBsId(bsId);
-		info->setPower(transmissionPower);
-		info->setRb(sched->getRb());
-		// It is the BS itself sending, not a MS, which we indicate
-		// with an index of -1 for the MS
-		info->setMsId(-1);
-		info->setMessageDirection(MessageDirection::down);
-            
-		sendToNeighbourCells(info);
-		delete info;
-                sendDelayed(packet, epsilon, "toPhy");
+                      TransInfo *info = new TransInfo();
+                      info->setBsId(bsId);
+                      info->setPower(transmissionPower);
+                      info->setRb(currPacket->getResourceBlock());
+                      // It is the BS itself sending, not a MS, which we indicate
+                      // with an index of -1 for the MS
+                      info->setMsId(-1);
+                      info->setMessageDirection(MessageDirection::down);
+                      sendToNeighbourCells(info);
+                      delete info;
+                    }
+                    else{
+                      ++packetIter;
+                    }
+                  }
+                }
             }
 	    delete sched;
     }

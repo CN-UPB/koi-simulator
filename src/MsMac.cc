@@ -248,7 +248,8 @@ void MsMac::handleMessage(cMessage *msg)  {
             vector<double> RBs;
 	    //sinr_values.push_back(SINR_(schedule->getRb()));
             
-            double channel_capacity = getChannelCapacity(sinr_values);
+            //double channel_capacity = getChannelCapacity(sinr_values);
+            double channel_capacity = 1;
 	    /**
             int cqi;
             if(sinr_values.size() > 0){
@@ -258,23 +259,35 @@ void MsMac::handleMessage(cMessage *msg)  {
 			}
             **/
 	    // For now, only 1 packet will be send per RB in each TTI
-            if(channel_capacity > 0)  {
-		KoiData *packet = dynamic_cast<KoiData*>(*(schedule->getPacketPos()));
-		streamQueues[schedule->getStreamId()].erase(schedule->getPacketPos());
-		packet->setResourceBlock(schedule->getRb());
-		packet->setTransPower(transmissionPower);
-		packet->setMessageDirection(schedule->getMessageDirection());
-		// Set CQI to a fixed value until we decide how to compute it
-		//packetBundle->setCqi(cqi);
-		packet->setCqi(15);
-		TransInfo *info = new TransInfo();
-		info->setBsId(bsId);
-		info->setMsId(msId);
-		info->setRb(schedule->getRb());
-		info->setPower(transmissionPower);
-		info->setMessageDirection(schedule->getMessageDirection());
-		send(info,"toBsMac");
-                sendDelayed(packet, epsilon, "toPhy");
+            if(channel_capacity > 0){
+                KoiData *currPacket = nullptr;
+                for(auto streamIter = streamQueues.begin();
+                    streamIter!=streamQueues.end(); ++streamIter){
+                  list<KoiData*>& currList = streamIter->second;
+                  for(auto packetIter = currList.begin(); 
+                      packetIter!=currList.end();){
+                    currPacket = *packetIter;
+                    if(currPacket->getScheduled()){
+                      packetIter = currList.erase(packetIter);
+                      currPacket->setTransPower(transmissionPower);
+                      // Set CQI for a fixed value until we decide on how to 
+                      // compute it
+                      currPacket->setCqi(15);
+                      sendDelayed(currPacket, epsilon, "toPhy");
+
+                      TransInfo *info = new TransInfo();
+                      info->setBsId(bsId);
+                      info->setPower(transmissionPower);
+                      info->setRb(currPacket->getResourceBlock());
+                      info->setMsId(msId);
+                      info->setMessageDirection(MessageDirection::down);
+                      send(info,"toBsMac");
+                    }
+                    else{
+                      ++packetIter;
+                    }
+                  }
+                }
             }
         }
         delete schedule;

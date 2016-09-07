@@ -169,12 +169,13 @@ void MsChannel::handleMessage(cMessage *msg)  {
 							packet->getTransPower()));
 				break;
 		}
+                /**
 		double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
 		double bler = getBler(packet->getCqi(), effSINR, this);
 		vec bler_(1);
 		bler_.set(0,bler);
 		double per = getPer(bler_);
-
+                **/
 		/**
 		  if(uniform(0,1) > per){
 		  sendDelayed(bundle, tti - epsilon, "toPhy");

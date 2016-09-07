@@ -24,7 +24,7 @@ void RBScheduler::initialize(){
 StreamTransSched *RBScheduler::getSchedule(
 		const std::vector<StreamTransReq*>& reqs){
 	if(!reqs.empty()){
-                list<KoiData*>::const_iterator bestPos;
+                list<KoiData*>::iterator bestPos;
                 bool init = false;
 		int bestDir;
 		// The following code iterates over all transmission requests and finds 
@@ -60,11 +60,10 @@ StreamTransSched *RBScheduler::getSchedule(
 		}
 		StreamTransSched *schedule = new StreamTransSched();
 		schedule->setSrc((*bestPos)->getSrc());
-		schedule->setDest((*bestPos)->getDest());
-		schedule->setStreamId((*bestPos)->getStreamId());
-		schedule->setRb(this->rbNumber);
-		schedule->setPacketPos(bestPos);
 		schedule->setMessageDirection(bestDir);
+                (*bestPos)->setResourceBlock(rbNumber);
+                (*bestPos)->setScheduled(true);
+		(*bestPos)->setMessageDirection(bestDir);
 		return schedule;
 	}
 	else{

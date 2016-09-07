@@ -182,6 +182,7 @@ void BsChannel::handleMessage(cMessage *msg)  {
               packet->getSrc(),
               packet->getTransPower()));
 
+        /**
 	double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
 	//cout << "Effektive SINR (Up): " << effSINR << endl;
 	double bler = getBler(packet->getCqi(), effSINR, this);
@@ -189,7 +190,7 @@ void BsChannel::handleMessage(cMessage *msg)  {
 	vec bler_(1);
 	bler_.set(0,bler);
 	double per = getPer(bler_);
-
+        **/
 	/**
 	if(uniform(0,1) > per){
 		sendDelayed(bundle, tti - epsilon, "toPhy");

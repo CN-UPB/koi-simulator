@@ -5,7 +5,7 @@ cplusplus {{
 #include "MessageTypes.h"
 #include "KoiData_m.h"
 #include <list>
-using QueuePtr = const std::list<KoiData*>*;
+using QueuePtr = std::list<KoiData*>*;
 }}
 
 class noncobject QueuePtr;

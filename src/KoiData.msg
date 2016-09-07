@@ -22,5 +22,6 @@ packet KoiData {
 	int trafficType @enum(TrafficType); // The type of traffic, periodic or event based
         double transPower; // The transmission power used for this packet
         int messageDirection @enum(MessageDirection);
+        bool scheduled = false; // This packet is scheduled to be send in the current TTI
 	kind = MessageType::koidata;
 }
