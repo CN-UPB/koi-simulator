@@ -11,8 +11,7 @@
 
 #include "cluster.h"
 #include "BsChannel.h"
-#include "DataPacket_m.h"
-#include "DataPacketBundle_m.h"
+#include "KoiData_m.h"
 #include "SINR_m.h"
 #include "PositionExchange_m.h"
 #include "PointerExchange_m.h"
@@ -173,18 +172,19 @@ void BsChannel::handleMessage(cMessage *msg)  {
 	}
     }
     else if(msg->arrivedOn("fromMs"))  {
-		//std::cout << "received fromMs Message." << std::endl;
-        assert(msg->isName("DATA_BUNDLE") == true);
+        assert(msg->getKind() == MessageType::koidata);
+        KoiData *packet = dynamic_cast<KoiData*>(msg);
 
-        //the channel receives the packet in a bundle
-        DataPacketBundle *bundle = (DataPacketBundle *) msg;
         vector<double> instSINR;
-	int currentRessourceBlock = bundle->getRBs(0);
-	instSINR.push_back(channel->calcUpSINR(currentRessourceBlock,transInfos[currentRessourceBlock],bundle->getMsId(),bundle->getTransPower()));
+	int currentRessourceBlock = packet->getResourceBlock();
+	instSINR.push_back(channel->calcUpSINR(currentRessourceBlock,
+              transInfos[currentRessourceBlock],
+              packet->getSrc(),
+              packet->getTransPower()));
 
 	double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
 	//cout << "Effektive SINR (Up): " << effSINR << endl;
-	double bler = getBler(bundle->getCqi(), effSINR, this);
+	double bler = getBler(packet->getCqi(), effSINR, this);
 	//cout << "Block Error Rate(Up): " << bler << endl;
 	vec bler_(1);
 	bler_.set(0,bler);
@@ -198,7 +198,7 @@ void BsChannel::handleMessage(cMessage *msg)  {
 	}
 	**/
 	//For now, all packets are send successfully
-	sendDelayed(bundle, tti - epsilon, "toPhy");
+	sendDelayed(packet, tti - epsilon, "toPhy");
 
     }
 }

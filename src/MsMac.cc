@@ -6,9 +6,8 @@
  */
 
 #include "MsMac.h"
-#include "DataPacket_m.h"
 #include "PositionExchange_m.h"
-#include "DataPacketBundle_m.h"
+#include "KoiData_m.h"
 #include "TransmitRequest_m.h"
 #include "Schedule_m.h"
 #include "StreamInfo_m.h"
@@ -245,10 +244,6 @@ void MsMac::handleMessage(cMessage *msg)  {
         StreamTransSched *schedule = dynamic_cast<StreamTransSched*>(msg);
         
         if(schedule->getSrc() == msId)  {
-            DataPacketBundle *packetBundle = new DataPacketBundle("DATA_BUNDLE"); //only send out one bundle of packets
-            packetBundle->setMsId(msId);
-            packetBundle->setBsId(bsId);
-            
             vector<double> sinr_values;
             vector<double> RBs;
 	    //sinr_values.push_back(SINR_(schedule->getRb()));
@@ -264,18 +259,14 @@ void MsMac::handleMessage(cMessage *msg)  {
             **/
 	    // For now, only 1 packet will be send per RB in each TTI
             if(channel_capacity > 0)  {
-                packetBundle->setPacketsArraySize(1);
 		KoiData *packet = dynamic_cast<KoiData*>(*(schedule->getPacketPos()));
 		streamQueues[schedule->getStreamId()].erase(schedule->getPacketPos());
-		packetBundle->setPackets(0, *packet);
-		delete packet;
-		packetBundle->setRBsArraySize(1);
-		packetBundle->setRBs(0,schedule->getRb());
-		packetBundle->setTransPower(transmissionPower);
-		packetBundle->setMessageDirection(schedule->getMessageDirection());
+		packet->setResourceBlock(schedule->getRb());
+		packet->setTransPower(transmissionPower);
+		packet->setMessageDirection(schedule->getMessageDirection());
 		// Set CQI to a fixed value until we decide how to compute it
 		//packetBundle->setCqi(cqi);
-		packetBundle->setCqi(15);
+		packet->setCqi(15);
 		TransInfo *info = new TransInfo();
 		info->setBsId(bsId);
 		info->setMsId(msId);
@@ -283,7 +274,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 		info->setPower(transmissionPower);
 		info->setMessageDirection(schedule->getMessageDirection());
 		send(info,"toBsMac");
-                sendDelayed(packetBundle, epsilon, "toPhy");
+                sendDelayed(packet, epsilon, "toPhy");
             }
         }
         delete schedule;
@@ -370,13 +361,9 @@ void MsMac::handleMessage(cMessage *msg)  {
     }
     else if(msg->arrivedOn("fromPhy"))  {
 	// Unpack the data bundle and forward data packets to app
-	if(msg->isName("DATA_BUNDLE")){
-		DataPacketBundle *bundle = dynamic_cast<DataPacketBundle*>(msg);
-		for(unsigned int i=0; i<bundle->getPacketsArraySize(); i++){
-			send(bundle->getPackets(i).dup(),"toApp");
-		} 
+	if(msg->getKind()==MessageType::koidata){
+                send(msg,"toApp");
 	}
-	delete msg;
     }
 }
 

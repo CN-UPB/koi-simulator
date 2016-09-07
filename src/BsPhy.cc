@@ -6,8 +6,7 @@
  */
 
 #include "BsPhy.h"
-#include "DataPacket_m.h"
-#include "DataPacketBundle_m.h"
+#include "KoiData_m.h"
 #include "PointerExchange_m.h"
 #include "MessageTypes.h"
 
@@ -55,17 +54,12 @@ void BsPhy::handleMessage(cMessage *msg)  {
         send(msg, "toMac");
     }
     else if(msg->arrivedOn("fromMac"))  {
-        assert(msg->isName("DATA_BUNDLE"));
         //forward the packet to the channel of the ms
-        DataPacketBundle *bundle = (DataPacketBundle *) msg;
-        //estimate the right data channel
-        int msId = bundle->getMsId();
-        //ev << "Forwarding packet to ms " << msId << "data channel" << endl;
-        send(bundle, "toChannel", msId);
+        KoiData *packet = (KoiData *) msg;
+        send(packet, "toChannel", packet->getDest());
     }
     else if(msg->arrivedOn("fromChannel"))  {
         //forward the packet from the bs channel to the bs mac
-        assert(msg->isName("DATA_BUNDLE"));
         //ev << "Forwarding packet bundle to BsMac" << endl;
         send(msg, "toMac");
     }

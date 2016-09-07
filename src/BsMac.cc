@@ -9,7 +9,6 @@
 
 #include "BsMac.h"
 #include "SINR_m.h"
-#include "DataPacketBundle_m.h"
 #include "PositionExchange_m.h"
 #include "ChannelExchange_m.h"
 #include "BsMsPositions_m.h"
@@ -167,9 +166,6 @@ void BsMac::handleMessage(cMessage *msg)  {
 	}
     else if(msg->getKind()==MessageType::streamSched)  {
 	    StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
-	    DataPacketBundle *packetBundle = new DataPacketBundle("DATA_BUNDLE");
-
-	    int destMs = sched->getDest();
             vector<double> sinr_values;
 	    //sinr_values.push_back(SINR_(destMs,sched->getRb()));
             
@@ -184,21 +180,15 @@ void BsMac::handleMessage(cMessage *msg)  {
             **/
 	    // For now, only 1 packet will be send per RB in each TTI
             if(channel_capacity > 0)  {
-                packetBundle->setPacketsArraySize(1);
 		KoiData *packet = dynamic_cast<KoiData*>(*(sched->getPacketPos()));
 		streamQueues[sched->getStreamId()].erase(sched->getPacketPos());
-		packetBundle->setPackets(0, *packet);
-		packetBundle->setRBsArraySize(1);
-		packetBundle->setRBs(0,sched->getRb());
-		packetBundle->setTransPower(transmissionPower);
+		packet->setResourceBlock(sched->getRb());
+		packet->setTransPower(transmissionPower);
 		// Set CQI for a fixed value until we decide on how to 
 		// compute it
 		//packetBundle->setCqi(cqi);
-		packetBundle->setCqi(15);
-		packetBundle->setMsId(destMs);
-		packetBundle->setBsId(packet->getBsId());
-		packetBundle->setMessageDirection(sched->getMessageDirection());
-		delete packet;
+		packet->setCqi(15);
+		packet->setMessageDirection(sched->getMessageDirection());
 
 		TransInfo *info = new TransInfo();
 		info->setBsId(bsId);
@@ -211,7 +201,7 @@ void BsMac::handleMessage(cMessage *msg)  {
             
 		sendToNeighbourCells(info);
 		delete info;
-                sendDelayed(packetBundle, epsilon, "toPhy");
+                sendDelayed(packet, epsilon, "toPhy");
             }
 	    delete sched;
     }
@@ -309,13 +299,8 @@ void BsMac::handleMessage(cMessage *msg)  {
     }
     //data packet
     else if(msg->arrivedOn("fromPhy"))  {
-        DataPacketBundle *bundle = (DataPacketBundle *) msg;
-	KoiData packet;
-	for(unsigned int i=0; i<bundle->getPacketsArraySize(); i++){
-		packet = bundle->getPackets(i);
-		streamQueues[packet.getStreamId()].push_back(packet.dup());
-	}
-	delete bundle;
+        KoiData *packet = (KoiData *) msg;
+        streamQueues[packet->getStreamId()].push_back(packet);
     }
 }
 

@@ -5,9 +5,8 @@
  *      Author: Sascha Schmerlin
  */
 
+#include "KoiData_m.h"
 #include "MsChannel.h"
-#include "DataPacket_m.h"
-#include "DataPacketBundle_m.h"
 #include "SINR_m.h"
 #include "PositionExchange_m.h"
 #include "ChannelExchange_m.h"
@@ -143,37 +142,35 @@ void MsChannel::handleMessage(cMessage *msg)  {
 
 		}
 	}
-	else if(msg->isName("DATA_BUNDLE"))  {
-		//the channel receives the packet in a bundle
-		DataPacketBundle *bundle = (DataPacketBundle *) msg;
+	else if(msg->getKind()==MessageType::koidata)  {
+		KoiData *packet = (KoiData *) msg;
 		// Just forward the packet for now, without error checking etc
-
 		vector<double> instSINR;
-		int currentRessourceBlock = bundle->getRBs(0);
+		int currentRessourceBlock = packet->getResourceBlock();
 
-		switch(bundle->getMessageDirection()){
+		switch(packet->getMessageDirection()){
 			case MessageDirection::down:
-				instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,transInfosDown[currentRessourceBlock],msId,bundle->getTransPower()));
+				instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,transInfosDown[currentRessourceBlock],msId,packet->getTransPower()));
 				break;
 			case MessageDirection::d2dDown:
 				instSINR.push_back(channel->calcD2DSINR(
 							currentRessourceBlock,
 							transInfosDown[currentRessourceBlock],
-							bundle->getMsId(),
+							packet->getSrc(),
 							msId,MessageDirection::d2dDown,
-							bundle->getTransPower()));
+							packet->getTransPower()));
 				break;
 			case MessageDirection::d2dUp:
 				instSINR.push_back(channel->calcD2DSINR(
 							currentRessourceBlock,
 							transInfosUp[currentRessourceBlock],
-							bundle->getMsId(),
+							packet->getSrc(),
 							msId,MessageDirection::d2dUp,
-							bundle->getTransPower()));
+							packet->getTransPower()));
 				break;
 		}
 		double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
-		double bler = getBler(bundle->getCqi(), effSINR, this);
+		double bler = getBler(packet->getCqi(), effSINR, this);
 		vec bler_(1);
 		bler_.set(0,bler);
 		double per = getPer(bler_);
@@ -186,7 +183,7 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		  }
 		 **/
 		// For now, all packets are received successfully
-		sendDelayed(bundle, tti - epsilon, "toPhy");
+		sendDelayed(packet, tti - epsilon, "toPhy");
 	}
 	
 }

@@ -6,8 +6,7 @@
  */
 
 #include "MsPhy.h"
-#include "SINR_m.h"
-#include "DataPacketBundle_m.h"
+#include "KoiData_m.h"
 #include "MessageTypes.h"
 
 Define_Module(MsPhy);
@@ -25,15 +24,15 @@ void MsPhy::handleMessage(cMessage *msg)  {
 		case MessageType::transInfo:
 			send(msg,"toMsChannel");
 			break;
-		case MessageType::bundle:
-			DataPacketBundle *bundle = dynamic_cast<DataPacketBundle*>(msg);
-			switch(bundle->getMessageDirection()){
+		case MessageType::koidata:
+			KoiData *packet = dynamic_cast<KoiData*>(msg);
+			switch(packet->getMessageDirection()){
 				case MessageDirection::up:
 					send(msg, "toChannel");
 					break;
 				case MessageDirection::d2dDown:
 				case MessageDirection::d2dUp:
-					send(msg,"toMs",bundle->getPackets(0).getDest());
+					send(msg,"toMs",packet->getDest());
 					break;
 			}
 	    }
