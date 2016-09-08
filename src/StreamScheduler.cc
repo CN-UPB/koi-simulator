@@ -83,71 +83,84 @@ void StreamScheduler::scheduleStreams(){
 }
 
 void StreamScheduler::handleMessage(cMessage *msg){
-	switch(msg->getKind()){
-		case MessageType::streamInfo:{
-				StreamInfo *tmp = dynamic_cast<StreamInfo*>(msg);
-				this->infos.push_back(tmp);
-			} break;
-		case MessageType::streamTransReq:{
-				StreamTransReq *req = dynamic_cast<StreamTransReq*>(msg);
-				ResAssign& assignment = rbAssignments[req->getStreamId()][req->getMessageDirection()];
-				this->requests[assignment.first][assignment.second].push_back(req);
-			} break;
-		case MessageType::scheduleStreams:{
-				this->scheduleStreams();
-				scheduleAt(simTime()+this->streamSchedPeriod,msg);
-                                this->printAssignment();
-			} break;
-		case MessageType::scheduleRBs:
-			// Iterate over all message directions (up/down)
-			for(auto iterDir=this->requests.begin();
-					iterDir!=requests.end();
-					++iterDir){
-				// Iterate over all Resource blocks in the current 
-				// transmission direction
-				for(auto iterRb=iterDir->second.begin();
-						iterRb!=iterDir->second.end();
-						++iterRb){
-					TransReqList *lst = new TransReqList();
-					lst->setRequests(iterRb->second);
-					// Clear all transmission requests for this 
-					// stream from the stream schedulers queue.
-					iterRb->second.clear();
-					switch(iterDir->first){
-						case MessageDirection::up:
-							send(lst,"upRB$o",iterRb->first);
-							break;
-						case MessageDirection::down:
-							send(lst,"downRB$o",iterRb->first);
-							break;
-					}
-				}
-			}
-			scheduleAt(simTime()+tti,msg);
-			break;
-		case MessageType::streamSched:{
-				StreamTransSched *sched = (StreamTransSched*)msg;
-				switch(sched->getMessageDirection()){
-					case MessageDirection::d2dDown:
-					case MessageDirection::d2dUp:
-					case MessageDirection::up:
-						send(sched,"toMs",sched->getSrc());
-						break;
-					case MessageDirection::down:
-						send(sched,"toBs");
-						break;
-				}
-			} break;
-                case MessageType::sinrEst:{
-                                SINR *sinrEst = dynamic_cast<SINR*>(msg);
-                                this->handleSINREstimate(sinrEst);        
-                        } break;
-                        
-		default:
-			std::cerr << "Received invalid Message in "
-				  << "StreamScheduler handleMessage"
-				  << std::endl;
-	}
+  switch(msg->getKind()){
+    case MessageType::streamInfo:{
+        StreamInfo *tmp = dynamic_cast<StreamInfo*>(msg);
+        this->infos.push_back(tmp);
+        } break;
+    case MessageType::streamTransReq:{
+        StreamTransReq *req = dynamic_cast<StreamTransReq*>(msg);
+        ResAssign& assignment = rbAssignments[req->getStreamId()][req->getMessageDirection()];
+        this->requests[assignment.first][assignment.second].push_back(req);
+        } break;
+    case MessageType::scheduleStreams:{
+        this->scheduleStreams();
+        scheduleAt(simTime()+this->streamSchedPeriod,msg);
+        this->printAssignment();
+        } break;
+    case MessageType::scheduleRBs:
+        // Iterate over all message directions (up/down)
+        for(auto iterDir=this->requests.begin();
+            iterDir!=requests.end();
+            ++iterDir){
+          // Iterate over all Resource blocks in the current 
+          // transmission direction
+          for(auto iterRb=iterDir->second.begin();
+              iterRb!=iterDir->second.end();
+              ++iterRb){
+            TransReqList *lst = new TransReqList();
+            lst->setRequests(iterRb->second);
+            // Gather SINR estimates for all 
+            // MS with streams in this request
+            unordered_map<int,SINR*>* estimates = new unordered_map<int,SINR*>();
+            for(auto& req:iterRb->second){
+              if(req->getMessageDirection()==MessageDirection::down){
+                // Request from BS
+                (*estimates)[-1] = estimateBS;
+              }
+              else{
+                // Request from MS
+                (*estimates)[req->getSrc()] = sinrEstimate[req->getSrc()];
+              }
+            }
+            lst->setEstimates(estimates);
+            // Clear all transmission requests for this 
+            // stream from the stream schedulers queue.
+            iterRb->second.clear();
+            switch(iterDir->first){
+              case MessageDirection::up:
+                send(lst,"upRB$o",iterRb->first);
+                break;
+              case MessageDirection::down:
+                send(lst,"downRB$o",iterRb->first);
+                break;
+            }
+          }
+        }
+        scheduleAt(simTime()+tti,msg);
+        break;
+    case MessageType::streamSched:{
+        StreamTransSched *sched = (StreamTransSched*)msg;
+        switch(sched->getMessageDirection()){
+          case MessageDirection::d2dDown:
+          case MessageDirection::d2dUp:
+          case MessageDirection::up:
+            send(sched,"toMs",sched->getSrc());
+            break;
+          case MessageDirection::down:
+            send(sched,"toBs");
+            break;
+        }
+        } break;
+    case MessageType::sinrEst:{
+        SINR *sinrEst = dynamic_cast<SINR*>(msg);
+        this->handleSINREstimate(sinrEst);        
+        } break;
+    default:
+        std::cerr << "Received invalid Message in "
+          << "StreamScheduler handleMessage"
+          << std::endl;
+  }
 }
 
 void StreamScheduler::printAssignment(){

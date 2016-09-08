@@ -14,6 +14,7 @@
 
 using std::vector;
 using std::list;
+using std::unordered_map;
 
 Define_Module(RBScheduler);
 
@@ -22,7 +23,8 @@ void RBScheduler::initialize(){
 }
 
 StreamTransSched *RBScheduler::getSchedule(
-		const std::vector<StreamTransReq*>& reqs){
+		const std::vector<StreamTransReq*>& reqs,
+                const std::unordered_map<int,SINR*>* estimates){
 	if(!reqs.empty()){
                 list<KoiData*>::iterator bestPos;
                 bool init = false;
@@ -74,7 +76,8 @@ StreamTransSched *RBScheduler::getSchedule(
 void RBScheduler::handleMessage(cMessage *msg){
 	if(msg->getKind()==MessageType::transReqList){
 		TransReqList *req = dynamic_cast<TransReqList*>(msg);
-		StreamTransSched *sched = this->getSchedule(req->getRequests());
+		StreamTransSched *sched = this->getSchedule(req->getRequests(),
+                    req->getEstimates());
 		if(sched!=nullptr){
 			if(sched->getMessageDirection()==MessageDirection::d2d){
 				switch(req->getMessageDirection()){
@@ -88,6 +91,7 @@ void RBScheduler::handleMessage(cMessage *msg){
 			}
 			send(sched,"scheduler$o");
 		}
+                delete req->getEstimates();
 		delete req;
 	}
 }
