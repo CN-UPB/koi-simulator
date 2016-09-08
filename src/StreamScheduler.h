@@ -36,6 +36,8 @@ class StreamScheduler: public cSimpleModule{
 		simtime_t streamSchedPeriod;
 		simtime_t tti;
 		std::vector<StreamInfo*> infos;		
+                std::vector<SINR*> sinrEstimate;
+                SINR *estimateBS;
 		std::unordered_map<unsigned long,std::unordered_map<int,ResAssign>> rbAssignments;
 		virtual void initialize();
 		virtual void handleMessage(cMessage *msg);

@@ -25,6 +25,8 @@ void StreamScheduler::initialize(){
 	this->infos = vector<StreamInfo*>();
 	this->streamSchedPeriod = par("streamSchedPeriod");
 	this->tti = par("tti");
+        this->sinrEstimate.resize(numberOfMs,nullptr);
+        this->estimateBS = nullptr;
 	// Produce the first schedule right at the init offset
 	// We will need to make certain that all mobile stations have reported 
 	// their streams at the time the first schedule is computed.
@@ -164,6 +166,18 @@ void StreamScheduler::printAssignment(){
 }
 
 void StreamScheduler::handleSINREstimate(SINR *msg){
-  // SINR Estimates are not used in the default Round Robin scheduler
-  delete msg;
+  if(msg->getMsId()==-1){
+    // SINR estimate for the local BS
+    if(estimateBS!=nullptr){
+      delete estimateBS;
+    }
+    estimateBS = msg;
+  }
+  else{
+    // SINR estimate for a local mobile station
+    if(sinrEstimate[msg->getMsId()]!=nullptr){
+      delete sinrEstimate[msg->getMsId()];
+    }
+    sinrEstimate[msg->getMsId()] = msg;
+  }
 }
