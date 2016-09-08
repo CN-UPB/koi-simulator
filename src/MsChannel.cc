@@ -144,6 +144,9 @@ void MsChannel::handleMessage(cMessage *msg)  {
 	}
 	else if(msg->getKind()==MessageType::koidata)  {
 		KoiData *packet = (KoiData *) msg;
+                // Set Scheduled to false, as the packet now need to be
+                // scheduled anew.
+                packet->setScheduled(false);
 		// Just forward the packet for now, without error checking etc
 		vector<double> instSINR;
 		int currentRessourceBlock = packet->getResourceBlock();

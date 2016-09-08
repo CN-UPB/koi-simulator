@@ -174,6 +174,9 @@ void BsChannel::handleMessage(cMessage *msg)  {
     else if(msg->arrivedOn("fromMs"))  {
         assert(msg->getKind() == MessageType::koidata);
         KoiData *packet = dynamic_cast<KoiData*>(msg);
+        // Set Scheduled flag to false again, the packet has been transmitted 
+        // and now needs to be scheduled anew for the next transmission leg.
+        packet->setScheduled(false);
 
         vector<double> instSINR;
 	int currentRessourceBlock = packet->getResourceBlock();
