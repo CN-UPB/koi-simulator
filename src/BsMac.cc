@@ -165,54 +165,38 @@ void BsMac::handleMessage(cMessage *msg)  {
           send(msg,"toScheduler");
 	}
     else if(msg->getKind()==MessageType::streamSched)  {
-	    StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
-            vector<double> sinr_values;
-	    //sinr_values.push_back(SINR_(destMs,sched->getRb()));
-            
-            double channel_capacity = 1;
-	    /**
-            int cqi;
-            if(sinr_values.size() > 0){
-				cqi = SINR_to_CQI(*(std::min_element(sinr_values.begin(), sinr_values.end())));
-			}else{
-				cqi = 1;
-			}
-            **/
-	    // For now, only 1 packet will be send per RB in each TTI
-            if(channel_capacity > 0)  {
-                KoiData *currPacket = nullptr;
-                for(auto streamIter = streamQueues.begin();
-                    streamIter!=streamQueues.end(); ++streamIter){
-                  list<KoiData*>& currList = streamIter->second;
-                  for(auto packetIter = currList.begin(); 
-                      packetIter!=currList.end();){
-                    currPacket = *packetIter;
-                    if(currPacket->getScheduled()){
-                      packetIter = currList.erase(packetIter);
-                      currPacket->setTransPower(transmissionPower);
-                      // Set CQI for a fixed value until we decide on how to 
-                      // compute it
-                      currPacket->setCqi(15);
-                      sendDelayed(currPacket, epsilon, "toPhy");
+			StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
+			KoiData *currPacket = nullptr;
+			for(auto streamIter = streamQueues.begin();
+					streamIter!=streamQueues.end(); ++streamIter){
+				list<KoiData*>& currList = streamIter->second;
+				for(auto packetIter = currList.begin(); packetIter!=currList.end();){
+					currPacket = *packetIter;
+					if(currPacket->getScheduled()){
+						packetIter = currList.erase(packetIter);
+						currPacket->setTransPower(transmissionPower);
+						// Set CQI for a fixed value until we decide on how to 
+						// compute it
+						currPacket->setCqi(15);
+						sendDelayed(currPacket, epsilon, "toPhy");
 
-                      TransInfo *info = new TransInfo();
-                      info->setBsId(bsId);
-                      info->setPower(transmissionPower);
-                      info->setRb(currPacket->getResourceBlock());
-                      // It is the BS itself sending, not a MS, which we indicate
-                      // with an index of -1 for the MS
-                      info->setMsId(-1);
-                      info->setMessageDirection(MessageDirection::down);
-                      sendToNeighbourCells(info);
-                      delete info;
-                    }
-                    else{
-                      ++packetIter;
-                    }
-                  }
-                }
-            }
-	    delete sched;
+						TransInfo *info = new TransInfo();
+						info->setBsId(bsId);
+						info->setPower(transmissionPower);
+						info->setRb(currPacket->getResourceBlock());
+						// It is the BS itself sending, not a MS, which we indicate
+						// with an index of -1 for the MS
+						info->setMsId(-1);
+						info->setMessageDirection(MessageDirection::down);
+						sendToNeighbourCells(info);
+						delete info;
+					}
+					else{
+						++packetIter;
+					}
+				}
+			}
+			delete sched;
     }
     else if(msg->isName("BS_MS_POSITIONS"))  {
         //send the ms positions to the own bs channels
@@ -287,6 +271,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 				req->setPeriod(queueHead->getInterarrival());
 				req->setPackets(&(iter->second));
 				req->setMessageDirection(MessageDirection::down);
+				req->setRequestOrigin(-1);
 				send(req,"toScheduler");
 			}
 		}

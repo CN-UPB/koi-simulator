@@ -10,6 +10,7 @@
 #include "RBScheduler.h"
 #include "MessageTypes.h"
 #include "TransReqList_m.h"
+#include "util.h"
 #include <list>
 
 using std::vector;
@@ -23,14 +24,14 @@ void RBScheduler::initialize(){
 }
 
 StreamTransSched *RBScheduler::getSchedule(
-		const std::vector<StreamTransReq*>& reqs,
-                const std::unordered_map<int,SINR*>* estimates){
+		std::vector<StreamTransReq*>& reqs,
+		int direction,
+		const std::unordered_map<int,SINR*>* estimates){
 	if(!reqs.empty()){
-                list<KoiData*>::iterator bestPos;
-                bool init = false;
-		int bestDir;
+		StreamTransReq *bestReq = nullptr;
+		KoiData *bestPacket = nullptr;
 		// The following code iterates over all transmission requests and finds 
-		// the next packet to be send, according to the scheduler's "compare" 
+		// the rquest with the best packet, according to the scheduler's "compare" 
 		// method.
 		StreamTransReq *currReq;
 		for(auto iter=reqs.begin(); iter!=reqs.end(); iter++){
@@ -41,31 +42,94 @@ StreamTransSched *RBScheduler::getSchedule(
 			KoiData *currPacket;
 			for(auto iterQueue = (currReq->getPackets())->begin();
 					iterQueue!=(currReq->getPackets())->end();
-                                        ++iterQueue
-					){
+					++iterQueue
+				 ){
 				currPacket = *iterQueue;
-				if(!init || comparator(currPacket,*bestPos)){
+				if(!currPacket->getScheduled() 
+						&& (bestReq!=nullptr || comparator(currPacket,bestPacket))){
 					// The current packet is better than 
 					// the previous best packet, so it 
 					// becomes the new package to be 
 					// scheduled.
-                                        bestPos = iterQueue;
-					bestDir = currReq->getMessageDirection();
-                                        // We need to indicate that the
-                                        // iterator has been initialized, 
-                                        // because a default constructed iterator
-                                        // cannot be checked
-                                        init = true;
+					bestReq = currReq;
+					bestPacket = currPacket;
 				}
 			}
-			delete currReq;
+		}
+		// At this point, we know the request with the best packet.
+		// The BS/MS where that request originated now gets as many 
+		// packets scheduled as the expected transmission rate allows.
+		// First, remove all requests from other BS/MS
+		auto delIter(reqs.begin());
+		StreamTransReq *tmp;
+		while(delIter!=reqs.end()){
+			if((*delIter)->getRequestOrigin()!=bestReq->getRequestOrigin()){
+				tmp = *delIter;
+				delIter = reqs.erase(delIter);
+				delete tmp;
+			}
+			else{
+				++delIter;
+			}
+		}
+		// Determine potential channel capacity based on the SINR 
+		// estimates.
+		vector<double> sinrValues;
+		if(direction==MessageDirection::up){
+			sinrValues.push_back(estimates->at(bestReq->getRequestOrigin())->getUp(rbNumber));
+		}
+		else{
+			sinrValues.push_back(estimates->at(bestReq->getRequestOrigin())->getDown(rbNumber));
+		}
+		double channelCap = getChannelCapacity(sinrValues);
+		// Schedule the best packets according to the compare method
+		// until the channel capacity is used up.
+		while(channelCap>0){
+			StreamTransReq *currReq;
+			*bestPacket = nullptr;
+			for(auto iter=reqs.begin(); iter!=reqs.end(); iter++){
+				currReq = *iter;
+				// Iterate over all packets in the queue for the current stream
+				// and find the which has the lowest value according to the 
+				// scheduler's compare method.
+				KoiData *currPacket;
+				for(auto iterQueue = (currReq->getPackets())->begin();
+						iterQueue!=(currReq->getPackets())->end();
+						++iterQueue
+					 ){
+					currPacket = *iterQueue;
+					if(!currPacket->getScheduled() 
+							&& (bestPacket!=nullptr || comparator(currPacket,bestPacket))){
+						// The current packet is better than 
+						// the previous best packet, so it 
+						// becomes the new package to be 
+						// scheduled.
+						bestPacket = currPacket;
+					}
+				}
+			}
+			if(bestPacket!=nullptr){
+				bestPacket->setScheduled(true);
+				bestPacket->setResourceBlock(rbNumber);
+				bestPacket->setMessageDirection(direction);
+				if(channelCap-bestPacket->getBitLength()>=0){
+					channelCap -= bestPacket->getBitLength();
+				}
+				else{
+					bestPacket->setBitLength(bestPacket->getBitLength()-channelCap);
+					channelCap = 0;
+				}
+			}
+			else{
+				// No new best packet has been found, meaning that all packets 
+				// of the choosen station have been scheduled. The remaining capacity
+				// goes unused.
+				break;
+			}
 		}
 		StreamTransSched *schedule = new StreamTransSched();
-		schedule->setSrc((*bestPos)->getSrc());
-		schedule->setMessageDirection(bestDir);
-                (*bestPos)->setResourceBlock(rbNumber);
-                (*bestPos)->setScheduled(true);
-		(*bestPos)->setMessageDirection(bestDir);
+		schedule->setSrc(bestReq->getRequestOrigin());
+		schedule->setMessageDirection(direction);
 		return schedule;
 	}
 	else{
@@ -77,7 +141,8 @@ void RBScheduler::handleMessage(cMessage *msg){
 	if(msg->getKind()==MessageType::transReqList){
 		TransReqList *req = dynamic_cast<TransReqList*>(msg);
 		StreamTransSched *sched = this->getSchedule(req->getRequests(),
-                    req->getEstimates());
+				req->getMessageDirection(),
+				req->getEstimates());
 		if(sched!=nullptr){
 			if(sched->getMessageDirection()==MessageDirection::d2d){
 				switch(req->getMessageDirection()){
@@ -91,7 +156,7 @@ void RBScheduler::handleMessage(cMessage *msg){
 			}
 			send(sched,"scheduler$o");
 		}
-                delete req->getEstimates();
+		delete req->getEstimates();
 		delete req;
 	}
 }

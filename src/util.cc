@@ -86,7 +86,7 @@ double getSpectralEfficiency(int CQI){
 	}
 }
 
-double getChannelCapacity(vector<double> sinrValues){
+double getChannelCapacity(const vector<double>& sinrValues){
 	int numberRB = sinrValues.size();
 	double minSinr;
 	if(numberRB > 0){
@@ -98,9 +98,7 @@ double getChannelCapacity(vector<double> sinrValues){
 	int subcarriers = 12;	// Fix for LTE
 	int OFDMA_Symbols = 7;	// Fix for LTE
 	
-	// Ignore CQI until we have decided how to compute it
-	//double capacityPerRB = getSpectralEfficiency(CQI) * subcarriers * OFDMA_Symbols;
-	double capacityPerRB = 1.0 * subcarriers * OFDMA_Symbols;
+	double capacityPerRB = getSpectralEfficiency(CQI) * subcarriers * OFDMA_Symbols;
 	double result = capacityPerRB * numberRB;
 	// Round down result, we cannot send half bits.
 	return floor(result);

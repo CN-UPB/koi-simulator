@@ -24,10 +24,10 @@ void TrafficGen::initialize(){
 	this->msId = par("msId");
 	this->packetLength = par("packetLength");
 	this->periodicTraffic = par("periodicTraffic");
-        this->tti = par("tti");
-        this->genPackets = registerSignal("genPackets");
-        this->recPackets = registerSignal("recPackets");
-        this->missedDL = registerSignal("missedDL");
+	this->tti = par("tti");
+	this->genPackets = registerSignal("genPackets");
+	this->recPackets = registerSignal("recPackets");
+	this->missedDL = registerSignal("missedDL");
 
 	string xmlPath = par("commTable");
 	vector<StreamDef> parsedStreams(parseCommTable(xmlPath,bsId,msId));
@@ -36,13 +36,12 @@ void TrafficGen::initialize(){
 		this->streams[stream.streamId] = stream;
 		if(this->periodicTraffic){
 			Traffic *msg = new Traffic();
-                        msg->setPartner(stream.destMsId);
+			msg->setPartner(stream.destMsId);
 			msg->setTrafficType(TrafficType::periodic);
-                        msg->setStreamId(stream.streamId);
-                        // schedule initial events randomly in 
-                        // [initOffset,initOffset+4*tti]
-			scheduleAt(uniform(initOffset,initOffset+(4*tti)),
-					msg);
+			msg->setStreamId(stream.streamId);
+			// schedule initial events randomly in 
+			// [initOffset,initOffset+4*tti]
+			scheduleAt(uniform(initOffset,initOffset+(4*tti)),msg);
 		}
 		// Send stream notification message, which will inform the 
 		// mobile station's MAC, the base station's MAC and the 
@@ -50,11 +49,11 @@ void TrafficGen::initialize(){
 		// this MS and it's comm partner.
 		StreamInfo *info = new StreamInfo();
 		info->setSrc(msId);
-                info->setDest(stream.destMsId);
-                info->setInterarrival(stream.period);
-                info->setStreamId(stream.streamId);
+		info->setDest(stream.destMsId);
+		info->setInterarrival(stream.period);
+		info->setStreamId(stream.streamId);
 		info->setD2d(stream.d2d);
-                info->setDeadline(stream.deadline);
+		info->setDeadline(stream.deadline);
 		send(info,"toMac");
 	}
 }

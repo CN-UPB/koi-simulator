@@ -19,7 +19,7 @@ int SINR_to_CQI(double minSinr);
 // Includes the bit/symbol rate (for MCS and Codingrate) for a given CQI
 double getSpectralEfficiency(int CQI);
 
-double getChannelCapacity(vector<double> sinrValues);
+double getChannelCapacity(const vector<double>& sinrValues);
 
 double getBler(int cqi, double sinr, cSimpleModule* module);
 

@@ -127,6 +127,7 @@ void StreamScheduler::handleMessage(cMessage *msg){
             // Clear all transmission requests for this 
             // stream from the stream schedulers queue.
             iterRb->second.clear();
+						lst->setMessageDirection(iterDir->first);
             switch(iterDir->first){
               case MessageDirection::up:
                 send(lst,"upRB$o",iterRb->first);
