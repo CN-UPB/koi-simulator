@@ -17,6 +17,7 @@
 #include "StreamTransReq_m.h"
 #include "MessageTypes.h"
 
+#include <set>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -26,10 +27,12 @@ class StreamScheduler: public cSimpleModule{
 	private:
 		using ResAssign = std::pair<MessageDirection,int>;
 		std::unordered_map<int,std::unordered_map<int,std::vector<StreamTransReq*>>> requests;
+		std::set<int> scheduledStations;
 		virtual void scheduleStreams();
 
 	protected:
 		simtime_t initOffset;
+		simtime_t epsilon;
 		int numberOfMs;
 		int upRB;
 		int downRB;

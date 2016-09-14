@@ -20,6 +20,7 @@ enum MessageType: short {
 	transReqList,
 	scheduleStreams,
 	scheduleRBs,
+	sendSchedules,
 	sinrEst
 };
 

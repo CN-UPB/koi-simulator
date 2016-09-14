@@ -41,6 +41,9 @@ moduleinterface StreamScheduler {
 		double streamSchedPeriod @unit(s);
 		// Length of single transmission time interval
 		double tti @unit(s);
+		// A small offset used control message order in cases where ordering 
+		// cannot be guaranteed by generation order.
+		double epsilon @unit(s);
 		@display("i=block/dispatch");
 	gates:
 		// For schedule exchange with the local BaseStation.

@@ -25,8 +25,9 @@ void StreamScheduler::initialize(){
 	this->infos = vector<StreamInfo*>();
 	this->streamSchedPeriod = par("streamSchedPeriod");
 	this->tti = par("tti");
-        this->sinrEstimate.resize(numberOfMs,nullptr);
-        this->estimateBS = nullptr;
+	this->epsilon = par("epsilon");
+	this->sinrEstimate.resize(numberOfMs,nullptr);
+	this->estimateBS = nullptr;
 	// Produce the first schedule right at the init offset
 	// We will need to make certain that all mobile stations have reported 
 	// their streams at the time the first schedule is computed.
@@ -98,7 +99,8 @@ void StreamScheduler::handleMessage(cMessage *msg){
         scheduleAt(simTime()+this->streamSchedPeriod,msg);
         this->printAssignment();
         } break;
-    case MessageType::scheduleRBs:
+		case MessageType::scheduleRBs:
+				scheduledStations.clear();
         // Iterate over all message directions (up/down)
         for(auto iterDir=this->requests.begin();
             iterDir!=requests.end();
@@ -139,24 +141,34 @@ void StreamScheduler::handleMessage(cMessage *msg){
           }
         }
         scheduleAt(simTime()+tti,msg);
+				scheduleAt(simTime()+epsilon,new cMessage("",MessageType::sendSchedules));
         break;
     case MessageType::streamSched:{
-        StreamTransSched *sched = (StreamTransSched*)msg;
-        switch(sched->getMessageDirection()){
-          case MessageDirection::d2dDown:
-          case MessageDirection::d2dUp:
-          case MessageDirection::up:
-            send(sched,"toMs",sched->getSrc());
-            break;
-          case MessageDirection::down:
-            send(sched,"toBs");
-            break;
-        }
+        StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
+				if(scheduledStations.find(sched->getSrc())==scheduledStations.end()){
+					scheduledStations.insert(sched->getSrc());
+				}
+				delete sched;
         } break;
     case MessageType::sinrEst:{
         SINR *sinrEst = dynamic_cast<SINR*>(msg);
         this->handleSINREstimate(sinrEst);        
         } break;
+		case MessageType::sendSchedules:{
+				StreamTransSched* sched(nullptr);
+				for(const int& id:scheduledStations){
+					sched = new StreamTransSched();
+					sched->setSrc(id);
+					if(id==-1){
+						// -1 is the local base station
+						send(sched,"toBs");
+					}
+					else{
+						// Send to the indicated mobile station
+						send(sched,"toMs",id);
+					}
+				}
+			} break;
     default:
         std::cerr << "Received invalid Message in "
           << "StreamScheduler handleMessage"
