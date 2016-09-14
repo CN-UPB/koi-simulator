@@ -71,6 +71,7 @@ void TrafficGen::handleMessage(cMessage *msg){
 				pack->setSrc(this->msId);
 				pack->setDest(stream.destMsId);
 				pack->setTrafficType(TrafficType::periodic);
+				std::cout << this->packetLength << std::endl;
 				pack->setBitLength(this->packetLength);
 				pack->setInterarrival(stream.period);
 				pack->setStreamId(stream.streamId);

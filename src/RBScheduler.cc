@@ -46,7 +46,7 @@ StreamTransSched *RBScheduler::getSchedule(
 				 ){
 				currPacket = *iterQueue;
 				if(!currPacket->getScheduled() 
-						&& (bestReq!=nullptr || comparator(currPacket,bestPacket))){
+						&& (bestPacket==nullptr || comparator(currPacket,bestPacket))){
 					// The current packet is better than 
 					// the previous best packet, so it 
 					// becomes the new package to be 
@@ -99,7 +99,7 @@ StreamTransSched *RBScheduler::getSchedule(
 					 ){
 					currPacket = *iterQueue;
 					if(!currPacket->getScheduled() 
-							&& (bestPacket!=nullptr || comparator(currPacket,bestPacket))){
+							&& (bestPacket==nullptr || comparator(currPacket,bestPacket))){
 						// The current packet is better than 
 						// the previous best packet, so it 
 						// becomes the new package to be 
