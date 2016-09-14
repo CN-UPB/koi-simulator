@@ -12,20 +12,20 @@ simple MsPhy  {
 		int numberOfMobileStations;
 		@display("i=block/ifcard");
     	
-    gates:
-	// For the receival of simulation traffic packets from local 
-	// BaseStation and MobileStations.
-    	input fromChannel;
-	// For uplink transmission of simulation traffic packets to the 
-	// local BaseStation, connected to BsChannel.
-    	output toChannel;
-	// For information messages to the MsChannel module
-    	output toMsChannel;
-	// Communication with the MsMac module
-    	input fromMac;
-	// Communication with the MsMac module
-    	output toMac;
-	// Connection to channels of MS in same cell, for transmission of 
-	// simulation traffic packets.
-	output toMs[numberOfMobileStations];
+	gates:
+		// For the receival of simulation traffic packets from local 
+		// BaseStation and MobileStations.
+		input fromChannel;
+		// For uplink transmission of simulation traffic packets to the 
+		// local BaseStation, connected to BsChannel.
+		output toChannel;
+		// For information messages to the MsChannel module
+		output toMsChannel;
+		// Communication with the MsMac module
+		input fromMac;
+		// Communication with the MsMac module
+		output toMac;
+		// Connection to channels of MS in same cell, for transmission of 
+		// simulation traffic packets.
+		output toMs[numberOfMobileStations];
 }

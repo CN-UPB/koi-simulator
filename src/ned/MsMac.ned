@@ -32,61 +32,61 @@
 // to the <em>phy</em> module to be used in SINR computations in the MsChannel.
 simple MsMac  {
     parameters:
-    	// The id of the local cell and BaseStation.
-    	int bsId;
-	// The ID of this MobileStation. MobileStation IDs are unique only 
-	// within any given cell. Thus, to uniquely identify a MobileStation,
-	// it's <tt>bsId</tt> and it's <tt>msId</tt> are needed.
-    	int msId;
-	// The X position of the local BaseStation.
-    	double initBsXPos;
-	// The Y position of the local BaseStation.
-    	double initBsYPos;
-	// The X position of the MobileStation. 
-	double initMsXPos = default(0.0);
-	// The Y position of the MobileStation. 
-	double initMsYPos = default(0.0);
-	// The quadrant for initial positioning by sector.
-	int initQuadrant;
-        int currentChannel;
-	// Offset from the simulation start reserved for initialization messages.
-	// No traffic is generated/send before it.
-    	double initOffset @unit(s);
-	// Length of single transmission time interval
-    	double tti @unit(s);
-	// Interval between position update messages
-	// This parameter currently has no effect as there is no movement 
-	// currently implemented.
-    	int positionResendInterval;
-	// The alpha angle for initial positioning by sector.
-    	double initPosAlpha;
-	// The beta angle for initial positioning by sector.
-	double initPosBeta;
-	// The gamma angle for initial positioning by sector.
-	double initPosGamma;
-	// A small offset used control message order in cases where ordering 
-	// cannot be guaranteed by generation order.
-	double epsilon @unit(s);
-	// The radius of the local cell.
-	double radius;
-	// The random seed used for initial positioning by sector.
-	int PosSeed;
-	// The number of downlink (BS->MS) resource blocks.
-	int downResourceBlocks;
-	// This is the length in Bits for all packets generated at this 
-	// mobile station
-	int packetLength = default(1500b) @unit(b);
-	// The power setting used for transmissions.
-	double transmissionPower = default(1.0);
-	// The positioning algorithm for MobileStations inside their cell
-	// 0 - Uniformely random anywhere in the cell
-	// 1 - Use the positions given as OMNet parameters (initMsXPos,initMsXPos)
-	// 2 - Use initial placement by sector
-	// 3 - Use linear placement simulating a straight road
-	int positioning = default(0);
-    	
-        @display("i=block/mac");
-        
+			// The id of the local cell and BaseStation.
+			int bsId;
+			// The ID of this MobileStation. MobileStation IDs are unique only 
+			// within any given cell. Thus, to uniquely identify a MobileStation,
+			// it's <tt>bsId</tt> and it's <tt>msId</tt> are needed.
+			int msId;
+			// The X position of the local BaseStation.
+			double initBsXPos;
+			// The Y position of the local BaseStation.
+			double initBsYPos;
+			// The X position of the MobileStation. 
+			double initMsXPos = default(0.0);
+			// The Y position of the MobileStation. 
+			double initMsYPos = default(0.0);
+			// The quadrant for initial positioning by sector.
+			int initQuadrant;
+			int currentChannel;
+			// Offset from the simulation start reserved for initialization messages.
+			// No traffic is generated/send before it.
+			double initOffset @unit(s);
+			// Length of single transmission time interval
+			double tti @unit(s);
+			// Interval between position update messages
+			// This parameter currently has no effect as there is no movement 
+			// currently implemented.
+			int positionResendInterval;
+			// The alpha angle for initial positioning by sector.
+			double initPosAlpha;
+			// The beta angle for initial positioning by sector.
+			double initPosBeta;
+			// The gamma angle for initial positioning by sector.
+			double initPosGamma;
+			// A small offset used control message order in cases where ordering 
+			// cannot be guaranteed by generation order.
+			double epsilon @unit(s);
+			// The radius of the local cell.
+			double radius;
+			// The random seed used for initial positioning by sector.
+			int PosSeed;
+			// The number of downlink (BS->MS) resource blocks.
+			int downResourceBlocks;
+			// This is the length in Bits for all packets generated at this 
+			// mobile station
+			int packetLength = default(1500b) @unit(b);
+			// The power setting used for transmissions.
+			double transmissionPower = default(1.0);
+			// The positioning algorithm for MobileStations inside their cell
+			// 0 - Uniformely random anywhere in the cell
+			// 1 - Use the positions given as OMNet parameters (initMsXPos,initMsXPos)
+			// 2 - Use initial placement by sector
+			// 3 - Use linear placement simulating a straight road
+			int positioning = default(0);
+
+			@display("i=block/mac");
+
     gates:
     	// Messages to the TrafficGen module
         input fromApp;

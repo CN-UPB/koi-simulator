@@ -181,22 +181,22 @@ Position MsMac::initMsPositionRand(){
 }
 
 void MsMac::initialize()  {
-    	positionResendInterval = par("positionResendInterval");
-    	msId = par("msId");
-    	bsId = par("bsId");
-    	epsilon = par("epsilon");
-   	radius = par("radius");
+	positionResendInterval = par("positionResendInterval");
+	msId = par("msId");
+	bsId = par("bsId");
+	epsilon = par("epsilon");
+	radius = par("radius");
 	initBsPos.x = par("initBsXPos");
 	initBsPos.y = par("initBsYPos");
-    	currentChannel = par("currentChannel");
+	currentChannel = par("currentChannel");
 	double initPosAlpha = par("initPosAlpha");
 	double initPosBeta = par("initPosBeta");
 	double initPosGamma = par("initPosGamma");
 	int initQuadrant = par("initQuadrant");
-   	initOffset = par("initOffset");
-   	tti = par("tti");
-    	downResourceBlocks = par("downResourceBlocks");
-    	packetLength = par("packetLength");
+	initOffset = par("initOffset");
+	tti = par("tti");
+	downResourceBlocks = par("downResourceBlocks");
+	packetLength = par("packetLength");
 	transmissionPower = par("transmissionPower");
 
 	switch((int)par("positioning")){
@@ -225,18 +225,18 @@ void MsMac::initialize()  {
 	//for Tkenv
 	updateDisplayString();
 	
-    // disable resending of MS positions for now, we have no movement	
-    //resend the ms position every x times to the BsMac layer
-    //scheduleAt(simTime() + initOffset + tti - epsilon, new cMessage("RESEND_POS")); //originally set to simTime() + initOffset 
+	// disable resending of MS positions for now, we have no movement	
+	//resend the ms position every x times to the BsMac layer
+	//scheduleAt(simTime() + initOffset + tti - epsilon, new cMessage("RESEND_POS")); //originally set to simTime() + initOffset 
 
-    //every tti send transmit requests to stream scheduler
-    scheduleAt(simTime() + initOffset-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
-    
-    // Send MS Position once at the very beginning for cluster generation
-    PositionExchange *posEx = new PositionExchange("MS_POS_UPDATE");
-    posEx->setId(msId);
-    posEx->setPosition(msPosition);
-    send(posEx, "toBsMac");
+	//every tti send transmit requests to stream scheduler
+	scheduleAt(simTime() + initOffset-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
+
+	// Send MS Position once at the very beginning for cluster generation
+	PositionExchange *posEx = new PositionExchange("MS_POS_UPDATE");
+	posEx->setId(msId);
+	posEx->setPosition(msPosition);
+	send(posEx, "toBsMac");
 }
 
 void MsMac::handleMessage(cMessage *msg)  {

@@ -19,13 +19,16 @@ simple EDFStreamSched like StreamScheduler{
 		// The number of MobileStations in the local cell
 		int numberOfMobileStations;
 		// The inter-scheduling period is computed dynamically 
-                // in this scheduler
+		// in this scheduler
 		double streamSchedPeriod = -1s @unit(s);
 		// Length of single transmission time interval
 		double tti @unit(s);
-                @statistic[unscheduled](record=max);
-                @statistic[scheduledStreams](record=max);
-                @statistic[utilizedRb](record=max);
+		// A small offset used control message order in cases where ordering 
+		// cannot be guaranteed by generation order.
+		double epsilon @unit(s);
+		@statistic[unscheduled](record=max);
+		@statistic[scheduledStreams](record=max);
+		@statistic[utilizedRb](record=max);
 		@class("EDFStreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.

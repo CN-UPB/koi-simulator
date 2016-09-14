@@ -60,11 +60,11 @@ simtime_t MsChannel::getProcessingDelay(cMessage *msg)  {
 void MsChannel::handleMessage(cMessage *msg)  {
 	if(msg->isName("SINR_ESTIMATION")){
 		SINR *sinrMessage = new SINR();
-                sinrMessage->setBsId(bsId);
-                sinrMessage->setMsId(msId);
+		sinrMessage->setBsId(bsId);
+		sinrMessage->setMsId(msId);
 
-                // Set SINR estimation to the average SINR value over all 
-                // possible transmission recipients in the previous tti.
+		// Set SINR estimation to the average SINR value over all 
+		// possible transmission recipients in the previous tti.
 		sinrMessage->setDownArraySize(downResourceBlocks);
 		for(int i = 0; i < downResourceBlocks; i++){
 			sinrMessage->setDown(i,
@@ -75,32 +75,32 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			sinrMessage->setUp(i,
                             channel->calcAvgUpSINR(i,transInfosUp[i],msId,1.0));
 		}
-                if(msId==0){
-                  // We need to compute the SINR estimate for the local base 
-                  // station too, because the BS does not have all the 
-                  // necessary transmission information available. 
-                  // To prevent doing unncessary work, only each cell's 
-                  // mobile station with the ID 0 computes the BS's 
-                  // SINR estimate.
-                  //
-                  // TODO Think of a better way to do this
-                  
-                  SINR *bsSINREst = new SINR();
-                  bsSINREst->setBsId(bsId);
-                  // Special value to note that this is the SINR for 
-                  // a base station
-                  bsSINREst->setMsId(-1);
-                  // We only need the down SINR estimate, because the 
-                  // base station only ever uses DOWN resource blocks.
-                  bsSINREst->setDownArraySize(downResourceBlocks);
-                  for(int i = 0; i < downResourceBlocks; i++){
-                    bsSINREst->setDown(i,
-                        channel->calcAvgDownSINR(i,transInfosDown[i],1.0));
-                  }
-                  // Route message to BS via MsPhy and MsMac
-                  send(bsSINREst,"toPhy");
-                }
-                // Route extimate to MsMac via MsPhy
+		if(msId==0){
+			// We need to compute the SINR estimate for the local base 
+			// station too, because the BS does not have all the 
+			// necessary transmission information available. 
+			// To prevent doing unncessary work, only each cell's 
+			// mobile station with the ID 0 computes the BS's 
+			// SINR estimate.
+			//
+			// TODO Think of a better way to do this
+
+			SINR *bsSINREst = new SINR();
+			bsSINREst->setBsId(bsId);
+			// Special value to note that this is the SINR for 
+			// a base station
+			bsSINREst->setMsId(-1);
+			// We only need the down SINR estimate, because the 
+			// base station only ever uses DOWN resource blocks.
+			bsSINREst->setDownArraySize(downResourceBlocks);
+			for(int i = 0; i < downResourceBlocks; i++){
+				bsSINREst->setDown(i,
+						channel->calcAvgDownSINR(i,transInfosDown[i],1.0));
+			}
+			// Route message to BS via MsPhy and MsMac
+			send(bsSINREst,"toPhy");
+		}
+		// Route estimate to MsMac via MsPhy
 		send(sinrMessage,"toPhy");
 		scheduleAt(simTime() + tti, msg);
 	}
