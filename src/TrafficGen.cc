@@ -71,22 +71,21 @@ void TrafficGen::handleMessage(cMessage *msg){
 				pack->setSrc(this->msId);
 				pack->setDest(stream.destMsId);
 				pack->setTrafficType(TrafficType::periodic);
-				std::cout << this->packetLength << std::endl;
 				pack->setBitLength(this->packetLength);
 				pack->setInterarrival(stream.period);
 				pack->setStreamId(stream.streamId);
 				pack->setD2d(stream.d2d);
 				send(pack,"toMac");
 				scheduleAt(currTime+stream.period,msg);
-                                /**
+				/**
 				std::cout << "Stream " << stream.streamId << ": " 
 					<< "MS " << this->msId 
 					<< " Generated Msg " << pack->getId() 
 					<< " to " << pack->getDest() 
 					<< std::endl;
-                                */
-                                // Emit signal for statistics gathering
-                                emit(genPackets,true);
+				*/
+				// Emit signal for statistics gathering
+				emit(genPackets,true);
 				break;
 			
 		}

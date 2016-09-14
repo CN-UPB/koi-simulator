@@ -85,8 +85,8 @@ StreamTransSched *RBScheduler::getSchedule(
 		// Schedule the best packets according to the compare method
 		// until the channel capacity is used up.
 		while(channelCap>0){
-			StreamTransReq *currReq;
-			*bestPacket = nullptr;
+			StreamTransReq *currReq = nullptr;
+			bestPacket = nullptr;
 			for(auto iter=reqs.begin(); iter!=reqs.end(); iter++){
 				currReq = *iter;
 				// Iterate over all packets in the queue for the current stream
