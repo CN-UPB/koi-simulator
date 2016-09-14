@@ -20,6 +20,6 @@ message StreamTransReq  {
 	QueuePtr packets; // The current packet queue for this stream   
 	int messageDirection @enum(MessageDirection); // The direction of the message, up, down or D2D
 	unsigned long streamId; // The unique ID identifying the stream this schedule concerns
-        int requestOrigin; // The id of the MS where the request originated, or -1 if it originated at the BS
+	int requestOrigin; // The id of the MS where the request originated, or -1 if it originated at the BS
 	kind = MessageType::streamTransReq;
 }

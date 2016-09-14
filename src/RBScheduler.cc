@@ -111,7 +111,19 @@ StreamTransSched *RBScheduler::getSchedule(
 			if(bestPacket!=nullptr){
 				bestPacket->setScheduled(true);
 				bestPacket->setResourceBlock(rbNumber);
-				bestPacket->setMessageDirection(direction);
+				int dir;
+				if(bestPacket->getD2d()){
+					if(direction==MessageDirection::down){
+						dir = MessageDirection::d2dDown;
+					}
+					else{
+						dir = MessageDirection::d2dUp;
+					}
+				}
+				else{
+					dir = direction;
+				}
+				bestPacket->setMessageDirection(dir);
 				if(channelCap-bestPacket->getBitLength()>=0){
 					channelCap -= bestPacket->getBitLength();
 				}
