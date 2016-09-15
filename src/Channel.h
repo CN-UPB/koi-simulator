@@ -20,13 +20,6 @@ using namespace itpp;
 class Channel{
 	protected:
 		const static double speedOfLightVac;
-		
-		// Power values and Positions.
-	    vector<Position> senderPosition;
-        vector<Position> targetPosition;
-        vector<vector<Position>> interfererPositions;
-        vector<vector<double>> interfererPower;
-        vector<double> senderPower;
 
 	public:
 		// Initialize your Channel through ini access via module pointer. The MS/BS Positions may not be needed for every channel.
@@ -42,9 +35,6 @@ class Channel{
 		// Updates the Channel if necessary for moving MS
 		virtual void updateChannel(const vector<vector<Position>>& msPos) = 0;
 		        
-		// Store positions of sender/receiver/interferes (Id because pointer is shared)
-		void setSenderPosition(Position p, double power, int Id) { senderPosition[Id] = p; senderPower[Id] = power; }
-
 		virtual double calcUpSINR(int RB, 
 				std::forward_list<TransInfo*> &interferers,
 				int msId,
@@ -75,12 +65,6 @@ class Channel{
 				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower) = 0;
-
-		Position getSenderPosition(int Id) { return senderPosition.at(Id); }
-		void setTargetPosition(Position p, int Id) { targetPosition[Id] = p; }
-		Position getTargetPosition(int Id) { return targetPosition.at(Id); }
-		void clearInterfererPostitions(int Id) { interfererPositions.at(Id).clear(); interfererPower.at(Id).clear(); }
-		void addInterfererPosition(Position p, double power, int Id) { interfererPositions.at(Id).push_back(p); interfererPower.at(Id).push_back(power); }
 
 		virtual ~Channel(){}
 };
