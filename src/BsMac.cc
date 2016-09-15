@@ -21,8 +21,10 @@
 #include "KoiData_m.h"
 #include "TransInfo_m.h"
 #include <algorithm>
+#include <set>
 
 using namespace itpp;
+using std::set;
 
 Define_Module(BsMac);
 
@@ -134,6 +136,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 					}
 					break;
 				case MessageDirection::down:
+				case MessageDirection::d2dDown:
 					// Down direction transmission from 
 					// neighbouring BS. This interferes 
 					// with reception at local MS, so 
@@ -167,6 +170,7 @@ void BsMac::handleMessage(cMessage *msg)  {
     else if(msg->getKind()==MessageType::streamSched)  {
 			StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
 			KoiData *currPacket = nullptr;
+			set<int> infos;
 			for(auto streamIter = streamQueues.begin();
 					streamIter!=streamQueues.end(); ++streamIter){
 				list<KoiData*>& currList = streamIter->second;
@@ -180,21 +184,29 @@ void BsMac::handleMessage(cMessage *msg)  {
 						currPacket->setCqi(15);
 						sendDelayed(currPacket, epsilon, "toPhy");
 
-						TransInfo *info = new TransInfo();
-						info->setBsId(bsId);
-						info->setPower(transmissionPower);
-						info->setRb(currPacket->getResourceBlock());
-						// It is the BS itself sending, not a MS, which we indicate
-						// with an index of -1 for the MS
-						info->setMsId(-1);
-						info->setMessageDirection(MessageDirection::down);
-						sendToNeighbourCells(info);
-						delete info;
+						// Store used resource block in set for later generation of
+						// TransInfo messages. That way, we can make sure that only one 
+						// TransInfo is send out per used RB.
+						infos.insert(currPacket->getResourceBlock());
+
 					}
 					else{
 						++packetIter;
 					}
 				}
+			}
+			// Send out exactly one TransInfo per used resource block
+			for(auto& rb:infos){
+				TransInfo *info = new TransInfo();
+				info->setBsId(bsId);
+				info->setPower(transmissionPower);
+				info->setRb(rb);
+				// It is the BS itself sending, not a MS, which we indicate
+				// with an index of -1 for the MS
+				info->setMsId(-1);
+				info->setMessageDirection(MessageDirection::down);
+				sendToNeighbourCells(info);
+				delete info;
 			}
 			delete sched;
     }

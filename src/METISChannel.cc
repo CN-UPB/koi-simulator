@@ -2247,9 +2247,12 @@ double METISChannel::calcDownSINR(int RB,
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
 		if((*it)->getCreationTime()>=simTime()-tti){
 			if((*it)->getMessageDirection()==MessageDirection::down){
+				// Interference from a neighbouring BS
 				interference += (*it)->getPower() * coeffDownTable[msId][(*it)->getBsId()][SINRCounter][RB];
 			}
 			else if((*it)->getMessageDirection()==MessageDirection::d2dDown){
+				// Interfering from a MS transmitting D2D on the same down resource 
+				// block
 				interference += (*it)->getPower() * coeffDownD2DTable[(*it)->getBsId()][msId][(*it)->getMsId()][SINRCounter][RB];
 			}
 		}
@@ -2278,14 +2281,15 @@ double METISChannel::calcD2DSINR(int RB,
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
 		if((*it)->getCreationTime()>=simTime()-tti){
 			if(direction==MessageDirection::d2dDown){
+				// Interferers when using the down frequency bands
 				if((*it)->getMessageDirection()==MessageDirection::down){
-					// The sender is a neighbouring BS, 
-					// link coefficients for those to all 
-					// local MS are stored in the 
-					// normal downlink table.
+					// The interferer is a neighbouring BS, link coefficients for those to all 
+					// local MS are stored in the normal downlink table.
 					interference += (*it)->getPower() * coeffDownTable[receiveMsId][(*it)->getBsId()][SINRCounter][RB];
 				}
 				else if((*it)->getMessageDirection()==MessageDirection::d2dDown){
+					// Interference from a mobile station transmitting D2D on the same down 
+					// resource block.
 					interference += (*it)->getPower() * coeffDownD2DTable[(*it)->getBsId()][receiveMsId][(*it)->getMsId()][SINRCounter][RB];
 				}
 			}

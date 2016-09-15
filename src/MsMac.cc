@@ -18,6 +18,10 @@
 #include <stdlib.h>
 #include <cmath>
 #include <random>
+#include <set>
+#include <utility>
+
+using std::set;
 
 Define_Module(MsMac);
 
@@ -242,6 +246,7 @@ void MsMac::initialize()  {
 void MsMac::handleMessage(cMessage *msg)  {
     if(msg->getKind()==MessageType::streamSched)  {
 			StreamTransSched *schedule = dynamic_cast<StreamTransSched*>(msg);
+			std::pair<set<int>,set<int>> infos = std::make_pair(set<int>(),set<int>());
 
 			if(schedule->getSrc() == msId)  {
 				KoiData *currPacket = nullptr;
@@ -258,20 +263,40 @@ void MsMac::handleMessage(cMessage *msg)  {
 							// compute it
 							currPacket->setCqi(15);
 							sendDelayed(currPacket, epsilon, "toPhy");
-
-							TransInfo *info = new TransInfo();
-							info->setBsId(bsId);
-							info->setPower(transmissionPower);
-							info->setRb(currPacket->getResourceBlock());
-							info->setMsId(msId);
-							info->setMessageDirection(currPacket->getMessageDirection());
-							send(info,"toBsMac");
+							// Store RB in frequency half dependent sets, so that we send 
+							// at most 1 TransInfo for any given resource block, even 
+							// if we transmit multiple packets using that block.
+							if(currPacket->getMessageDirection()==MessageDirection::up
+									|| currPacket->getMessageDirection()==MessageDirection::d2dUp){
+								infos.first.insert(currPacket->getResourceBlock());
+							}
+							else{
+								infos.second.insert(currPacket->getResourceBlock());
+							}
 						}
 						else{
 							++packetIter;
 						}
 					}
 				}
+			}
+			for(auto& rb:infos.first){
+				TransInfo *info = new TransInfo();
+				info->setBsId(bsId);
+				info->setPower(transmissionPower);
+				info->setRb(rb);
+				info->setMsId(msId);
+				info->setMessageDirection(MessageDirection::up);
+				send(info,"toBsMac");
+			}
+			for(auto& rb:infos.second){
+				TransInfo *info = new TransInfo();
+				info->setBsId(bsId);
+				info->setPower(transmissionPower);
+				info->setRb(rb);
+				info->setMsId(msId);
+				info->setMessageDirection(MessageDirection::d2dDown);
+				send(info,"toBsMac");
 			}
 			delete schedule;
 		}
