@@ -2218,13 +2218,11 @@ double METISChannel::calcUpSINR(int RB,
 	double interference = 0;
 	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
-		if((*it)->getCreationTime()>=simTime()-tti){
-			if((*it)->getMessageDirection()==MessageDirection::up){
-				interference += (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB];
-			}
-			else if((*it)->getMessageDirection()==MessageDirection::d2dUp){
-				interference += (*it)->getPower() * coeffUpD2DTable[(*it)->getBsId()][msId][(*it)->getMsId()][SINRCounter][RB];
-			}
+		if((*it)->getCreationTime()>=simTime()-tti 
+				&& ((*it)->getMessageDirection()==MessageDirection::up 
+						|| (*it)->getMessageDirection()==MessageDirection::d2dUp)){
+			// Sum interference arriving at the receiving base station
+			interference += (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB];
 		}
 		else{
 			delete *it;
@@ -2291,7 +2289,9 @@ double METISChannel::calcD2DSINR(int RB,
 					interference += (*it)->getPower() * coeffDownD2DTable[(*it)->getBsId()][receiveMsId][(*it)->getMsId()][SINRCounter][RB];
 				}
 			}
-			else if(direction==MessageDirection::d2dUp){
+			else if(direction==MessageDirection::d2dUp 
+					&& ((*it)->getMessageDirection()==MessageDirection::up 
+						|| (*it)->getMessageDirection()==MessageDirection::d2dUp)){
 				interference += (*it)->getPower() * coeffUpD2DTable[(*it)->getBsId()][receiveMsId][(*it)->getMsId()][SINRCounter][RB];
 			}
 		}
