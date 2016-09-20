@@ -43,10 +43,6 @@ void MsChannel::initialize()  {
     string eesm_beta = par("eesm_beta");
     eesm_beta_values = vec(eesm_beta);
 
-    // Instantiate a transmission info list for each down/up ressource block
-    transInfosDown.resize(downResourceBlocks);
-    transInfosUp.resize(upResourceBlocks);
-    
     scheduleAt(simTime()+initOffset-epsilon, new cMessage("SINR_ESTIMATION")); //originally set to 1000*tti + epsilon
 }
 
@@ -68,12 +64,12 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		sinrMessage->setDownArraySize(downResourceBlocks);
 		for(int i = 0; i < downResourceBlocks; i++){
 			sinrMessage->setDown(i,
-                            channel->calcAvgD2DDownSINR(i,transInfosDown[i],msId,1.0));
+                            channel->calcAvgD2DDownSINR(i,msId,1.0));
 		}
 		sinrMessage->setUpArraySize(upResourceBlocks);
 		for(int i = 0; i < upResourceBlocks; i++){
 			sinrMessage->setUp(i,
-                            channel->calcAvgUpSINR(i,transInfosUp[i],msId,1.0));
+                            channel->calcAvgUpSINR(i,msId,1.0));
 		}
 		if(msId==0){
 			// We need to compute the SINR estimate for the local base 
@@ -95,7 +91,7 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			bsSINREst->setDownArraySize(downResourceBlocks);
 			for(int i = 0; i < downResourceBlocks; i++){
 				bsSINREst->setDown(i,
-						channel->calcAvgDownSINR(i,transInfosDown[i],1.0));
+						channel->calcAvgDownSINR(i,1.0));
 			}
 			// Route message to BS via MsPhy and MsMac
 			send(bsSINREst,"toPhy");
@@ -127,21 +123,6 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		bsPositions[dataStrPos] = bsPos->getPosition();
 		delete msg;
 	}
-	else if(msg->getKind()==MessageType::transInfo){
-		TransInfo *info = dynamic_cast<TransInfo*>(msg);
-		// The transInfo lists are sorted by RB by transmission direction
-		switch(info->getMessageDirection()){
-			case MessageDirection::d2dUp:
-			case MessageDirection::up:
-				transInfosUp[info->getRb()].push_front(info);
-				break;
-			case MessageDirection::d2dDown:
-			case MessageDirection::down:
-				transInfosDown[info->getRb()].push_front(info);
-				break;
-
-		}
-	}
 	else if(msg->getKind()==MessageType::koidata)  {
 		KoiData *packet = (KoiData *) msg;
                 // Set Scheduled to false, as the packet now need to be
@@ -153,12 +134,11 @@ void MsChannel::handleMessage(cMessage *msg)  {
 
 		switch(packet->getMessageDirection()){
 			case MessageDirection::down:
-				instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,transInfosDown[currentRessourceBlock],msId,packet->getTransPower()));
+				instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,msId,packet->getTransPower()));
 				break;
 			case MessageDirection::d2dDown:
 				instSINR.push_back(channel->calcD2DSINR(
 							currentRessourceBlock,
-							transInfosDown[currentRessourceBlock],
 							packet->getSrc(),
 							msId,MessageDirection::d2dDown,
 							packet->getTransPower()));
@@ -166,7 +146,6 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			case MessageDirection::d2dUp:
 				instSINR.push_back(channel->calcD2DSINR(
 							currentRessourceBlock,
-							transInfosUp[currentRessourceBlock],
 							packet->getSrc(),
 							msId,MessageDirection::d2dUp,
 							packet->getTransPower()));

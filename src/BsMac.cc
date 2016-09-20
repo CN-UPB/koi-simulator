@@ -112,8 +112,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 		delete info;
 	}
 	else if(msg->getKind()==MessageType::transInfo){
-		// Route transmission information according to transmission
-		// direction and origin
+		// Route transmission information according to origin
 		TransInfo *trans = dynamic_cast<TransInfo*>(msg);
 		if(trans->arrivedOn("fromMsMac")){
 			// The message is transmission information from 
@@ -123,31 +122,8 @@ void BsMac::handleMessage(cMessage *msg)  {
 		}
 		else if(trans->arrivedOn("fromCell")){
 			// Message arrived from neighbouring cell
-			switch(trans->getMessageDirection()){
-				case MessageDirection::d2dUp:
-				case MessageDirection::up:
-					// Up direction transmission from 
-					// neighbouring MS. This interferes 
-					// with reception at the local BS,
-					// so forward to all local BSChannels
-					for(int i=0; i<numberOfMobileStations; i++){
-						send(trans->dup(),"toBsChannel",i);
-						send(trans->dup(),"toMsMac",i);
-					}
-					break;
-				case MessageDirection::down:
-				case MessageDirection::d2dDown:
-					// Down direction transmission from 
-					// neighbouring BS. This interferes 
-					// with reception at local MS, so 
-					// forward to local MS
-					for(int i=0; i<numberOfMobileStations; i++){
-						send(trans->dup(),"toMsMac",i);
-					}
-					break;
-			}
+			send(trans->dup(),"toBsChannel",0);
 		}
-		
 		delete msg;
 	}
 	else if(msg->isName("POINTER_EXCHANGE2")){

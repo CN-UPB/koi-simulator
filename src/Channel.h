@@ -13,6 +13,8 @@
 #include "Position.h"
 #include "TransInfo_m.h"
 #include <forward_list>
+#include <utility>
+#include <vector>
 
 using namespace std;
 using namespace itpp;
@@ -20,6 +22,7 @@ using namespace itpp;
 class Channel{
 	protected:
 		const static double speedOfLightVac;
+		pair<vector<forward_list<TransInfo*>>,vector<forward_list<TransInfo*>>> transInfo;
 
 	public:
 		// Initialize your Channel through ini access via module pointer. The MS/BS Positions may not be needed for every channel.
@@ -36,35 +39,31 @@ class Channel{
 		virtual void updateChannel(const vector<vector<Position>>& msPos) = 0;
 		        
 		virtual double calcUpSINR(int RB, 
-				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower) = 0;
 
 		virtual double calcDownSINR(int RB, 
-				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower) = 0;
 
 		virtual double calcD2DSINR(int RB, 
-				std::forward_list<TransInfo*> &interferers,
 				int sendMsID,
 				int receiveMsId,
 				MessageDirection direction,
 				double transPower) = 0;
 
 		virtual double calcAvgUpSINR(int RB, 
-				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower) = 0;
 
 		virtual double calcAvgDownSINR(int RB, 
-				std::forward_list<TransInfo*> &interferers,
 				double transPower) = 0;
 
 		virtual double calcAvgD2DDownSINR(int RB, 
-				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower) = 0;
+
+		virtual void addTransInfo(TransInfo* trans);
 
 		virtual ~Channel(){}
 };

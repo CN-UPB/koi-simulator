@@ -51,15 +51,8 @@ class BsChannel : public cSimpleModule  {
         std::vector<Cluster> remoteCluster;
         Channel* channel;
         vec eesm_beta_values;
-	/**
-	 * Contains transmission information from neighbouring mobile 
-	 * stations, required for SINR interference computation during 
-	 * packet receival.
-	 */ 
-	std::vector<std::forward_list<TransInfo*>> transInfos;
-
-	std::ostream& outputDownSINR(std::ostream& out);
-	std::ostream& outputUpSINR(std::ostream& out);
+				std::ostream& outputDownSINR(std::ostream& out);
+				std::ostream& outputUpSINR(std::ostream& out);
 
     protected:
         virtual void initialize();

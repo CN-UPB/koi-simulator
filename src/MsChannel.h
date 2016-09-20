@@ -35,14 +35,6 @@ class MsChannel : public cSimpleModule  {
         vec eesm_beta_values;
         NeighbourIdMatching *neighbourIdMatching; //map the bsId to the pos in the data structures
         Channel* channel;
-	/**
-	 * Holds transmission information for the current TTI
-	 *
-	 * The vector holds lists of TransInfo messages, sorted by the resource 
-	 * block the transmission uses.
-	 */
-	std::vector<std::forward_list<TransInfo*>> transInfosUp;
-	std::vector<std::forward_list<TransInfo*>> transInfosDown;
 
     protected:
         virtual void initialize();

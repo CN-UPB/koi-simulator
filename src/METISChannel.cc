@@ -100,8 +100,8 @@ bool METISChannel::init(cSimpleModule* module, const vector<vector<Position>>& m
 	maxNumberOfNeighbours = module->par("maxNumberOfNeighbours");
 	bsId = module->par("bsId");
 	tti = module->par("tti");
-    	numberOfMobileStations = module->par("numberOfMobileStations");
-    	xPos = module->par("xPos");
+	numberOfMobileStations = module->par("numberOfMobileStations");
+	xPos = module->par("xPos");
 	yPos = module->par("yPos");
 	upRBs = module->par("upResourceBlocks");
 	downRBs = module->par("downResourceBlocks");
@@ -109,13 +109,13 @@ bool METISChannel::init(cSimpleModule* module, const vector<vector<Position>>& m
 	N_cluster_NLOS = module->par("NumberOfClusters_NLOS");
 	numOfRays_LOS = module->par("NumberOfRays_LOS");
 	numOfRays_NLOS = module->par("NumberOfRays_NLOS");
-   	initModule = module;
-    	freq_c = module->par("CarrierFrequency");
-    	SINRcounter = 0;
-    	NumBsAntenna = module->par("NumBsAntenna");
-    	NumMsAntenna = module->par("NumMsAntenna");
-    	heightUE = module->par("OutdoorHeightUE");
-   	heightBS = module->par("BsHeight");
+	initModule = module;
+	freq_c = module->par("CarrierFrequency");
+	SINRcounter = 0;
+	NumBsAntenna = module->par("NumBsAntenna");
+	NumMsAntenna = module->par("NumMsAntenna");
+	heightUE = module->par("OutdoorHeightUE");
+	heightBS = module->par("BsHeight");
 	vel = module->par("Velocity");
 	XPR_Mean_LOS = module->par("XPR_Mean_LOS");
 	XPR_Std_LOS = module->par("XPR_Std_LOS");
@@ -123,29 +123,33 @@ bool METISChannel::init(cSimpleModule* module, const vector<vector<Position>>& m
 	XPR_Std_NLOS = module->par("XPR_Std_NLOS");
     
     
-    	// Find the neighbours and store the pair (bsId, position in data structures) in a map
-    	cModule *cell = module->getParentModule()->getParentModule();
-    	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
+	// Find the neighbours and store the pair (bsId, position in data structures) in a map
+	cModule *cell = module->getParentModule()->getParentModule();
+	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
 
 	// Get Playground size from cell module:
 	sizeX = cell->par("playgroundSizeX");
 	sizeY = cell->par("playgroundSizeY");
-    
-    	// Actually, this counts the own BS as well, so substract 1 
-    	numOfInterferers = neighbourIdMatching->numberOfNeighbours() - 1;
-    
-    
+
+	// Actually, this counts the own BS as well, so substract 1 
+	numOfInterferers = neighbourIdMatching->numberOfNeighbours() - 1;
+
+	// Resize the vectors for the per-RB trans infos to the number of 
+	// resource blocks.
+	transInfo.first.resize(upRBs);
+	transInfo.second.resize(downRBs);
+
 	// One Channel module per base station
-    	// Half wavelength distance between antennas; give the position of Tx and Rx antennas in GCS
+	// Half wavelength distance between antennas; give the position of Tx and Rx antennas in GCS
 	// For even value of NumBsAntenna, the antenna elements will be equally spaced around the center of Tx
-    	wavelength = speedOfLight / freq_c;
+	wavelength = speedOfLight / freq_c;
 	vector<Position> tmpPos(neighbourPositions.size());
 	for(size_t i = 0; i<neighbourPositions.size(); i++){
 		tmpPos[i] = neighbourPositions[i];
 	}
 	bsAntennaPositions = computeAntennaPos(tmpPos,NumBsAntenna,
 			heightBS);
-		
+
 	// Get position resend interval (Stationary MS assumed during this interval)
 	timeSamples = module->par("positionResendInterval");
 	// 4 Samples per TTI; for smooth Fourier transform
@@ -157,7 +161,7 @@ bool METISChannel::init(cSimpleModule* module, const vector<vector<Position>>& m
 			timeVector[i][t] = 0.00025 * t;
 		}
 	}
-	
+
 	//compute initial SINR parameters
 	recomputeMETISParams(msPositions);
 
@@ -165,7 +169,7 @@ bool METISChannel::init(cSimpleModule* module, const vector<vector<Position>>& m
 	// are only allocated in this init method, which need only be freed 
 	// in the destructor iff init has actually been called.
 	initialized = true;
-	
+
 	return true;
 }
 
@@ -2209,20 +2213,38 @@ void METISChannel::handleMessage(cMessage* msg){
 	delete msg;
 }
 
-double METISChannel::calcUpSINR(int RB, 
-		std::forward_list<TransInfo*> &interferers,
-		int msId,
-		double transPower){
-	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
-	double received = 0;
-	double interference = 0;
+double METISChannel::calcInterference(forward_list<TransInfo*>& interferers,
+		int rb,
+		int receiverId,
+		int SINRCounter,
+		MessageDirection dir){
+	double interference = 0.0;
 	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
-		if((*it)->getCreationTime()>=simTime()-tti 
-				&& ((*it)->getMessageDirection()==MessageDirection::up 
-						|| (*it)->getMessageDirection()==MessageDirection::d2dUp)){
-			// Sum interference arriving at the receiving base station
-			interference += (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB];
+		if((*it)->getCreationTime()>=simTime()-tti){
+			if(receiverId==-1){
+				// Interference at the local base station
+				interference += (*it)->getPower() 
+					* coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][rb];
+			}
+			else{
+				// Interference at local mobile stations
+				if((*it)->getMessageDirection()==MessageDirection::down){
+					// Interference from a neighbouring BS
+					interference += (*it)->getPower() * coeffDownTable[receiverId][(*it)->getBsId()][SINRCounter][rb];
+				}
+				else if((*it)->getMessageDirection()==MessageDirection::d2dDown){
+					// Interference from a MS transmitting D2D on the same down resource 
+					// block
+					interference += (*it)->getPower() 
+						* coeffDownD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
+				}
+				else if((*it)->getMessageDirection()==MessageDirection::d2dUp
+						|| (*it)->getMessageDirection()==MessageDirection::up){
+					interference += (*it)->getPower() 
+						* coeffUpD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
+				}
+			}
 		}
 		else{
 			delete *it;
@@ -2230,103 +2252,64 @@ double METISChannel::calcUpSINR(int RB,
 			it=prev;
 		}
 	}
-	received = transPower * coeffUpTable[bsId][0][msId][SINRcounter][RB];
 	interference += getTermalNoise(300,180000);
+}
+
+double METISChannel::calcUpSINR(int RB, 
+		int msId,
+		double transPower){
+	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
+	double received = 0;
+	double interference = calcInterference(transInfo.first[RB],
+			RB,-1,SINRCounter,MessageDirection::up);
+	received = transPower * coeffUpTable[bsId][0][msId][SINRcounter][RB];
 	// Convert to db scale
 	return 10 * log10( received / interference );
 }
 
 double METISChannel::calcDownSINR(int RB, 
-		std::forward_list<TransInfo*> &interferers,
 		int msId,
 		double transPower){
 	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
 	double received = 0;
-	double interference = 0;
-	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
-	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
-		if((*it)->getCreationTime()>=simTime()-tti){
-			if((*it)->getMessageDirection()==MessageDirection::down){
-				// Interference from a neighbouring BS
-				interference += (*it)->getPower() * coeffDownTable[msId][(*it)->getBsId()][SINRCounter][RB];
-			}
-			else if((*it)->getMessageDirection()==MessageDirection::d2dDown){
-				// Interfering from a MS transmitting D2D on the same down resource 
-				// block
-				interference += (*it)->getPower() * coeffDownD2DTable[(*it)->getBsId()][msId][(*it)->getMsId()][SINRCounter][RB];
-			}
-		}
-		else{
-			delete *it;
-			interferers.erase_after(prev);
-			it=prev;
-		}
-	}
+	double interference = calcInterference(transInfo.second[RB],
+			RB,msId,SINRCounter,MessageDirection::down);
 	received = transPower * coeffDownTable[msId][bsId][SINRcounter][RB];
-	interference += getTermalNoise(300,180000);
 	// Convert to db scale
 	return 10 * log10( received / interference );
 }
 
 double METISChannel::calcD2DSINR(int RB, 
-		std::forward_list<TransInfo*> &interferers,
 		int sendMsID,
 		int receiveMsId,
 		MessageDirection direction,
 		double transPower){
 	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
 	double received = 0;
-	double interference = 0;
-	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
-	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
-		if((*it)->getCreationTime()>=simTime()-tti){
-			if(direction==MessageDirection::d2dDown){
-				// Interferers when using the down frequency bands
-				if((*it)->getMessageDirection()==MessageDirection::down){
-					// The interferer is a neighbouring BS, link coefficients for those to all 
-					// local MS are stored in the normal downlink table.
-					interference += (*it)->getPower() * coeffDownTable[receiveMsId][(*it)->getBsId()][SINRCounter][RB];
-				}
-				else if((*it)->getMessageDirection()==MessageDirection::d2dDown){
-					// Interference from a mobile station transmitting D2D on the same down 
-					// resource block.
-					interference += (*it)->getPower() * coeffDownD2DTable[(*it)->getBsId()][receiveMsId][(*it)->getMsId()][SINRCounter][RB];
-				}
-			}
-			else if(direction==MessageDirection::d2dUp 
-					&& ((*it)->getMessageDirection()==MessageDirection::up 
-						|| (*it)->getMessageDirection()==MessageDirection::d2dUp)){
-				interference += (*it)->getPower() * coeffUpD2DTable[(*it)->getBsId()][receiveMsId][(*it)->getMsId()][SINRCounter][RB];
-			}
-		}
-		else{
-			delete *it;
-			interferers.erase_after(prev);
-			it=prev;
-		}
-	}
+	double interference = 0.0;
 	if(direction==MessageDirection::d2dDown){
 		received = transPower * coeffDownD2DTable[bsId][receiveMsId][sendMsID][SINRCounter][RB];
+		interference = calcInterference(transInfo.second[RB],
+				RB,receiveMsId,SINRCounter,MessageDirection::down);
 	}
 	else{
 		received = transPower * coeffUpD2DTable[bsId][receiveMsId][sendMsID][SINRCounter][RB];
+		interference = calcInterference(transInfo.first[RB],
+				RB,receiveMsId,SINRCounter,MessageDirection::up);
 	}
-	interference += getTermalNoise(300,180000);
 	// Convert to db scale
 	return 10 * log10( received / interference );
 }
 
 double METISChannel::calcAvgUpSINR(int RB, 
-            std::forward_list<TransInfo*> &interferers,
             int msId,
             double transPower){
   // Compute SINR for MS->BS communication
-  double res = calcUpSINR(RB,interferers,msId,transPower);
+  double res = calcUpSINR(RB,msId,transPower);
   // Add the average over all possible D2D connections to all local MS
   for(int i=0; i<numberOfMobileStations;++i){
     if(i!=msId){
-      res += calcD2DSINR(RB,interferers,msId,i,MessageDirection::d2dUp,
-          transPower);
+      res += calcD2DSINR(RB,msId,i,MessageDirection::d2dUp,transPower);
     }
   }
   // Return the average over all SINR values
@@ -2336,19 +2319,17 @@ double METISChannel::calcAvgUpSINR(int RB,
 }
 
 double METISChannel::calcAvgDownSINR(int RB, 
-            std::forward_list<TransInfo*> &interferers,
             double transPower){
   // Compute SINR for DOWN resource blocks for base stations.
   double res = 0.0;
   // Average over SINR values for all local mobile stations
   for(int i=0; i<numberOfMobileStations;++i){
-    res += calcDownSINR(RB,interferers,i,transPower);
+    res += calcDownSINR(RB,i,transPower);
   }
   return res/numberOfMobileStations;
 }
 
 double METISChannel::calcAvgD2DDownSINR(int RB, 
-            std::forward_list<TransInfo*> &interferers,
             int msId,
             double transPower){
   // Calculate average SINR for DOWN resource blocks when used for D2D by MS
@@ -2356,7 +2337,7 @@ double METISChannel::calcAvgD2DDownSINR(int RB,
   // Average over SINR values for all local mobile stations
   for(int i=0; i<numberOfMobileStations;++i){
     if(msId!=i){
-      res += calcD2DSINR(RB,interferers,msId,i,MessageDirection::d2dDown,transPower);
+      res += calcD2DSINR(RB,msId,i,MessageDirection::d2dDown,transPower);
     }
   }
   return res/numberOfMobileStations;

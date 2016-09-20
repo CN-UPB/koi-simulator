@@ -29,74 +29,70 @@
 Define_Module(BsChannel);
 
 void BsChannel::initialize()  {
-    maxNumberOfNeighbours = par("maxNumberOfNeighbours");
-    upResBlocks = par("upResourceBlocks");
-    numberOfMobileStations = par("numberOfMobileStations");
-    useSimpleChannelCalc = par("useSimpleChannelCalc");
-    simpleChannelCalcNops = par("simpleChannelCalcNops");
-    packetLoss = par("packetLoss");
-    tti = par("tti");
-    epsilon = par("epsilon");
-    bsId = par("bsId");
-    
-	//find the neighbours and store the pair (bsId, position in data structures) in a map
-    cModule *cell = getParentModule()->getParentModule();
-    neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
-    
-    // EESM Beta values for effective SINR
-    string eesm_beta = par("eesm_beta");
-    eesm_beta_values = vec(eesm_beta);
-    
-    // This counter counts how many neighbour have already transmitted all 
-    // necessary position information.
-    init_counter = 0;
-    
-    // Counts the received schedules from the own mac.
-    scheduleCatch = false;
-    
-    int ch = par("channelModel");
-    
-    switch(ch){
-      case 0:
-	    channel = new METISChannel();
-            break;
-      default:
-            throw std::invalid_argument("Invalid channelModel value");
-    }
+	maxNumberOfNeighbours = par("maxNumberOfNeighbours");
+	upResBlocks = par("upResourceBlocks");
+	numberOfMobileStations = par("numberOfMobileStations");
+	useSimpleChannelCalc = par("useSimpleChannelCalc");
+	simpleChannelCalcNops = par("simpleChannelCalcNops");
+	packetLoss = par("packetLoss");
+	tti = par("tti");
+	epsilon = par("epsilon");
+	bsId = par("bsId");
 
-    // Save the CURRENT Direction of the schedule for next TTI for all Neighbours
-    scheduleDirection = new int[neighbourIdMatching->numberOfNeighbours()];
-    maxPower = new double[neighbourIdMatching->numberOfNeighbours()];
-    schedulePower = new double*[neighbourIdMatching->numberOfNeighbours()];
-    for(int i = 0; i < neighbourIdMatching->numberOfNeighbours(); i++){
+	//find the neighbours and store the pair (bsId, position in data structures) in a map
+	cModule *cell = getParentModule()->getParentModule();
+	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
+
+	// EESM Beta values for effective SINR
+	string eesm_beta = par("eesm_beta");
+	eesm_beta_values = vec(eesm_beta);
+
+	// This counter counts how many neighbour have already transmitted all 
+	// necessary position information.
+	init_counter = 0;
+
+	// Counts the received schedules from the own mac.
+	scheduleCatch = false;
+
+	int ch = par("channelModel");
+
+	switch(ch){
+		case 0:
+			channel = new METISChannel();
+			break;
+		default:
+			throw std::invalid_argument("Invalid channelModel value");
+	}
+
+	// Save the CURRENT Direction of the schedule for next TTI for all Neighbours
+	scheduleDirection = new int[neighbourIdMatching->numberOfNeighbours()];
+	maxPower = new double[neighbourIdMatching->numberOfNeighbours()];
+	schedulePower = new double*[neighbourIdMatching->numberOfNeighbours()];
+	for(int i = 0; i < neighbourIdMatching->numberOfNeighbours(); i++){
 		schedulePower[i] = new double[numberOfMobileStations];
 	}
 
-    // Prepare transmission info lists for every UP ressource block
-    transInfos.resize(upResBlocks);
+	// Prepare MS positions vector with correct sizes for each cell
+	msPositions.resize(neighbourIdMatching->numberOfNeighbours(), 
+			vector<Position>());
+	//the position of the base stations
+	bsPosition.x = par("xPos");
+	bsPosition.y = par("yPos");
 
-    // Prepare MS positions vector with correct sizes for each cell
-    msPositions.resize(neighbourIdMatching->numberOfNeighbours(), 
-		    vector<Position>());
-    //the position of the base stations
-    bsPosition.x = par("xPos");
-    bsPosition.y = par("yPos");
-
-    //stores the schedule of all neighbours
-    schedules = new int*[neighbourIdMatching->numberOfNeighbours()];
-    for(int i = 0; i < neighbourIdMatching->numberOfNeighbours(); ++i)  {
-        schedules[i] = new int[upResBlocks];
-        for(int j = 0; j < upResBlocks; j++)
-            schedules[i][j] = -1;
-    }
-    if(this->getIndex() == 0){
+	//stores the schedule of all neighbours
+	schedules = new int*[neighbourIdMatching->numberOfNeighbours()];
+	for(int i = 0; i < neighbourIdMatching->numberOfNeighbours(); ++i)  {
+		schedules[i] = new int[upResBlocks];
+		for(int j = 0; j < upResBlocks; j++)
+			schedules[i][j] = -1;
+	}
+	if(this->getIndex() == 0){
 		PtrExchange Pointer;
 		Pointer.ptr = (uintptr_t) channel;
 		PointerExchange *PtrMessage = new PointerExchange("POINTER_EXCHANGE2");
 		PtrMessage->setPtr(Pointer);
 		send(PtrMessage, "toPhy"); //set to 999*tti originally
-		
-    }
+	}
 }
 
 simtime_t BsChannel::getProcessingDelay(cMessage *msg)  {
@@ -132,79 +128,89 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		}
 		delete msg;
 	}
-    else if(msg->getKind()==MessageType::transInfo){
-    	TransInfo *info = dynamic_cast<TransInfo*>(msg);
-	transInfos[info->getRb()].push_front(info);
-    }
-    else if(msg->isName("BS_MS_POSITIONS"))  {
-        //save the postitions of the mobile stations
-        BsMsPositions *msPos = (BsMsPositions *) msg;
-	msPositions[msPos->getBsId()].resize(msPos->getPositionsArraySize());
-        for(unsigned int i = 0; i < msPos->getPositionsArraySize(); i++)  {
-            msPositions[msPos->getBsId()][i] = msPos->getPositions(i);
-        }
-	init_counter++;
-        if(this->getIndex()==0 && init_counter==2*maxNumberOfNeighbours){
-		channel->init(this, msPositions, neighbourPositions);
+	else if(msg->isName("BS_MS_POSITIONS"))  {
+		//save the postitions of the mobile stations
+		BsMsPositions *msPos = (BsMsPositions *) msg;
+		msPositions[msPos->getBsId()].resize(msPos->getPositionsArraySize());
+		for(unsigned int i = 0; i < msPos->getPositionsArraySize(); i++)  {
+			msPositions[msPos->getBsId()][i] = msPos->getPositions(i);
+		}
+		init_counter++;
+		if(this->getIndex()==0 && init_counter==2*maxNumberOfNeighbours){
+			channel->init(this, msPositions, neighbourPositions);
+		}
+		delete msPos;
 	}
-        delete msPos;
-    }
-    else if(msg->isName("DEBUG")){
-	if(this->getIndex()==0){
-		// Only do debug output for the first BSChannel. The values 
-		// are all the same for all BsChannel instances of any given 
-		// Base Station.
-		// Forward DEBUG message to the channel implementation
-		channel->handleMessage(msg);
-		// Write out SINR values for all possible links in this cell
-		// First, the downlinks
-		ofstream downSinr;
-		std::string fname("sinr_table_down_"+std::to_string(bsId)+".dat");
-		downSinr.open(fname,ofstream::trunc);
-		outputDownSINR(downSinr);
-		downSinr.close();
-		// Second, the uplinks
-		ofstream upSinr;
-		fname = "sinr_table_up_"+std::to_string(bsId)+".dat";
-		upSinr.open(fname,ofstream::trunc);
-		outputUpSINR(upSinr);
-		upSinr.close();
+	else if(msg->isName("DEBUG")){
+		if(this->getIndex()==0){
+			// Only do debug output for the first BSChannel. The values 
+			// are all the same for all BsChannel instances of any given 
+			// Base Station.
+			// Forward DEBUG message to the channel implementation
+			channel->handleMessage(msg);
+			// Write out SINR values for all possible links in this cell
+			// First, the downlinks
+			ofstream downSinr;
+			std::string fname("sinr_table_down_"+std::to_string(bsId)+".dat");
+			downSinr.open(fname,ofstream::trunc);
+			outputDownSINR(downSinr);
+			downSinr.close();
+			// Second, the uplinks
+			ofstream upSinr;
+			fname = "sinr_table_up_"+std::to_string(bsId)+".dat";
+			upSinr.open(fname,ofstream::trunc);
+			outputUpSINR(upSinr);
+			upSinr.close();
+		}
 	}
-    }
-    else if(msg->arrivedOn("fromMs"))  {
-        assert(msg->getKind() == MessageType::koidata);
-        KoiData *packet = dynamic_cast<KoiData*>(msg);
-        // Set Scheduled flag to false again, the packet has been transmitted 
-        // and now needs to be scheduled anew for the next transmission leg.
-        packet->setScheduled(false);
-
-        vector<double> instSINR;
-	int currentRessourceBlock = packet->getResourceBlock();
-	instSINR.push_back(channel->calcUpSINR(currentRessourceBlock,
-              transInfos[currentRessourceBlock],
-              packet->getSrc(),
-              packet->getTransPower()));
-
-        /**
-	double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
-	//cout << "Effektive SINR (Up): " << effSINR << endl;
-	double bler = getBler(packet->getCqi(), effSINR, this);
-	//cout << "Block Error Rate(Up): " << bler << endl;
-	vec bler_(1);
-	bler_.set(0,bler);
-	double per = getPer(bler_);
-        **/
-	/**
-	if(uniform(0,1) > per){
-		sendDelayed(bundle, tti - epsilon, "toPhy");
-	}else{
-		delete bundle;
+	else if(msg->getKind()==MessageType::transInfo){
+		// We should only add the new transInfo to the channel for the BsChannel
+		// with the index 0. Otherwise, as there is only one channel per cell but 
+		// multiple BsChannels, we would add the same trans info message to the 
+		// same channel instance multiple times. Clearly, a bad idea.
+		if(this->getIndex()==0){
+			TransInfo *inf = dynamic_cast<TransInfo*>(msg);
+			channel->addTransInfo(inf);
+		}
+		else{
+			// This is not the BsChannel which adds the trans info message, so 
+			// delete it.
+			delete msg;
+		}
 	}
-	**/
-	//For now, all packets are send successfully
-	sendDelayed(packet, tti - epsilon, "toPhy");
+	else if(msg->arrivedOn("fromMs"))  {
+		assert(msg->getKind() == MessageType::koidata);
+		KoiData *packet = dynamic_cast<KoiData*>(msg);
+		// Set Scheduled flag to false again, the packet has been transmitted 
+		// and now needs to be scheduled anew for the next transmission leg.
+		packet->setScheduled(false);
 
-    }
+		vector<double> instSINR;
+		int currentRessourceBlock = packet->getResourceBlock();
+		instSINR.push_back(channel->calcUpSINR(currentRessourceBlock,
+					packet->getSrc(),
+					packet->getTransPower()));
+
+		/**
+			double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
+		//cout << "Effektive SINR (Up): " << effSINR << endl;
+		double bler = getBler(packet->getCqi(), effSINR, this);
+		//cout << "Block Error Rate(Up): " << bler << endl;
+		vec bler_(1);
+		bler_.set(0,bler);
+		double per = getPer(bler_);
+		 **/
+		/**
+			if(uniform(0,1) > per){
+			sendDelayed(bundle, tti - epsilon, "toPhy");
+			}else{
+			delete bundle;
+			}
+		 **/
+		//For now, all packets are send successfully
+		sendDelayed(packet, tti - epsilon, "toPhy");
+
+	}
 }
 
 std::ostream& BsChannel::outputDownSINR(std::ostream& out){
@@ -235,7 +241,7 @@ std::ostream& BsChannel::outputDownSINR(std::ostream& out){
 		for(int r=0; r<downResBlocks; r++){
 			out << i << "\t" 
 				<< r << "\t" 
-				<< channel->calcDownSINR(r,currInf,i,transPower)
+				<< channel->calcDownSINR(r,i,transPower)
 				<< std::endl;
 		}
 	}
@@ -273,7 +279,7 @@ std::ostream& BsChannel::outputUpSINR(std::ostream& out){
 		for(int r=0; r<upResBlocks; r++){
 			out << i << "\t" 
 				<< r << "\t" 
-				<< channel->calcUpSINR(r,currInf,i,transPower)
+				<< channel->calcUpSINR(r,i,transPower)
 				<< std::endl;
 		}
 	}
@@ -300,8 +306,8 @@ BsChannel::~BsChannel()  {
     ev << "-------------------------------------------------------" << endl;*/
 
     for(int i = 0; i < neighbourIdMatching->numberOfNeighbours(); ++i)  {
-	delete[] schedulePower[i];
-        delete[] schedules[i];
+			delete[] schedulePower[i];
+			delete[] schedules[i];
     }
     delete[] schedulePower;
     delete[] schedules;

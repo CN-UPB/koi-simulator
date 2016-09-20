@@ -349,6 +349,15 @@ class METISChannel : public Channel{
 		 */
 		std::ostream& printCoeffDownTables(std::ostream& out);
 
+		/**
+		 * @brief Calculate interference for transmission
+		 */
+		double calcInterference(std::forward_list<TransInfo*>& interferers,
+				int rb,
+				int receiverId,
+				int SINRCounter,
+				MessageDirection dir);
+
 	public:
 		//! Constructor of METIS Channel subclass.
 		METISChannel(){
@@ -368,40 +377,28 @@ class METISChannel : public Channel{
 		//! Computes the Termal Noise ("johnson nyquist noise")
 		double getTermalNoise(double temp, double bandwidth);
 		
-		//! Calculates the current SINR for given interferers and given RB.
-		double calcSINR(int RB, vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId);
-
-		//! Calculates the current SINR for given interferers and all RB.
-		vec calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId);
-
 		double calcUpSINR(int RB, 
-				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower);
 
 		double calcDownSINR(int RB, 
-				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower);
 
 		double calcD2DSINR(int RB, 
-				std::forward_list<TransInfo*> &interferers,
 				int sendMsID,
 				int receiveMsId,
 				MessageDirection direction,
 				double transPower);
 
 		double calcAvgUpSINR(int RB, 
-				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower);
 
 		double calcAvgDownSINR(int RB, 
-				std::forward_list<TransInfo*> &interferers,
 				double transPower);
 
 		double calcAvgD2DDownSINR(int RB, 
-				std::forward_list<TransInfo*> &interferers,
 				int msId,
 				double transPower);
 
