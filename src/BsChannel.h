@@ -26,6 +26,7 @@ class BsChannel : public cSimpleModule  {
         int maxNumberOfNeighbours;
         int numberOfMobileStations;
         int upResBlocks;
+        int downResBlocks;
         int **schedules;
         int *scheduleDirection;
         double **schedulePower;
@@ -40,6 +41,7 @@ class BsChannel : public cSimpleModule  {
         bool scheduleCatch;
         simtime_t tti;
         simtime_t epsilon;
+				simtime_t initOffset;
         std::vector<std::vector<Position>> msPositions;
         NeighbourIdMatching *neighbourIdMatching;          // map the bsId to the pos in the data structures
         std::map <int,Position> neighbourPositions;

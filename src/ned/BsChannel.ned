@@ -64,6 +64,9 @@ simple BsChannel  {
 		// A small offset used control message order in cases where ordering 
 		// cannot be guaranteed by generation order.
 		double epsilon @unit(s);
+		// Offset from the simulation start reserved for initialization messages.
+		// No traffic is generated/send before it.
+		double initOffset @unit(s);
 		double averageFarCluster;
 		double vrRadius;
 		double trRadius;

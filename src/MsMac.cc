@@ -244,149 +244,141 @@ void MsMac::initialize()  {
 }
 
 void MsMac::handleMessage(cMessage *msg)  {
-    if(msg->getKind()==MessageType::streamSched)  {
-			StreamTransSched *schedule = dynamic_cast<StreamTransSched*>(msg);
-			std::pair<set<int>,set<int>> infos = std::make_pair(set<int>(),set<int>());
+	if(msg->getKind()==MessageType::streamSched)  {
+		StreamTransSched *schedule = dynamic_cast<StreamTransSched*>(msg);
+		std::pair<set<int>,set<int>> infos = std::make_pair(set<int>(),set<int>());
 
-			if(schedule->getSrc() == msId)  {
-				KoiData *currPacket = nullptr;
-				for(auto streamIter = streamQueues.begin();
-						streamIter!=streamQueues.end(); ++streamIter){
-					list<KoiData*>& currList = streamIter->second;
-					for(auto packetIter = currList.begin(); 
-							packetIter!=currList.end();){
-						currPacket = *packetIter;
-						if(currPacket->getScheduled()){
-							packetIter = currList.erase(packetIter);
-							currPacket->setTransPower(transmissionPower);
-							// Set CQI for a fixed value until we decide on how to 
-							// compute it
-							currPacket->setCqi(15);
-							sendDelayed(currPacket, epsilon, "toPhy");
-							// Store RB in frequency half dependent sets, so that we send 
-							// at most 1 TransInfo for any given resource block, even 
-							// if we transmit multiple packets using that block.
-							if(currPacket->getMessageDirection()==MessageDirection::up
-									|| currPacket->getMessageDirection()==MessageDirection::d2dUp){
-								infos.first.insert(currPacket->getResourceBlock());
-							}
-							else{
-								infos.second.insert(currPacket->getResourceBlock());
-							}
+		if(schedule->getSrc() == msId)  {
+			KoiData *currPacket = nullptr;
+			for(auto streamIter = streamQueues.begin();
+					streamIter!=streamQueues.end(); ++streamIter){
+				list<KoiData*>& currList = streamIter->second;
+				for(auto packetIter = currList.begin(); 
+						packetIter!=currList.end();){
+					currPacket = *packetIter;
+					if(currPacket->getScheduled()){
+						packetIter = currList.erase(packetIter);
+						currPacket->setTransPower(transmissionPower);
+						// Set CQI for a fixed value until we decide on how to 
+						// compute it
+						currPacket->setCqi(15);
+						sendDelayed(currPacket, epsilon, "toPhy");
+						// Store RB in frequency half dependent sets, so that we send 
+						// at most 1 TransInfo for any given resource block, even 
+						// if we transmit multiple packets using that block.
+						if(currPacket->getMessageDirection()==MessageDirection::up
+								|| currPacket->getMessageDirection()==MessageDirection::d2dUp){
+							infos.first.insert(currPacket->getResourceBlock());
 						}
 						else{
-							++packetIter;
+							infos.second.insert(currPacket->getResourceBlock());
 						}
 					}
-				}
-			}
-			for(auto& rb:infos.first){
-				TransInfo *info = new TransInfo();
-				info->setBsId(bsId);
-				info->setPower(transmissionPower);
-				info->setRb(rb);
-				info->setMsId(msId);
-				info->setMessageDirection(MessageDirection::up);
-				send(info,"toBsMac");
-			}
-			for(auto& rb:infos.second){
-				TransInfo *info = new TransInfo();
-				info->setBsId(bsId);
-				info->setPower(transmissionPower);
-				info->setRb(rb);
-				info->setMsId(msId);
-				info->setMessageDirection(MessageDirection::d2dDown);
-				send(info,"toBsMac");
-			}
-			delete schedule;
-		}
-    else if(msg->getKind()==MessageType::transInfo){
-    	send(msg,"toPhy");
-    }
-    else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
-			// Send requests for each stream originating from this MS to the 
-			// scheduler if that stream has packets.
-			for(auto iter=this->streamQueues.begin(); iter!=streamQueues.end();
-					++iter){
-				if(!iter->second.empty()){
-					StreamTransReq *req = new StreamTransReq();
-					KoiData *queueHead = dynamic_cast<KoiData*>(iter->second.front());
-					req->setSrc(this->msId);
-					req->setDest(queueHead->getDest());
-					req->setStreamId(iter->first);
-					req->setPeriod(queueHead->getInterarrival());
-					req->setPackets(&(iter->second));
-					req->setRequestOrigin(msId);
-					if(queueHead->getD2d()){
-						req->setMessageDirection(MessageDirection::d2d);
-					}
 					else{
-						req->setMessageDirection(MessageDirection::up);
+						++packetIter;
 					}
-					send(req,"toScheduler");
 				}
 			}
-			scheduleAt(simTime() + tti-epsilon, msg);
 		}
-    else if(msg->isName("RESEND_POS"))  {
-	
-        PositionExchange *posEx = new PositionExchange("MS_POS_UPDATE");
-				msPosition.x = msPosition.x + (positionResendInterval/1000.0) * velocity.at(0);
-				msPosition.y = msPosition.y + (positionResendInterval/1000.0) * velocity.at(1);
-				//cout << "MS Pos: " << msPosition.x << " " << msPosition.y << endl;
-				//cout << "MS Vel: " << velocity.at(0) << " " << velocity.at(1) << endl;
-        posEx->setId(msId);
-        posEx->setPosition(msPosition);
-        send(posEx->dup(), "toPhy"); //send position to the own channel module
-        send(posEx, "toBsMac");
-        scheduleAt(positionResendTime(), msg);
-    }
-    else if(msg->getKind()==MessageType::sinrEst)  {
-        SINR *sinrMessage = (SINR *) msg;
-        if(sinrMessage->getBsId()==-1){
-          // This message is intended for the local Base Station, forward it
-          send(sinrMessage, "toBsMac");
-        }
-        else{
-          // Clear the old estimates
-          sinrUp.clear();
-          sinrUp.resize(sinrMessage->getUpArraySize());
-          sinrDown.clear();
-          sinrDown.resize(sinrMessage->getDownArraySize());
-          // Set the new estimates
-          for(int i = 0;i < sinrMessage->getUpArraySize(); i++){
-            sinrUp[i] = sinrMessage->getUp(i);
-          }
-          for(int i = 0;i < sinrMessage->getDownArraySize(); i++){
-            sinrDown[i] = sinrMessage->getDown(i);
-          }
-          // Provide the estimates to the scheduler, too
-          send(msg,"toScheduler");
-        }
-    }
-    else if(msg->arrivedOn("fromApp"))  {
-	// Packet arrived for sending from traffic generator
-	switch(msg->getKind()){
-		case MessageType::streamInfo:{
-			// Add queue for the new stream
-			StreamInfo *tmp = dynamic_cast<StreamInfo*>(msg);
-			this->streamQueues[tmp->getStreamId()];
-			send(tmp->dup(),"toScheduler");
-			send(tmp->dup(),"toBsMac");
-			delete msg;
-		} break;
-		case MessageType::koidata:{
-			KoiData *data = dynamic_cast<KoiData*>(msg);
-			this->streamQueues[data->getStreamId()].push_back(data);
-		} break;
+		for(auto& rb:infos.first){
+			TransInfo *info = new TransInfo();
+			info->setBsId(bsId);
+			info->setPower(transmissionPower);
+			info->setRb(rb);
+			info->setMsId(msId);
+			info->setMessageDirection(MessageDirection::up);
+			send(info,"toBsMac");
+		}
+		for(auto& rb:infos.second){
+			TransInfo *info = new TransInfo();
+			info->setBsId(bsId);
+			info->setPower(transmissionPower);
+			info->setRb(rb);
+			info->setMsId(msId);
+			info->setMessageDirection(MessageDirection::d2dDown);
+			send(info,"toBsMac");
+		}
+		delete schedule;
 	}
-    }
-    else if(msg->arrivedOn("fromPhy"))  {
-	// Unpack the data bundle and forward data packets to app
-	if(msg->getKind()==MessageType::koidata){
-                send(msg,"toApp");
+	else if(msg->getKind()==MessageType::transInfo){
+		send(msg,"toPhy");
 	}
-    }
+	else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
+		// Send requests for each stream originating from this MS to the 
+		// scheduler if that stream has packets.
+		for(auto iter=this->streamQueues.begin(); iter!=streamQueues.end();
+				++iter){
+			if(!iter->second.empty()){
+				StreamTransReq *req = new StreamTransReq();
+				KoiData *queueHead = dynamic_cast<KoiData*>(iter->second.front());
+				req->setSrc(this->msId);
+				req->setDest(queueHead->getDest());
+				req->setStreamId(iter->first);
+				req->setPeriod(queueHead->getInterarrival());
+				req->setPackets(&(iter->second));
+				req->setRequestOrigin(msId);
+				if(queueHead->getD2d()){
+					req->setMessageDirection(MessageDirection::d2d);
+				}
+				else{
+					req->setMessageDirection(MessageDirection::up);
+				}
+				send(req,"toScheduler");
+			}
+		}
+		scheduleAt(simTime() + tti-epsilon, msg);
+	}
+	else if(msg->isName("RESEND_POS"))  {
+		PositionExchange *posEx = new PositionExchange("MS_POS_UPDATE");
+		msPosition.x = msPosition.x + (positionResendInterval/1000.0) * velocity.at(0);
+		msPosition.y = msPosition.y + (positionResendInterval/1000.0) * velocity.at(1);
+		//cout << "MS Pos: " << msPosition.x << " " << msPosition.y << endl;
+		//cout << "MS Vel: " << velocity.at(0) << " " << velocity.at(1) << endl;
+		posEx->setId(msId);
+		posEx->setPosition(msPosition);
+		send(posEx->dup(), "toPhy"); //send position to the own channel module
+		send(posEx, "toBsMac");
+		scheduleAt(positionResendTime(), msg);
+	}
+	else if(msg->getKind()==MessageType::sinrEst)  {
+		SINR *sinrMessage = (SINR *) msg;
+		// Clear the old estimates
+		sinrUp.clear();
+		sinrUp.resize(sinrMessage->getUpArraySize());
+		sinrDown.clear();
+		sinrDown.resize(sinrMessage->getDownArraySize());
+		// Set the new estimates
+		for(int i = 0;i < sinrMessage->getUpArraySize(); i++){
+			sinrUp[i] = sinrMessage->getUp(i);
+		}
+		for(int i = 0;i < sinrMessage->getDownArraySize(); i++){
+			sinrDown[i] = sinrMessage->getDown(i);
+		}
+		send(msg,"toScheduler");
+	}
+	else if(msg->arrivedOn("fromApp"))  {
+		// Packet arrived for sending from traffic generator
+		switch(msg->getKind()){
+			case MessageType::streamInfo:{
+				// Add queue for the new stream
+				StreamInfo *tmp = dynamic_cast<StreamInfo*>(msg);
+				this->streamQueues[tmp->getStreamId()];
+				send(tmp->dup(),"toScheduler");
+				send(tmp->dup(),"toBsMac");
+				delete msg;
+			} break;
+			case MessageType::koidata:{
+				KoiData *data = dynamic_cast<KoiData*>(msg);
+				this->streamQueues[data->getStreamId()].push_back(data);
+			} break;
+		}
+	}
+	else if(msg->arrivedOn("fromPhy"))  {
+		// Unpack the data bundle and forward data packets to app
+		if(msg->getKind()==MessageType::koidata){
+			send(msg,"toApp");
+		}
+	}
 }
 
 MsMac::~MsMac()  {

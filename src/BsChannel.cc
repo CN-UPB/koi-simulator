@@ -31,12 +31,14 @@ Define_Module(BsChannel);
 void BsChannel::initialize()  {
 	maxNumberOfNeighbours = par("maxNumberOfNeighbours");
 	upResBlocks = par("upResourceBlocks");
+	downResBlocks = par("downResourceBlocks");
 	numberOfMobileStations = par("numberOfMobileStations");
 	useSimpleChannelCalc = par("useSimpleChannelCalc");
 	simpleChannelCalcNops = par("simpleChannelCalcNops");
 	packetLoss = par("packetLoss");
 	tti = par("tti");
 	epsilon = par("epsilon");
+	initOffset = par("initOffset");
 	bsId = par("bsId");
 
 	//find the neighbours and store the pair (bsId, position in data structures) in a map
@@ -93,6 +95,7 @@ void BsChannel::initialize()  {
 		PtrMessage->setPtr(Pointer);
 		send(PtrMessage, "toPhy"); //set to 999*tti originally
 	}
+	scheduleAt(simTime()+initOffset-epsilon, new cMessage("SINR_ESTIMATION"));
 }
 
 simtime_t BsChannel::getProcessingDelay(cMessage *msg)  {
@@ -162,6 +165,23 @@ void BsChannel::handleMessage(cMessage *msg)  {
 			outputUpSINR(upSinr);
 			upSinr.close();
 		}
+	}
+	else if(msg->isName("SINR_ESTIMATION")){
+		SINR *bsSINREst = new SINR();
+		bsSINREst->setBsId(bsId);
+		// Special value to note that this is the SINR for 
+		// a base station
+		bsSINREst->setMsId(-1);
+		// We only need the down SINR estimate, because the 
+		// base station only ever uses DOWN resource blocks.
+		bsSINREst->setDownArraySize(downResBlocks);
+		for(int i = 0; i < downResBlocks; i++){
+			bsSINREst->setDown(i,
+					channel->calcAvgDownSINR(i,1.0));
+		}
+		// Route message to BS via MsPhy and MsMac
+		send(bsSINREst,"toPhy");
+		scheduleAt(simTime() + tti, msg);
 	}
 	else if(msg->getKind()==MessageType::transInfo){
 		// We should only add the new transInfo to the channel for the BsChannel

@@ -37,9 +37,9 @@ simple MsChannel  {
 		// A small offset used control message order in cases where ordering 
 		// cannot be guaranteed by generation order.
 		double epsilon @unit(s);
-                // Offset from the simulation start reserved for initialization messages.
-                // No traffic is generated/send before it.
-                double initOffset @unit(s);
+		// Offset from the simulation start reserved for initialization messages.
+		// No traffic is generated/send before it.
+		double initOffset @unit(s);
 		// Length of single transmission time interval
 		double tti @unit(s);
 		// Table of EESM values for CQI computation

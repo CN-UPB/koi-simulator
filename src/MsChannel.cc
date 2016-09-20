@@ -23,27 +23,27 @@ using std::forward_list;
 Define_Module(MsChannel);
 
 void MsChannel::initialize()  {
-    maxNumberOfNeighbours = par("maxNumberOfNeighbours");
-    bsId = par("bsId");
-    epsilon = par("epsilon");
-    initOffset = par("initOffset");
-    tti = par("tti");
-    msId = par("msId");
-    downResourceBlocks = par("downResourceBlocks");
-    upResourceBlocks = par("upResourceBlocks");
-    msPosition.x = 6;
-    msPosition.y = 21;
-    //find the neighbours and store the pair (bsId, position in data structures) in a map
-    cModule *cell = getParentModule()->getParentModule();
-    neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
+	maxNumberOfNeighbours = par("maxNumberOfNeighbours");
+	bsId = par("bsId");
+	epsilon = par("epsilon");
+	initOffset = par("initOffset");
+	tti = par("tti");
+	msId = par("msId");
+	downResourceBlocks = par("downResourceBlocks");
+	upResourceBlocks = par("upResourceBlocks");
+	msPosition.x = 6;
+	msPosition.y = 21;
+	//find the neighbours and store the pair (bsId, position in data structures) in a map
+	cModule *cell = getParentModule()->getParentModule();
+	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
 
-    bsPositions = new Position[neighbourIdMatching->numberOfNeighbours()];
-    
-    // EESM Beta values for effective SINR
-    string eesm_beta = par("eesm_beta");
-    eesm_beta_values = vec(eesm_beta);
+	bsPositions = new Position[neighbourIdMatching->numberOfNeighbours()];
 
-    scheduleAt(simTime()+initOffset-epsilon, new cMessage("SINR_ESTIMATION")); //originally set to 1000*tti + epsilon
+	// EESM Beta values for effective SINR
+	string eesm_beta = par("eesm_beta");
+	eesm_beta_values = vec(eesm_beta);
+
+	scheduleAt(simTime()+initOffset-epsilon, new cMessage("SINR_ESTIMATION")); //originally set to 1000*tti + epsilon
 }
 
 simtime_t MsChannel::getProcessingDelay(cMessage *msg)  {
@@ -70,31 +70,6 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		for(int i = 0; i < upResourceBlocks; i++){
 			sinrMessage->setUp(i,
                             channel->calcAvgUpSINR(i,msId,1.0));
-		}
-		if(msId==0){
-			// We need to compute the SINR estimate for the local base 
-			// station too, because the BS does not have all the 
-			// necessary transmission information available. 
-			// To prevent doing unncessary work, only each cell's 
-			// mobile station with the ID 0 computes the BS's 
-			// SINR estimate.
-			//
-			// TODO Think of a better way to do this
-
-			SINR *bsSINREst = new SINR();
-			bsSINREst->setBsId(bsId);
-			// Special value to note that this is the SINR for 
-			// a base station
-			bsSINREst->setMsId(-1);
-			// We only need the down SINR estimate, because the 
-			// base station only ever uses DOWN resource blocks.
-			bsSINREst->setDownArraySize(downResourceBlocks);
-			for(int i = 0; i < downResourceBlocks; i++){
-				bsSINREst->setDown(i,
-						channel->calcAvgDownSINR(i,1.0));
-			}
-			// Route message to BS via MsPhy and MsMac
-			send(bsSINREst,"toPhy");
 		}
 		// Route estimate to MsMac via MsPhy
 		send(sinrMessage,"toPhy");
