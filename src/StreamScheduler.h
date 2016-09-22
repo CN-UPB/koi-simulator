@@ -27,7 +27,6 @@ class StreamScheduler: public cSimpleModule{
 	private:
 		using ResAssign = std::pair<MessageDirection,int>;
 		std::unordered_map<int,std::unordered_map<int,std::vector<StreamTransReq*>>> requests;
-		std::set<int> scheduledStations;
 		virtual void scheduleStreams();
 
 	protected:
@@ -37,6 +36,7 @@ class StreamScheduler: public cSimpleModule{
 		int upRB;
 		int downRB;
 		simtime_t streamSchedPeriod;
+		std::set<int> scheduledStations;
 		simtime_t tti;
 		std::vector<StreamInfo*> infos;		
 		std::vector<SINR*> sinrEstimate;
