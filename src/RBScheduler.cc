@@ -66,7 +66,6 @@ StreamTransSched *RBScheduler::getSchedule(
 			if((*delIter)->getRequestOrigin()!=bestReq->getRequestOrigin()){
 				tmp = *delIter;
 				delIter = reqs.erase(delIter);
-				delete tmp;
 			}
 			else{
 				++delIter;

@@ -128,7 +128,6 @@ void StreamScheduler::handleMessage(cMessage *msg){
             lst->setEstimates(estimates);
             // Clear all transmission requests for this 
             // stream from the stream schedulers queue.
-            iterRb->second.clear();
 						lst->setMessageDirection(iterDir->first);
             switch(iterDir->first){
               case MessageDirection::up:
@@ -168,6 +167,23 @@ void StreamScheduler::handleMessage(cMessage *msg){
 						send(sched,"toMs",id);
 					}
 				}
+				// At this point, all requests for the current TTI have been handled, 
+				// and the messages can be deleted.
+        // Iterate over all message directions (up/down)
+        for(auto iterDir=this->requests.begin();
+            iterDir!=requests.end();
+            ++iterDir){
+          // Iterate over all Resource blocks in the current 
+          // transmission direction
+          for(auto iterRb=iterDir->second.begin();
+              iterRb!=iterDir->second.end();
+              ++iterRb){
+            for(auto& req:iterRb->second){
+							delete req;
+            }
+            iterRb->second.clear();
+          }
+        }
 			} break;
     default:
         std::cerr << "Received invalid Message in "
