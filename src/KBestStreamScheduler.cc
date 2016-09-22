@@ -20,13 +20,7 @@ using std::vector;
 Define_Module(KBestStreamScheduler);
 
 void KBestStreamScheduler::initialize(){
-  this->initOffset = par("initOffset");
-  this->downRB = par("downResourceBlocks");
-  this->upRB = par("upResourceBlocks");
-  this->numberOfMs = par("numberOfMobileStations");
-  this->infos = vector<StreamInfo*>();
-  this->streamSchedPeriod = par("streamSchedPeriod");
-  this->tti = par("tti");
+	StreamScheduler::initialize();
 	this->upK = par("upK");
 	this->downK = par("downK");
 	// Fill the origins set with all possible origins for transmission requests,
@@ -39,13 +33,6 @@ void KBestStreamScheduler::initialize(){
 	}
 	originUpIter = allOrigins.begin();
 	originDownIter = allOrigins.begin();
-  // Produce the first schedule right at the init offset
-  // We will need to make certain that all mobile stations have reported 
-  // their streams at the time the first schedule is computed.
-  scheduleAt(simTime()+initOffset,
-      new cMessage("",MessageType::scheduleStreams));
-  scheduleAt(simTime()+initOffset,
-      new cMessage("",MessageType::scheduleRBs));
 }
 
 std::set<int>::iterator KBestStreamScheduler::scheduleKBest(

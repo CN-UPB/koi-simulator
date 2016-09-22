@@ -26,25 +26,10 @@ using std::pair;
 Define_Module(EDFStreamScheduler);
 
 void EDFStreamScheduler::initialize(){
-  this->initOffset = par("initOffset");
-  this->downRB = par("downResourceBlocks");
-  this->upRB = par("upResourceBlocks");
-  this->numberOfMs = par("numberOfMobileStations");
-  this->infos = vector<StreamInfo*>();
-  // This value will be recomputed during each scheduling computation
-  // and is -1 in the beginning.
-  this->streamSchedPeriod = par("streamSchedPeriod");
-  this->tti = par("tti");
+	StreamScheduler::initialize();
   this->unscheduled = registerSignal("unscheduled");
   this->scheduledStreams = registerSignal("scheduledStreams");
   this->utilizedRb = registerSignal("utilizedRb");
-  // Produce the first schedule right at the init offset
-  // We will need to make certain that all mobile stations have reported 
-  // their streams at the time the first schedule is computed.
-  scheduleAt(simTime()+initOffset,
-      new cMessage("",MessageType::scheduleStreams));
-  scheduleAt(simTime()+initOffset,
-      new cMessage("",MessageType::scheduleRBs));
 }
 
 
