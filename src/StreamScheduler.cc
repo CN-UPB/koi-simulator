@@ -97,7 +97,6 @@ void StreamScheduler::handleMessage(cMessage *msg){
     case MessageType::scheduleStreams:{
         this->scheduleStreams();
         scheduleAt(simTime()+this->streamSchedPeriod,msg);
-        this->printAssignment();
         } break;
 		case MessageType::scheduleRBs:
 				scheduledStations.clear();
