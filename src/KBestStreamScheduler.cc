@@ -38,7 +38,7 @@ void KBestStreamScheduler::initialize(){
 std::set<int>::iterator KBestStreamScheduler::scheduleKBest(
 		std::set<int>::iterator iter,std::vector<int>& blocks,
 		MessageDirection dir,int k){
-	while(blocks.size()>=k){
+	while(blocks.size()>=k && !currOrigins.empty()){
 		if(iter==allOrigins.end()){
 			// We're at the end of the set of senders, start at the beginning
 			iter = allOrigins.begin();
