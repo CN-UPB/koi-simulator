@@ -97,6 +97,14 @@ void KBestStreamScheduler::scheduleStreams(){
 
 void KBestStreamScheduler::handleMessage(cMessage *msg){
 	switch(msg->getKind()){
+    case MessageType::scheduleStreams:{
+			if(currOrigins.size()>0){
+				// Only compute a schedule if there actually are any requests which 
+				// would make use of the schedule.
+				this->scheduleStreams();
+			}
+			scheduleAt(simTime()+this->streamSchedPeriod,msg);
+		} break;
 		case MessageType::streamTransReq:{
 			StreamTransReq *req = dynamic_cast<StreamTransReq*>(msg);
 			currOrigins.insert(req->getRequestOrigin());
