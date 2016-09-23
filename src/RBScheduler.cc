@@ -56,6 +56,11 @@ StreamTransSched *RBScheduler::getSchedule(
 				}
 			}
 		}
+		// Check whether we found a best request. That search might fail when 
+		// all packets have already been scheduled.
+		if(bestReq==nullptr){
+			return nullptr;
+		}
 		// At this point, we know the request with the best packet.
 		// The BS/MS where that request originated now gets as many 
 		// packets scheduled as the expected transmission rate allows.

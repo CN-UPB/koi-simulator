@@ -38,13 +38,30 @@ void KBestStreamScheduler::initialize(){
 std::set<int>::iterator KBestStreamScheduler::scheduleKBest(
 		std::set<int>::iterator iter,std::vector<int>& blocks,
 		MessageDirection dir,int k){
-	while(blocks.size()>=k && !currOrigins.empty()){
+	bool assigned = true;
+	while(blocks.size()>=k){
 		if(iter==allOrigins.end()){
 			// We're at the end of the set of senders, start at the beginning
 			iter = allOrigins.begin();
+			// If resource blocks were assigned in the previous run through the list,
+			// set assigned to false and start another run. If there were no 
+			// assignments in the previous run, break the loop. No sender needs 
+			// resource blocks.
+			if(assigned==true){
+				assigned = false;
+			}
+			else{
+				break;
+			}
 		}
 		if(currOrigins.find(*iter)==currOrigins.end()){
 			// Current origin does not have a request and thus will be skipped
+			++iter;
+			continue;
+		}
+		if(*iter==-1 && dir==MessageDirection::up){
+			// Current origin is the base station and we are assigning resource blocks
+			// in the UP frequencies, which the BS does not need.
 			++iter;
 			continue;
 		}
@@ -74,6 +91,7 @@ std::set<int>::iterator KBestStreamScheduler::scheduleKBest(
 		std::move(blocks.begin(),blocks.begin()+k,originAssignments[id][dir].begin());
 		blocks.erase(blocks.begin(),blocks.begin()+k);
 		++iter;
+		assigned = true;
 	}
 	return iter;
 }
