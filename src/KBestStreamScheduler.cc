@@ -144,13 +144,14 @@ void KBestStreamScheduler::handleMessage(cMessage *msg){
 					for(int& rb:originAssignments[iterOrig->first][iterDir->first]){
 						switch(iterDir->first){
 							case MessageDirection::up:
-								send(lst,"upRB$o",rb);
+								send(lst->dup(),"upRB$o",rb);
 								break;
 							case MessageDirection::down:
-								send(lst,"downRB$o",rb);
+								send(lst->dup(),"downRB$o",rb);
 								break;
 						}
 					}
+					delete lst;
 				}
 			}
 			scheduleAt(simTime()+tti,msg);
