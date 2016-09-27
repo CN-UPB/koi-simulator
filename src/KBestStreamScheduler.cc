@@ -10,9 +10,11 @@
 #include "TransReqList_m.h"
 
 #include <algorithm>
+#include <forward_list>
 #include <numeric>
 #include <vector>
 
+using std::forward_list;
 using std::set;
 using std::unordered_map;
 using std::vector;
@@ -191,6 +193,7 @@ void KBestStreamScheduler::handleMessage(cMessage *msg){
 			}
 			// At this point, all requests for the current TTI have been handled, 
 			// and the messages can be deleted.
+			forward_list<StreamTransReq*> d2dReqs;
 			for(auto iterOrig=this->requests.begin();
 				 iterOrig!=requests.end();
 				 ++iterOrig){
@@ -199,13 +202,29 @@ void KBestStreamScheduler::handleMessage(cMessage *msg){
 					 iterDir!=iterOrig->second.end();
 					 ++iterDir){
 					for(StreamTransReq* req:iterDir->second){
-						delete req;
+						if(iterDir->first==MessageDirection::up 
+								&& req->getMessageDirection()==MessageDirection::d2d){
+							// Special handling for d2d requests, because they are added to
+							// the request lists for both transmission bands. But delete 
+							// must only be called on a pointer once.
+							// Thus, D2D requests only get deleted when found in the UP
+							// list of requests.
+							d2dReqs.push_front(req);
+						}
+						else if(req->getMessageDirection()!=MessageDirection::d2d){
+							// Delete any non-D2D request
+							delete req;
+						}
 					}
 					iterDir->second.clear();
 				}
 				iterOrig->second.clear();
 			}
 			requests.clear();
+			// Now delete all the D2D requests
+			for(auto ptr:d2dReqs){
+				delete ptr;
+			}
 		} break;
 		default:
 			// Message type is handled by StreamScheduler class
