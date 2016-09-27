@@ -2,13 +2,14 @@
 // for specific streams to the RBScheduler which handles them.
 
 cplusplus {{
+#include <memory>
 #include <vector>
 #include <unordered_map>
 #include "StreamTransReq_m.h"
 #include "SINR_m.h"
 #include "MessageTypes.h"
 using ReqVec = std::vector<StreamTransReq*>;
-using EstMap = std::unordered_map<int,SINR*>*;
+using EstMap = std::shared_ptr<std::unordered_map<int,SINR*>>;
 }}
 
 class noncobject ReqVec;

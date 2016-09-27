@@ -148,7 +148,7 @@ void KBestStreamScheduler::handleMessage(cMessage *msg){
 					lst->setRequests(iterDir->second);
 					// Gather SINR estimates for all 
 					// MS with streams in this request
-					unordered_map<int,SINR*>* estimates = new unordered_map<int,SINR*>();
+					std::shared_ptr<unordered_map<int,SINR*>> estimates = std::make_shared<unordered_map<int,SINR*>>();
 					if(iterOrig->first==-1){
 						// Request from BS
 						(*estimates)[-1] = estimateBS;

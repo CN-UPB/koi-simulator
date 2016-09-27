@@ -26,7 +26,7 @@ void RBScheduler::initialize(){
 StreamTransSched *RBScheduler::getSchedule(
 		std::vector<StreamTransReq*>& reqs,
 		int direction,
-		const std::unordered_map<int,SINR*>* estimates){
+		const std::shared_ptr<std::unordered_map<int,SINR*>> estimates){
 	if(!reqs.empty()){
 		StreamTransReq *bestReq = nullptr;
 		KoiData *bestPacket = nullptr;
@@ -172,7 +172,6 @@ void RBScheduler::handleMessage(cMessage *msg){
 			}
 			send(sched,"scheduler$o");
 		}
-		delete req->getEstimates();
 		delete req;
 	}
 }

@@ -11,6 +11,7 @@
 #include "TransReqList_m.h"
 #include "MessageTypes.h"
 #include <iostream>
+#include <memory>
 
 using std::vector;
 using std::unordered_map;
@@ -113,7 +114,7 @@ void StreamScheduler::handleMessage(cMessage *msg){
             lst->setRequests(iterRb->second);
             // Gather SINR estimates for all 
             // MS with streams in this request
-            unordered_map<int,SINR*>* estimates = new unordered_map<int,SINR*>();
+						std::shared_ptr<unordered_map<int,SINR*>> estimates = std::make_shared<unordered_map<int,SINR*>>();
             for(auto& req:iterRb->second){
               if(req->getMessageDirection()==MessageDirection::down){
                 // Request from BS

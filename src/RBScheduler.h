@@ -23,6 +23,7 @@
 #include "StreamTransReq_m.h"
 #include "KoiData_m.h"
 
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -32,7 +33,7 @@ class RBScheduler: public cSimpleModule{
 		virtual StreamTransSched *getSchedule(
 				std::vector<StreamTransReq*>& reqs,
 				int direction,
-				const std::unordered_map<int,SINR*>* estimates);
+				const std::shared_ptr<std::unordered_map<int,SINR*>> estimates);
 
 	protected:
 		virtual void initialize();
