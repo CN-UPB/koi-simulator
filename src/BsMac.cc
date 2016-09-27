@@ -21,6 +21,7 @@
 #include "KoiData_m.h"
 #include "TransInfo_m.h"
 #include <algorithm>
+#include <fstream>
 #include <set>
 
 using namespace itpp;
@@ -228,6 +229,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 			//reset the arrived vector
 			for(int i = 0; i < numberOfMobileStations; ++i)
 				msPosUpdateArrived->at(i) = false;
+			writePositions();
 		}
 
 		delete msg;
@@ -286,6 +288,21 @@ void BsMac::handleMessage(cMessage *msg)  {
 		KoiData *packet = (KoiData *) msg;
 		streamQueues[packet->getStreamId()].push_back(packet);
 	}
+}
+
+void BsMac::writePositions(){
+	std::fstream fout;
+	fout.open("pos_cell_"+std::to_string(bsId)+".dat",std::fstream::out);
+	fout << "[" << "BS_" << bsId << "]" << std::endl
+		<< "posX=" << pos.x << std::endl
+		<< "posY=" << pos.y << std::endl;
+	for(int i = 0; i<numberOfMobileStations; i++){
+		fout << "[MS_" << i << "]" << std::endl
+			<< "posX=" << msPositions[i].x << std::endl
+			<< "posY=" << msPositions[i].y << std::endl
+			<< "bs=" << bsId << std::endl;
+	}
+	fout.close();
 }
 
 BsMac::~BsMac()  {
