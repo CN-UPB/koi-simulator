@@ -26,7 +26,7 @@ class BsMac : public cSimpleModule  {
         int maxNumberOfNeighbours;
         int bsId;
         int currentChannel;
-	int resourceBlocks;
+				int resourceBlocks;
         int sinr_est;
         Position pos;
         double initOffset;
@@ -37,11 +37,11 @@ class BsMac : public cSimpleModule  {
         int ownDataStrId; //pos in the dataStr for bsId
         vec eesm_beta_values;
         mat blerTable;
-	double transmissionPower;
-
+				double transmissionPower;
         simtime_t tti;
         simtime_t epsilon;
-	unordered_map<unsigned long,std::list<KoiData*>> streamQueues;
+				simsignal_t avgRatePerStation;
+				unordered_map<unsigned long,std::list<KoiData*>> streamQueues;
 
     protected:
         virtual void initialize();

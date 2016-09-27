@@ -21,13 +21,13 @@ class TrafficGen: public cSimpleModule{
 					int destBsId,
 					int destMsId,
 					double period,
-                                        double deadline,
+					double deadline,
 					bool d2d)
 				:streamId(streamId),
 				destBsId(destBsId),
 				destMsId(destMsId),
 				period(period),
-                                deadline(deadline),
+				deadline(deadline),
 				d2d(d2d)
 			{}
 			StreamDef() = default;
@@ -35,7 +35,7 @@ class TrafficGen: public cSimpleModule{
 			int destBsId;
 			int destMsId;
 			double period;
-                        double deadline;
+			double deadline;
 			bool d2d;
 		};
 		int bsId;
@@ -45,9 +45,9 @@ class TrafficGen: public cSimpleModule{
 		int msId;
 		int packetLength;
 		bool periodicTraffic;
-                simsignal_t genPackets;
-                simsignal_t recPackets;
-                simsignal_t missedDL;
+		simsignal_t genPackets;
+		simsignal_t recPackets;
+		simsignal_t missedDL;
 		static std::vector<StreamDef> parseCommTable(
 				const std::string& path,int bsId, int msId);
 	

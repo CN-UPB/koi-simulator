@@ -40,48 +40,49 @@
 // MobileStations, are connected to the Scheduler module.
 module LteCell
 {
-    parameters:
-	// The number of neighbouring LteCells
-        int maxNumberOfNeighbours;
-	// The number of MobileStations in the local cell
-        int numberOfMobileStations;
-        // The radius defining this cell's reach/size
-        double radius;
-        int currentChannel;
-	// X coordinate of the LteCell's center position
-        double xPos;
-	// Y coordinate of the LteCell's center position
-        double yPos;
-        // Size of the simulation are in X direction
-        double playgroundSizeX;
-        // Size of the simulation are in Y direction
-        double playgroundSizeY;
-	// The period after which assignments of streams to resource blocks 
-	// are recomputed.
-        double streamSchedPeriod @unit(s);
-	// The id of the BaseStation in this LteCell. This id is unique.
-        int bsId;
-        // Result gathering statistics
-        @statistic[generatedPackets](source="count(genPackets)";
-            record=last);
-        @statistic[receivedPackets](source="count(recPackets)"; 
-            record=last);
-        @statistic[packetsMissedDeadlines](source="count(missedDL)";
-            record=last);
-        @statistic[avgLateness](source="mean(missedDL)";
-            record=last);
+	parameters:
+		// The number of neighbouring LteCells
+		int maxNumberOfNeighbours;
+		// The number of MobileStations in the local cell
+		int numberOfMobileStations;
+		// The radius defining this cell's reach/size
+		double radius;
+		int currentChannel;
+		// X coordinate of the LteCell's center position
+		double xPos;
+		// Y coordinate of the LteCell's center position
+		double yPos;
+		// Size of the simulation are in X direction
+		double playgroundSizeX;
+		// Size of the simulation are in Y direction
+		double playgroundSizeY;
+		// The period after which assignments of streams to resource blocks 
+		// are recomputed.
+		double streamSchedPeriod @unit(s);
+		// The id of the BaseStation in this LteCell. This id is unique.
+		int bsId;
+		// Result gathering statistics
+		@statistic[generatedPackets](source="count(genPackets)";
+				record=last);
+		@statistic[receivedPackets](source="count(recPackets)"; 
+				record=last);
+		@statistic[packetsMissedDeadlines](source="count(missedDL)";
+				record=last);
+		@statistic[avgLateness](source="mean(missedDL)";
+				record=last);
+		@statistic[avgRatePerStation](record=mean);
 
-        @display("p=$xPos,$yPos;r=$radius,,black;i=block/network2_l;bgb=330,202");
+		@display("p=$xPos,$yPos;r=$radius,,black;i=block/network2_l;bgb=330,202");
 
-    gates:
-	// For information exchange with neighbouring cells. 
-	// <strong>Note:</strong> Gate indices do <em>NOT</em> correspond to 
-	// BaseStation ids!
-        input fromCell[];
-	// For information exchange with neighbouring cells. 
-	// <strong>Note:</strong> Gate indices do <em>NOT</em> correspond to 
-	// BaseStation ids!
-        output toCell[];
+	gates:
+		// For information exchange with neighbouring cells. 
+		// <strong>Note:</strong> Gate indices do <em>NOT</em> correspond to 
+		// BaseStation ids!
+		input fromCell[];
+		// For information exchange with neighbouring cells. 
+		// <strong>Note:</strong> Gate indices do <em>NOT</em> correspond to 
+		// BaseStation ids!
+		output toCell[];
 
     submodules:
         bs: BaseStation {

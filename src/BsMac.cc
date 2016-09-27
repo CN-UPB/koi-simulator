@@ -38,10 +38,10 @@ void BsMac::initialize()  {
     numberOfMobileStations = par("numberOfMobileStations");
     sinr_est = 0;
     transmissionPower = par("transmissionPower");
-
     initOffset = par("initOffset");
     tti = par("tti");
     epsilon = par("epsilon");
+		avgRatePerStation = registerSignal("avgRatePerStation");
     
     //find the neighbours and store the pair (bsId, position in data structures) in a map
     cModule *cell = getParentModule()->getParentModule();
@@ -147,6 +147,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 		StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
 		KoiData *currPacket = nullptr;
 		set<int> infos;
+		int rate = 0;
 		for(auto streamIter = streamQueues.begin();
 				streamIter!=streamQueues.end(); ++streamIter){
 			list<KoiData*>& currList = streamIter->second;
@@ -164,13 +165,14 @@ void BsMac::handleMessage(cMessage *msg)  {
 					// TransInfo messages. That way, we can make sure that only one 
 					// TransInfo is send out per used RB.
 					infos.insert(currPacket->getResourceBlock());
-
+					rate += currPacket->getBitLength();
 				}
 				else{
 					++packetIter;
 				}
 			}
 		}
+		emit(avgRatePerStation,rate);
 		// Send out exactly one TransInfo per used resource block
 		for(auto& rb:infos){
 			TransInfo *info = new TransInfo();

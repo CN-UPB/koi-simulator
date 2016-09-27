@@ -32,31 +32,32 @@
 // -# Finally, forward the DataPacketBundles to the BsPhy module for 
 // transmission.
 simple BsMac  {
-    parameters:
-	// The number of neighbouring LteCells
-    	int maxNumberOfNeighbours;
-	// The number of MobileStations in the local cell
-    	int numberOfMobileStations;
-	// The id of the BaseStation. This id is unique.
-    	int bsId;
-        int currentChannel;
-	// The number of resource blocks for downlink transmissions
-	int downResourceBlocks;
-	// X coordinate of the BaseStation's position
-    	double xPos;
-	// Y coordinate of the BaseStation's position
-    	double yPos;
-	// A small offset used control message order in cases where ordering 
-	// cannot be guaranteed by generation order.
-    	double epsilon @unit(s);
-        // The transmission time interval
-    	double tti @unit(s);
-	// Offset from the simulation start reserved for initialization messages.
-	// No traffic is generated/send before it.
-    	double initOffset @unit(s);
-	// The power setting used for transmissions.
-	double transmissionPower = default(1.0);
-        @display("i=block/mac");
+	parameters:
+		// The number of neighbouring LteCells
+		int maxNumberOfNeighbours;
+		// The number of MobileStations in the local cell
+		int numberOfMobileStations;
+		// The id of the BaseStation. This id is unique.
+		int bsId;
+		int currentChannel;
+		// The number of resource blocks for downlink transmissions
+		int downResourceBlocks;
+		// X coordinate of the BaseStation's position
+		double xPos;
+		// Y coordinate of the BaseStation's position
+		double yPos;
+		// A small offset used control message order in cases where ordering 
+		// cannot be guaranteed by generation order.
+		double epsilon @unit(s);
+		// The transmission time interval
+		double tti @unit(s);
+		// Offset from the simulation start reserved for initialization messages.
+		// No traffic is generated/send before it.
+		double initOffset @unit(s);
+		// The power setting used for transmissions.
+		double transmissionPower = default(1.0);
+		@display("i=block/mac");
+		@statistic[avgRatePerStation](record=mean);
         
     gates:
 	// For information exchange with neighbouring cells. 

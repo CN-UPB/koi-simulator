@@ -21,29 +21,29 @@ using namespace std;
 
 class MsMac : public cSimpleModule  {
     private:
-	unordered_map<unsigned long,list<KoiData*>> streamQueues;
-        Position msPosition;
-        int msId;
-        int bsId;
-        int positionResendInterval;
-        int currentChannel;
-        int packetLength;
-        int downResourceBlocks;
-        simtime_t initOffset;
-        simtime_t epsilon;
-        simtime_t tti;
-        double radius;
-	vector<double> velocity;
-        Position initBsPos; //just used for position centering in Tkenv ms pos calc in init
-        vector<double> sinrUp;
-        vector<double> sinrDown;
-	double transmissionPower;
-
-        inline simtime_t positionResendTime();
-        Position initMsPosition(int quadrant, double alpha, double beta, double gamma);
-	Position initMsPositionLinear();
-	Position initMsPositionRand();
-        void updateDisplayString();
+			unordered_map<unsigned long,list<KoiData*>> streamQueues;
+			Position msPosition;
+			int msId;
+			int bsId;
+			int positionResendInterval;
+			int currentChannel;
+			int packetLength;
+			int downResourceBlocks;
+			simtime_t initOffset;
+			simtime_t epsilon;
+			simtime_t tti;
+			double radius;
+			vector<double> velocity;
+			Position initBsPos; //just used for position centering in Tkenv ms pos calc in init
+			vector<double> sinrUp;
+			vector<double> sinrDown;
+			double transmissionPower;
+			inline simtime_t positionResendTime();
+			Position initMsPosition(int quadrant, double alpha, double beta, double gamma);
+			Position initMsPositionLinear();
+			Position initMsPositionRand();
+			simsignal_t avgRatePerStation;
+			void updateDisplayString();
 	/**
 	 * @enum Placement
 	 * All possible methods to determine initial Mobile Station placement

@@ -202,6 +202,7 @@ void MsMac::initialize()  {
 	downResourceBlocks = par("downResourceBlocks");
 	packetLength = par("packetLength");
 	transmissionPower = par("transmissionPower");
+	avgRatePerStation = registerSignal("avgRatePerStation");
 
 	switch((int)par("positioning")){
 		case MsMac::Placement::params:
@@ -250,6 +251,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 
 		if(schedule->getSrc() == msId)  {
 			KoiData *currPacket = nullptr;
+			int rate = 0;
 			for(auto streamIter = streamQueues.begin();
 					streamIter!=streamQueues.end(); ++streamIter){
 				list<KoiData*>& currList = streamIter->second;
@@ -273,12 +275,14 @@ void MsMac::handleMessage(cMessage *msg)  {
 						else{
 							infos.second.insert(currPacket->getResourceBlock());
 						}
+						rate += currPacket->getBitLength();
 					}
 					else{
 						++packetIter;
 					}
 				}
 			}
+			emit(avgRatePerStation,rate);
 		}
 		for(auto& rb:infos.first){
 			TransInfo *info = new TransInfo();
