@@ -12,16 +12,20 @@
  */
 
 #include "METISChannel.h"
-#include <iostream>
-#include <iomanip>
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
+#include <itpp/itbase.h>
 #include <complex>
 #include <fstream>
+#include <iostream>
+#include <iomanip>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-using std::vector;
+using itpp::pi;
+using itpp::vec;
+using std::complex;
 using std::tuple;
+using std::vector;
 
 double getMSGain(double AoA, double EoA){ // Hertzian dipole; TODO: Change the return value to a vector for getting both theta and phi components
 	//return (-1.0 * sin(EoA)); 
@@ -39,7 +43,7 @@ double getBSGain(double AoD, double EoD){ // Hertzian dipole; TODO: Change the r
  * The formula is identical to the Matlab intern one.
  */
 inline vec Cart_to_Sph(vec const &input){
-	vec output = zeros(3);
+	vec output = itpp::zeros(3);
 	output.set(0,atan((input(1) / input(0))));
 	output.set(1,atan((input(2) / sqrt(pow(input(0),2) + pow(input(1),2)))));
 	output.set(2,sqrt(pow(input(0),2) + pow(input(1),2) + pow(input(2),2)));
@@ -52,7 +56,7 @@ inline vec Cart_to_Sph(vec const &input){
  * The formula is identical to the Matlab intern one.
  */
 inline vec Sph_to_Cart(vec const &input){
-	vec output = zeros(3);
+	vec output = itpp::zeros(3);
 	output.set(0,input(2) * cos(input(1)) * cos(input(0)));
 	output.set(1,input(2) * cos(input(1)) * sin(input(0)));
 	output.set(2,input(2) * sin(input(1)));
@@ -64,7 +68,7 @@ double METISChannel::ray_offset[20] = {
 		0.3715, -0.3715, 0.5129, -0.5129, 0.6797, -0.6797,
 		0.8844, -0.8844, 1.1481, -1.1481, 1.5195, -1.5195,
 		2.1551, -2.1551
-	};
+};
 
 vector<vector<array<double,3>>> METISChannel::computeAntennaPos(
 		const vector<Position>& transmitterPos,
@@ -94,54 +98,35 @@ vector<vector<array<double,3>>> METISChannel::computeAntennaPos(
 * @param neighbourPositions Positions of the Neighbour BS.
 * @return True if initialization was successful, false otherwise
 */
-bool METISChannel::init(cSimpleModule* module, const vector<vector<Position>>& msPositions, std::map <int,Position> neighbourPositions){
+bool METISChannel::init(cSimpleModule* module,
+		const vector<vector<Position>>& msPositions, 
+		std::map <int,Position>& neighbourPositions){
+	// First, call the parent init method
+	Channel::init(module,msPositions,neighbourPositions);
 	// Basic Initialization
-	this->neighbourPositions = neighbourPositions;
-	maxNumberOfNeighbours = module->par("maxNumberOfNeighbours");
-	bsId = module->par("bsId");
-	tti = module->par("tti");
-	numberOfMobileStations = module->par("numberOfMobileStations");
-	xPos = module->par("xPos");
-	yPos = module->par("yPos");
-	upRBs = module->par("upResourceBlocks");
-	downRBs = module->par("downResourceBlocks");
 	N_cluster_LOS = module->par("NumberOfClusters_LOS");
 	N_cluster_NLOS = module->par("NumberOfClusters_NLOS");
 	numOfRays_LOS = module->par("NumberOfRays_LOS");
 	numOfRays_NLOS = module->par("NumberOfRays_NLOS");
-	initModule = module;
 	freq_c = module->par("CarrierFrequency");
 	SINRcounter = 0;
 	NumBsAntenna = module->par("NumBsAntenna");
 	NumMsAntenna = module->par("NumMsAntenna");
 	heightUE = module->par("OutdoorHeightUE");
 	heightBS = module->par("BsHeight");
-	vel = module->par("Velocity");
 	XPR_Mean_LOS = module->par("XPR_Mean_LOS");
 	XPR_Std_LOS = module->par("XPR_Std_LOS");
 	XPR_Mean_NLOS = module->par("XPR_Mean_NLOS");
 	XPR_Std_NLOS = module->par("XPR_Std_NLOS");
     
     
-	// Find the neighbours and store the pair (bsId, position in data structures) in a map
-	cModule *cell = module->getParentModule()->getParentModule();
-	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
-
-	// Get Playground size from cell module:
-	sizeX = cell->par("playgroundSizeX");
-	sizeY = cell->par("playgroundSizeY");
-
 	// Actually, this counts the own BS as well, so substract 1 
 	numOfInterferers = neighbourIdMatching->numberOfNeighbours() - 1;
 
-	// Resize the vectors for the per-RB trans infos to the number of 
-	// resource blocks.
-	transInfo.first.resize(upRBs);
-	transInfo.second.resize(downRBs);
-
-	// One Channel module per base station
-	// Half wavelength distance between antennas; give the position of Tx and Rx antennas in GCS
-	// For even value of NumBsAntenna, the antenna elements will be equally spaced around the center of Tx
+	// Half wavelength distance between antennas; give the position of Tx and Rx 
+	// antennas in GCS
+	// For even value of NumBsAntenna, the antenna elements will be equally 
+	// spaced around the center of Tx
 	wavelength = speedOfLight / freq_c;
 	vector<Position> tmpPos(neighbourPositions.size());
 	for(size_t i = 0; i<neighbourPositions.size(); i++){
@@ -153,22 +138,11 @@ bool METISChannel::init(cSimpleModule* module, const vector<vector<Position>>& m
 	// Get position resend interval (Stationary MS assumed during this interval)
 	timeSamples = module->par("positionResendInterval");
 	// 4 Samples per TTI; for smooth Fourier transform
-	timeSamples = timeSamples * 4; //scale according to positionResendInterval; timeSamples should be comparable to sim-time-limit
-	timeVector = new double*[numberOfMobileStations];
-	for(int i = 0; i < numberOfMobileStations; i++){
-		timeVector[i] = new double[timeSamples];
-		for(int t = 0; t < timeSamples; t++){
-			timeVector[i][t] = 0.00025 * t;
-		}
-	}
-
+	// scale according to positionResendInterval; timeSamples should be comparable
+	// to sim-time-limit
+	timeSamples = timeSamples * 4; 
 	//compute initial SINR parameters
 	recomputeMETISParams(msPositions);
-
-	// There are a number of dynamically allocated member variables which 
-	// are only allocated in this init method, which need only be freed 
-	// in the destructor iff init has actually been called.
-	initialized = true;
 
 	return true;
 }
@@ -476,8 +450,8 @@ METISChannel::recomputeAngleDirection(
 			vector<double>(numSenders));
 	double x_dir;
 	double y_dir;
-	vec cartLOS_RecToSend_Angle = zeros(3);
-	vec cartLOS_SendToRec_Angle = zeros(3);
+	vec cartLOS_RecToSend_Angle = itpp::zeros(3);
+	vec cartLOS_SendToRec_Angle = itpp::zeros(3);
 	vec sphLOSAngle;
 		
 	// Cycle through all mobile stations
@@ -573,10 +547,12 @@ vector<vector<vector<vector<double>>>> METISChannel::recomputeAzimuthAngles(
 		
 				// First Ray has geometric LOS direction?!
 				if(LOSCondition[i][j]){
-					azimuthCluster[i][k] = azimuthCluster[i][k] * (X_N - X_1) + (Y_N - Y_1) + (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
+					azimuthCluster[i][k] = azimuthCluster[i][k] * (X_N - X_1) 
+						+ (Y_N - Y_1) + (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
 				}
 				else{
-					azimuthCluster[i][k] = azimuthCluster[i][k] * X_N + Y_N + (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
+					azimuthCluster[i][k] = azimuthCluster[i][k] * X_N + Y_N 
+						+ (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
 				}
 		
 				for(int r = 0; r < n_rays; r++){
@@ -657,13 +633,14 @@ METISChannel::genRandomPhases(
 				n_rays = numOfRays_NLOS;
 			}
 			phases[i][j].resize(n_clusters,
-					vector<vector<double>>(n_rays,
-						vector<double>(4)));
+					vector<vector<double>>(n_rays, vector<double>(4)));
 			phases_LOS[i][j] = uniform(-1.0*pi, pi);
 			for(int k = 0; k < n_clusters; k++){
 				for(int r = 0; r < n_rays; r++){
 					for(int l = 0; l < 4; l++){
-						phases[i][j][k][r][l] = uniform(-1.0*pi, pi);			// for the random phases of NLOS component in equation 7-61 of METIS 1.2
+						// for the random phases of NLOS component in equation 7-61 of 
+						// METIS 1.2
+						phases[i][j][k][r][l] = uniform(-1.0*pi, pi);			
 					}
 				}
 			}
@@ -2189,22 +2166,13 @@ double METISChannel::sigma_ZSD(double meanZSD, bool LOS){
 * @param msg Concrete message of potentially arbitrary subtype
 */
 void METISChannel::handleMessage(cMessage* msg){
-	if(msg->isName("COUNTER")){
-		SINRcounter++;
-		if(bsId == 3){
-			ofstream myfile;
-			myfile.open ("Counter.txt", std::ofstream::app);
-			myfile << "SINR Counter METIS at BS " << bsId << " with rand: " << normal(0,1) << std::endl;
-			//std::cout << "Counter: " << SINRcounter << std::endl;
-		}
-	}
-	else if(msg->isName("DEBUG")){
-		ofstream upTables;
+	if(msg->isName("DEBUG")){
+		std::ofstream upTables;
 		std::string fname("coeff_table_up_"+std::to_string(bsId)+".dat");
 		upTables.open(fname,std::ofstream::trunc);
 		printCoeffUpTables(upTables);
 		upTables.close();
-		ofstream downTables;
+		std::ofstream downTables;
 		fname = "coeff_table_down_"+std::to_string(bsId)+".dat";
 		downTables.open(fname,std::ofstream::trunc);
 		printCoeffDownTables(downTables);
@@ -2213,13 +2181,13 @@ void METISChannel::handleMessage(cMessage* msg){
 	delete msg;
 }
 
-double METISChannel::calcInterference(forward_list<TransInfo*>& interferers,
+double METISChannel::calcInterference(std::forward_list<TransInfo*>& interferers,
 		int rb,
 		int receiverId,
 		int SINRCounter,
 		MessageDirection dir){
 	double interference = 0.0;
-	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
+	std::forward_list<TransInfo*>::iterator prev(interferers.before_begin());
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
 		if((*it)->getCreationTime()>=simTime()-tti){
 			if(receiverId==-1){
@@ -2397,12 +2365,6 @@ METISChannel::~METISChannel(){
 		// variables uninitialized, leading to errors. Thus, they 
 		// are only freed when init has been called, as indicated by 
 		// the initialized variable.
-		for(int i=0; i<numberOfMobileStations; i++){
-			delete[] timeVector[i];
-		}
 		delete neighbourIdMatching; 
-		delete[] timeVector;
-	
 	}
-
 }

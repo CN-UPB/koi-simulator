@@ -7,14 +7,14 @@
 
 #pragma once
 
-#include "includes.h"
-#include "Position.h"
-#include "NeighbourIdMatching.h"
 #include "Channel.h"
+#include "includes.h"
+#include "NeighbourIdMatching.h"
+#include "Position.h"
 #include "TransInfo_m.h"
+#include <itpp/itbase.h>
 #include <vector>
 #include <forward_list>
-
 
 class MsChannel : public cSimpleModule  {
     private:
@@ -32,7 +32,7 @@ class MsChannel : public cSimpleModule  {
         Position msPosition;
         int bsId;
         int msId;
-        vec eesm_beta_values;
+				itpp::vec eesm_beta_values;
         NeighbourIdMatching *neighbourIdMatching; //map the bsId to the pos in the data structures
         Channel* channel;
 
