@@ -1035,9 +1035,9 @@ void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions
 	int numReceiverAntenna = NumMsAntenna;
 	int numSenderAntenna = NumBsAntenna;
     
-    	// Copy MS Positions
-	vector<Position> receiverPos(msPositions);	/*!< Position of the MS */
-    	// Copy BS Positions
+	// Copy MS Positions
+	vector<Position> receiverPos(msPositions);
+	// Copy BS Positions
 	vector<Position> senderPos(bsPositions);
 
 	vector<vector<array<double,3>>> receiverAntennaPos(computeAntennaPos(

@@ -25,7 +25,7 @@ bool Channel::init(cSimpleModule* module,
 	downRBs = module->par("downResourceBlocks");
 	initModule = module;
 	maxNumberOfNeighbours = module->par("maxNumberOfNeighbours");
-	neighbourPositions = neighbourPositions;
+	this->neighbourPositions = neighbourPositions;
 	numberOfMobileStations = module->par("numberOfMobileStations");
 	SINRcounter = 0;
 	tti = module->par("tti");
