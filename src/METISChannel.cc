@@ -134,12 +134,6 @@ bool METISChannel::init(cSimpleModule* module,
 	bsAntennaPositions = computeAntennaPos(tmpPos,NumBsAntenna,
 			heightBS);
 
-	// Get position resend interval (Stationary MS assumed during this interval)
-	timeSamples = module->par("positionResendInterval");
-	// 4 Samples per TTI; for smooth Fourier transform
-	// scale according to positionResendInterval; timeSamples should be comparable
-	// to sim-time-limit
-	timeSamples = timeSamples * 4; 
 	//compute initial SINR parameters
 	recomputeMETISParams(msPositions);
 
@@ -2182,47 +2176,4 @@ void METISChannel::handleMessage(cMessage* msg){
 
 void METISChannel::updateChannel(const vector<vector<Position>>& msPos){
 	recomputeMETISParams(msPos);
-}
-
-std::ostream& METISChannel::printCoeffUpTables(std::ostream& out){
-	out << "BS" << "\t" << "MS" << "\t" << "Time" << "\t" << "RB" << "\t" << "Coeff" << std::endl;
-	for(size_t i=0; i<coeffUpTable.size(); i++){
-		for(size_t j=0; j<coeffUpTable[i][0].size(); j++){
-			for(size_t t=0; t<timeSamples; t++){
-				for(size_t r=0; r<downRBs; r++){
-					out << i << "\t" << j << "\t" << t << "\t" << r << "\t" << coeffUpTable[i][0][j][t][r] << std::endl;
-				}
-
-			}
-		}
-	}
-	return out;
-}
-
-std::ostream& METISChannel::printCoeffDownTables(std::ostream& out){
-	out << "MS" << "\t" << "BS" << "\t" << "Time" << "\t" << "RB" << "\t" << "Coeff" << std::endl;
-	for(size_t i=0; i<coeffDownTable.size(); i++){
-		for(size_t j=0; j<coeffDownTable[i].size(); j++){
-			for(size_t t=0; t<timeSamples; t++){
-				for(size_t r=0; r<downRBs; r++){
-					out << i << "\t" << j << "\t" << t << "\t" << r << "\t" << coeffDownTable[i][j][t][r] << std::endl;
-				}
-
-			}
-		}
-	}
-	return out;
-}
-
-METISChannel::~METISChannel(){
-	//TODO: Delete all dynamic memory
-	if(initialized){
-		// All of the following member variables are only allocated 
-		// in the init method, not the constructor. As a result,
-		// the destructor might be called with all of the following 
-		// variables uninitialized, leading to errors. Thus, they 
-		// are only freed when init has been called, as indicated by 
-		// the initialized variable.
-		delete neighbourIdMatching; 
-	}
 }

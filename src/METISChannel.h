@@ -36,7 +36,6 @@ class METISChannel : public Channel{
 		int N_cluster_NLOS;
 		int numOfRays_LOS;
 		int numOfRays_NLOS;
-		int timeSamples;					/*!< Number of TTIs until Position is updated (Number of Time Samples for Channel Model) */
 		int NumBsAntenna;					/*!< Number of Base Station Antenna */
 		int NumMsAntenna;					/*!< Number of Mobile Station Antenna */
 		vector<vector<array<double,3>>> bsAntennaPositions;				/*!< Position vector of Base Station antenna */
@@ -317,16 +316,6 @@ class METISChannel : public Channel{
 		 */
 		void recomputeD2DCoefficients(const vector<vector<Position>>& msPositions);
 
-		/**
-		 * @brief Output the Up coefficient table to out stream
-		 */
-		std::ostream& printCoeffUpTables(std::ostream& out);
-
-		/**
-		 * @brief Output the Down coefficient table to out stream
-		 */
-		std::ostream& printCoeffDownTables(std::ostream& out);
-
 	public:
 		//! Initialize the METIS channel through ini access via OMNeT++ module pointer.
 		bool init(cSimpleModule* module,
@@ -340,5 +329,5 @@ class METISChannel : public Channel{
 		void updateChannel(const vector<vector<Position>>& msPos);
 
 		//! Destructor of METIS Channel subclass.
-		virtual ~METISChannel();
+		virtual ~METISChannel(){}
 };

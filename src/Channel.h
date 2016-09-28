@@ -93,6 +93,12 @@ class Channel{
 		 */
 		const static double speedOfLight;
 		/**
+		 * Number of TTIs until Position is updated 
+		 *
+		 * (Number of Time Samples for Channel Model)
+		 */
+		int timeSamples;
+		/**
 		 * Interference information from local and neighbouring senders
 		 */
 		std::pair<vector<std::forward_list<TransInfo*>>,
@@ -128,18 +134,9 @@ class Channel{
 			bsId = -1;
 			initialized = false;
 		}
-		// Initialize your Channel through ini access via module pointer.
-		// The MS/BS Positions may not be needed for every channel.
-		virtual bool init(cSimpleModule* module,
-				const vector<vector<Position>>& msPositions, 
-				std::map<int,Position>& neighbourPositions)=0;
-		// It may be necessary for the Channel to receive Message from other LPs.
-		// Note: If you send a msg with kind x, it is received with kind (x+1) by neighbour cells
-		// When it has the name "CHANNEL_INFO"
-		virtual void handleMessage(cMessage* msg) = 0;
-		// Updates the Channel if necessary for moving MS
-		virtual void updateChannel(const vector<vector<Position>>& msPos) = 0;
-		        
+
+		virtual void addTransInfo(TransInfo* trans);
+
 		virtual double calcUpSINR(int RB, 
 				int msId,
 				double transPower);
@@ -165,7 +162,33 @@ class Channel{
 				int msId,
 				double transPower);
 
-		virtual void addTransInfo(TransInfo* trans);
+		/**
+		 * @brief It may be necessary for the Channel to receive Messages
+		 * 
+		 */
+		virtual void handleMessage(cMessage* msg) = 0;
 
-		virtual ~Channel(){}
+		/**
+		 * @brief Initialize the channel model with the given positions
+		 */
+		virtual bool init(cSimpleModule* module,
+				const vector<vector<Position>>& msPositions, 
+				std::map<int,Position>& neighbourPositions)=0;
+
+		/**
+		 * @brief Output the Up coefficient table to out stream
+		 */
+		virtual std::ostream& printCoeffUpTables(std::ostream& out);
+
+		/**
+		 * @brief Output the Down coefficient table to out stream
+		 */
+		virtual std::ostream& printCoeffDownTables(std::ostream& out);
+
+		/**
+		 * @brief Updates the Channel if necessary for moving MS
+		 */
+		virtual void updateChannel(const vector<vector<Position>>& msPos) = 0;
+		        
+		virtual ~Channel();
 };
