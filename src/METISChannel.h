@@ -15,6 +15,7 @@
 #include "Position.h"
 #include "Channel.h"
 #include <algorithm>
+#include <complex>
 #include <vector>
 #include <tuple>
 #include <array>
@@ -36,11 +37,6 @@ class METISChannel : public Channel{
 		int numOfRays_LOS;
 		int numOfRays_NLOS;
 		int timeSamples;					/*!< Number of TTIs until Position is updated (Number of Time Samples for Channel Model) */
-		vector<vector<vector<vector<double>>>> coeffDownTable;				/*!< Table to save downlink coefficients */
-		vector<vector<vector<vector<vector<double>>>>> coeffUpTable;				/*!< Table to save uplink coefficients */
-		vector<vector<vector<vector<vector<double>>>>> coeffDownD2DTable;				/*!< Table to save D2D DOWN Rb coefficients */
-		vector<vector<vector<vector<vector<double>>>>> coeffUpD2DTable;				/*!< Table to save D2D UP Rb coefficients */
-		int SINRcounter;					/*!< If position resend intervall > 1, it counts the current TTI */
 		int NumBsAntenna;					/*!< Number of Base Station Antenna */
 		int NumMsAntenna;					/*!< Number of Mobile Station Antenna */
 		vector<vector<array<double,3>>> bsAntennaPositions;				/*!< Position vector of Base Station antenna */
@@ -331,15 +327,6 @@ class METISChannel : public Channel{
 		 */
 		std::ostream& printCoeffDownTables(std::ostream& out);
 
-		/**
-		 * @brief Calculate interference for transmission
-		 */
-		double calcInterference(std::forward_list<TransInfo*>& interferers,
-				int rb,
-				int receiverId,
-				int SINRCounter,
-				MessageDirection dir);
-
 	public:
 		//! Initialize the METIS channel through ini access via OMNeT++ module pointer.
 		bool init(cSimpleModule* module,
@@ -348,38 +335,6 @@ class METISChannel : public Channel{
 
 		//! Allows the OMNeT++ module to pass messages to this METIS channel class.
 		void handleMessage(cMessage* msg);
-		
-		//! Computes the pathloss for a given distance using an arbitrary model.
-		double calcPathloss(double dist);
-		
-		//! Computes the Termal Noise ("johnson nyquist noise")
-		double getTermalNoise(double temp, double bandwidth);
-		
-		double calcUpSINR(int RB, 
-				int msId,
-				double transPower);
-
-		double calcDownSINR(int RB, 
-				int msId,
-				double transPower);
-
-		double calcD2DSINR(int RB, 
-				int sendMsID,
-				int receiveMsId,
-				MessageDirection direction,
-				double transPower);
-
-		double calcAvgUpSINR(int RB, 
-				int msId,
-				double transPower);
-
-		double calcAvgDownSINR(int RB, 
-				double transPower);
-
-		double calcAvgD2DDownSINR(int RB, 
-				int msId,
-				double transPower);
-
 		
 		//! Updates the MS position if velocity > 0. The interval in which the postion is updated can be set within omnet.ini
 		void updateChannel(const vector<vector<Position>>& msPos);

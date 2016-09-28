@@ -12,10 +12,11 @@
 #include "NeighbourIdMatching.h"
 #include "Position.h"
 #include "TransInfo_m.h"
-#include <itpp/itbase.h>
 #include <forward_list>
 #include <utility>
 #include <vector>
+
+using std::vector;
 
 class Channel{
 	protected:
@@ -23,6 +24,30 @@ class Channel{
 		 * Unique ID of the BS in the cell this channel serves
 		 */
 		int bsId;
+		/**
+		 * @brief Table to save downlink coefficients
+		 *
+		 * [receivingMsId][sendingBsId][counter][RB]
+		 */
+		vector<vector<vector<vector<double>>>> coeffDownTable;
+		/**
+		 * @brief Table to save uplink coefficients
+		 *
+		 * [sendingMsCellID][0][sendingMsId][counter][RB]
+		 */
+		vector<vector<vector<vector<vector<double>>>>> coeffUpTable;
+		/**
+		 * @brief Table to save D2D DOWN Rb coefficients
+		 *
+		 * [sendingMsCellID][receivingMsId][sendingMsId][counter][RB]
+		 */
+		vector<vector<vector<vector<vector<double>>>>> coeffDownD2DTable;
+		/**
+		 * @brief Table to save D2D UP Rb coefficients
+		 *
+		 * [sendingMsCellID][receivingMsId][sendingMsId][counter][RB]
+		 */
+		vector<vector<vector<vector<vector<double>>>>> coeffUpD2DTable;
 		/**
 		 * Number of down resource blocks
 		 */
@@ -52,6 +77,10 @@ class Channel{
 		 */
 		int numberOfMobileStations;
 		/**
+		 * If position resend intervall > 1, it counts the current TTI
+		 */
+		int SINRcounter;
+		/**
 		 * Size of playground in the X dimension
 		 */
 		double sizeX;
@@ -66,8 +95,8 @@ class Channel{
 		/**
 		 * Interference information from local and neighbouring senders
 		 */
-		std::pair<std::vector<std::forward_list<TransInfo*>>,
-			std::vector<std::forward_list<TransInfo*>>> transInfo;
+		std::pair<vector<std::forward_list<TransInfo*>>,
+			vector<std::forward_list<TransInfo*>>> transInfo;
 		/**
 		 * Transmission Time Interval
 		 */
@@ -76,6 +105,20 @@ class Channel{
 		 * Number of up resource blocks
 		 */
 		int upRBs;
+		/**
+		 * @brief Calculate interference for transmission
+		 */
+		virtual double calcInterference(std::forward_list<TransInfo*>& interferers,
+				int rb,
+				int receiverId,
+				int SINRCounter,
+				MessageDirection dir);
+		/**
+		 * @brief Computes the Termal Noise
+		 *
+		 * The default implementation is the Johnson-Nyquist noise
+		 */
+		double getTermalNoise(double temp, double bandwidth);
 
 	public:
 		/**
@@ -88,44 +131,39 @@ class Channel{
 		// Initialize your Channel through ini access via module pointer.
 		// The MS/BS Positions may not be needed for every channel.
 		virtual bool init(cSimpleModule* module,
-				const std::vector<std::vector<Position>>& msPositions, 
+				const vector<vector<Position>>& msPositions, 
 				std::map<int,Position>& neighbourPositions)=0;
 		// It may be necessary for the Channel to receive Message from other LPs.
 		// Note: If you send a msg with kind x, it is received with kind (x+1) by neighbour cells
 		// When it has the name "CHANNEL_INFO"
 		virtual void handleMessage(cMessage* msg) = 0;
-		// Computes the pathloss for a given distance using an arbitrary model.
-		virtual double calcPathloss(double dist) = 0;
-		// Computes the Termal Noise.
-		virtual double getTermalNoise(double temp, double bandwidth) = 0;
 		// Updates the Channel if necessary for moving MS
-		virtual void updateChannel(const std::vector<std::vector<Position>>& msPos)
-			= 0;
+		virtual void updateChannel(const vector<vector<Position>>& msPos) = 0;
 		        
 		virtual double calcUpSINR(int RB, 
 				int msId,
-				double transPower) = 0;
+				double transPower);
 
 		virtual double calcDownSINR(int RB, 
 				int msId,
-				double transPower) = 0;
+				double transPower);
 
 		virtual double calcD2DSINR(int RB, 
 				int sendMsID,
 				int receiveMsId,
 				MessageDirection direction,
-				double transPower) = 0;
+				double transPower);
 
 		virtual double calcAvgUpSINR(int RB, 
 				int msId,
-				double transPower) = 0;
+				double transPower);
 
 		virtual double calcAvgDownSINR(int RB, 
-				double transPower) = 0;
+				double transPower);
 
 		virtual double calcAvgD2DDownSINR(int RB, 
 				int msId,
-				double transPower) = 0;
+				double transPower);
 
 		virtual void addTransInfo(TransInfo* trans);
 
