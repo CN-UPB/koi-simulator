@@ -2253,6 +2253,7 @@ double METISChannel::calcInterference(forward_list<TransInfo*>& interferers,
 		}
 	}
 	interference += getTermalNoise(300,180000);
+	return interference;
 }
 
 double METISChannel::calcUpSINR(int RB, 
