@@ -7,10 +7,9 @@ scheduling simulations.
 For installation/build instructions, please consult the INSTALL file.
 
 To execute an example simulation, build the simulation code as described in 
-the INSTALL file. Then, change into the ``simulations/example/``
-subdirectory and execute::
-
-	$ ../../src/koisim -n "./;../../src/ned"
+the INSTALL file. Then, have a look into the 
+[simulations repository](https://git.cs.upb.de/koi/simulations.git) for 
+configurations.
 
 Generating the Documentation
 ----------------------------
@@ -18,21 +17,21 @@ Generating the Documentation
 To generate the documentation, you need the software Doxygen, to generate 
 the C++ API docs. Additionally, you will need a working version of the 
 Omnet++ Eclipse IDE. First, change to the directory where you downloaded 
-the simulation software and run::
+the simulation software and run
 	
 	$ doxygen Doxyfile
 
-This command will place the C++ API docs in the directory ``doc/doxy``.
+This command will place the C++ API docs in the directory `doc/doxy`.
 To generate the documentation for the NED files, open the Omnet++ IDE 
 with a valid workspace. Then, import the KOI Simulator project by 
-choosing "Import..." from the "File" menu, then 
-"Existing projects into Workspace" as the import source. 
+choosing *Import...* from the *File* menu, then 
+*Existing projects into Workspace* as the import source. 
 
-Then, on the "Import Projects" mask, click "Browse" and navigate to the 
+Then, on the *Import Projects* mask, click *Browse* and navigate to the 
 directory where you stored the simulator. Afterwards, a project named 
-"abstractLte" should show up under "Projects". Select it and click "finish".
+*abstractLte* should show up under *Projects*. Select it and click *finish*.
 
 After you've imported the project successfully, right click it in your project 
-explorer and choose "Generate NED Documentation". Now, you will find 
-the full documentation under the ``doc/neddoc`` directory. To read the 
-freshly generated documentation, point your browser to ``doc/index.html``.
+explorer and choose *Generate NED Documentation*. Now, you will find 
+the full documentation under the `doc/neddoc` directory. To read the 
+freshly generated documentation, point your browser to `doc/index.html`.
