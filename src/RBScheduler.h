@@ -17,24 +17,29 @@
 #pragma once
 
 #include "includes.h"
+#include "MessageTypes.h"
+#include "SINR_m.h"
 #include "StreamTransSched_m.h"
 #include "StreamTransReq_m.h"
 #include "KoiData_m.h"
 
+#include <memory>
+#include <unordered_map>
 #include <vector>
 
 class RBScheduler: public cSimpleModule{
 	private:
 		int rbNumber;
 		virtual StreamTransSched *getSchedule(
-				const std::vector<StreamTransReq*>& reqs);
+				std::vector<StreamTransReq*>& reqs,
+				int direction,
+				const std::shared_ptr<std::unordered_map<int,SINR*>> estimates);
 
 	protected:
 		virtual void initialize();
 		virtual void handleMessage(cMessage *msg);
 	
 	public:
-		virtual bool comparator(const KoiData *left, 
-				const KoiData *right) const;
+		virtual bool comparator(const KoiData *left,const KoiData *right) const;
 		~RBScheduler() = default;
 };

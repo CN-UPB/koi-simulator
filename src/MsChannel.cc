@@ -5,9 +5,8 @@
  *      Author: Sascha Schmerlin
  */
 
+#include "KoiData_m.h"
 #include "MsChannel.h"
-#include "DataPacket_m.h"
-#include "DataPacketBundle_m.h"
 #include "SINR_m.h"
 #include "PositionExchange_m.h"
 #include "ChannelExchange_m.h"
@@ -24,32 +23,27 @@ using std::forward_list;
 Define_Module(MsChannel);
 
 void MsChannel::initialize()  {
-    maxNumberOfNeighbours = par("maxNumberOfNeighbours");
-    useSimpleChannelCalc = par("useSimpleChannelCalc");
-    simpleChannelCalcNops = par("simpleChannelCalcNops");
-    packetLoss = par("packetLoss");
-    currentChannel = par("currentChannel");
-    bsId = par("bsId");
-    epsilon = par("epsilon");
-    tti = par("tti");
-    msId = par("msId");
-    downResourceBlocks = par("downResourceBlocks");
-    msPosition.x = 6;
-    msPosition.y = 21;
-    //find the neighbours and store the pair (bsId, position in data structures) in a map
-    cModule *cell = getParentModule()->getParentModule();
-    neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
+	maxNumberOfNeighbours = par("maxNumberOfNeighbours");
+	bsId = par("bsId");
+	epsilon = par("epsilon");
+	initOffset = par("initOffset");
+	tti = par("tti");
+	msId = par("msId");
+	downResourceBlocks = par("downResourceBlocks");
+	upResourceBlocks = par("upResourceBlocks");
+	msPosition.x = 6;
+	msPosition.y = 21;
+	//find the neighbours and store the pair (bsId, position in data structures) in a map
+	cModule *cell = getParentModule()->getParentModule();
+	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
 
-    bsPositions = new Position[neighbourIdMatching->numberOfNeighbours()];
-    
-    // EESM Beta values for effective SINR
-    string eesm_beta = par("eesm_beta");
-    eesm_beta_values = vec(eesm_beta);
+	bsPositions = new Position[neighbourIdMatching->numberOfNeighbours()];
 
-    // Instantiate a transmission info list for each down ressource block
-    transInfos.resize(downResourceBlocks);
-    
-    scheduleAt(simTime() + 1000 * tti + epsilon, new cMessage("SINR_ESTIMATION")); //originally set to 1000*tti + epsilon
+	// EESM Beta values for effective SINR
+	string eesm_beta = par("eesm_beta");
+	eesm_beta_values = vec(eesm_beta);
+
+	scheduleAt(simTime()+initOffset-epsilon, new cMessage("SINR_ESTIMATION")); //originally set to 1000*tti + epsilon
 }
 
 simtime_t MsChannel::getProcessingDelay(cMessage *msg)  {
@@ -60,42 +54,26 @@ simtime_t MsChannel::getProcessingDelay(cMessage *msg)  {
 }
 
 void MsChannel::handleMessage(cMessage *msg)  {
-	if(msg->isName("SINR_ESTIMATION"))  {
-		vector<double> power;
-		vector<Position> pos;
-		vector<int> bsId_;
+	if(msg->isName("SINR_ESTIMATION")){
+		SINR *sinrMessage = new SINR();
+		sinrMessage->setBsId(bsId);
+		sinrMessage->setMsId(msId);
 
-		bsId_.push_back(bsId);
-		bsId_.push_back(bsId);
-
-		//interferer are all the neighbouring bs
-		NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
-		for(NeighbourMap::iterator it = map->begin(); it != map->end(); ++it)  {
-			if(it->first != bsId){
-				bsId_.push_back(it->first);
-			}
-
-
-		}
-		if(!channel){
-			std::cout << "ERROR NULL POINTER!" << std::endl;
-		}
-		vec sinr = channel->calcSINR(power, pos, bsId_, false, msId);
-		//cout << "SINR: " << sinr << endl;
-		//cout << "Nr: " << power.size() << " " << pos.size() << " " << bsId_.size() << endl;
-
-		delete msg;
-		scheduleAt(simTime() + tti, new cMessage("SINR_ESTIMATION"));
-
-		SINR *sinrMessage = new SINR("SINR_ESTIMATION");
-		sinrMessage->setSINRArraySize(downResourceBlocks);
-		//std::cout << "SINR at RB 0 = " << sinr(0) << std::endl;
+		// Set SINR estimation to the average SINR value over all 
+		// possible transmission recipients in the previous tti.
+		sinrMessage->setDownArraySize(downResourceBlocks);
 		for(int i = 0; i < downResourceBlocks; i++){
-			sinrMessage->setSINR(i,sinr(i));
+			sinrMessage->setDown(i,
+                            channel->calcAvgD2DDownSINR(i,msId,1.0));
 		}
-		//std::cout << "Send SINR Estimation from MS " << msId << std::endl;
-		//std::cout << sinr << std::endl;
+		sinrMessage->setUpArraySize(upResourceBlocks);
+		for(int i = 0; i < upResourceBlocks; i++){
+			sinrMessage->setUp(i,
+                            channel->calcAvgUpSINR(i,msId,1.0));
+		}
+		// Route estimate to MsMac via MsPhy
 		send(sinrMessage,"toPhy");
+		scheduleAt(simTime() + tti, msg);
 	}
 	else if(msg->isName("CHANNEL_INFO"))  {
 		// Whenever you receive a message called CHANNEL_INFO forward it to channel.
@@ -120,37 +98,50 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		bsPositions[dataStrPos] = bsPos->getPosition();
 		delete msg;
 	}
-	else if(msg->arrivedOn("fromBs"))  {
-		if(msg->isName("DATA_BUNDLE")){
-			//the channel receives the packet in a bundle
-			DataPacketBundle *bundle = (DataPacketBundle *) msg;
-			// Just forward the packet for now, without error checking etc
+	else if(msg->getKind()==MessageType::koidata)  {
+		KoiData *packet = (KoiData *) msg;
+                // Set Scheduled to false, as the packet now need to be
+                // scheduled anew.
+                packet->setScheduled(false);
+		// Just forward the packet for now, without error checking etc
+		vector<double> instSINR;
+		int currentRessourceBlock = packet->getResourceBlock();
 
-			vector<double> instSINR;
-			int currentRessourceBlock = bundle->getRBs(0);
-
-			instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,transInfos[currentRessourceBlock],msId,bundle->getTransPower()));
-			double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
-			double bler = getBler(bundle->getCqi(), effSINR, this);
-			vec bler_(1);
-			bler_.set(0,bler);
-			double per = getPer(bler_);
-			std::cout << "SINR DOWN" << " At " << msId <<": " << effSINR << std::endl;
-
-			/**
-			  if(uniform(0,1) > per){
-			  sendDelayed(bundle, tti - epsilon, "toPhy");
-			  }else{
-			  delete bundle;
-			  }
-			 **/
-			// For now, all packets are received successfully
-			sendDelayed(bundle, tti - epsilon, "toPhy");
+		switch(packet->getMessageDirection()){
+			case MessageDirection::down:
+				instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,msId,packet->getTransPower()));
+				break;
+			case MessageDirection::d2dDown:
+				instSINR.push_back(channel->calcD2DSINR(
+							currentRessourceBlock,
+							packet->getSrc(),
+							msId,MessageDirection::d2dDown,
+							packet->getTransPower()));
+				break;
+			case MessageDirection::d2dUp:
+				instSINR.push_back(channel->calcD2DSINR(
+							currentRessourceBlock,
+							packet->getSrc(),
+							msId,MessageDirection::d2dUp,
+							packet->getTransPower()));
+				break;
 		}
-		else if(msg->getKind()==MessageType::transInfoBs){
-			TransInfoBs *info = dynamic_cast<TransInfoBs*>(msg);
-			transInfos[info->getRb()].push_front(info);
-		}
+                /**
+		double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
+		double bler = getBler(packet->getCqi(), effSINR, this);
+		vec bler_(1);
+		bler_.set(0,bler);
+		double per = getPer(bler_);
+                **/
+		/**
+		  if(uniform(0,1) > per){
+		  sendDelayed(bundle, tti - epsilon, "toPhy");
+		  }else{
+		  delete bundle;
+		  }
+		 **/
+		// For now, all packets are received successfully
+		sendDelayed(packet, tti - epsilon, "toPhy");
 	}
 	
 }

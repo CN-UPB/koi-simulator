@@ -6,6 +6,7 @@
  */
 
 #include "util.h"
+#include <numeric>
 
 using namespace itpp;
 using namespace std;
@@ -85,7 +86,7 @@ double getSpectralEfficiency(int CQI){
 	}
 }
 
-double getChannelCapacity(vector<double> sinrValues){
+double getChannelCapacity(const vector<double>& sinrValues){
 	int numberRB = sinrValues.size();
 	double minSinr;
 	if(numberRB > 0){
@@ -97,9 +98,7 @@ double getChannelCapacity(vector<double> sinrValues){
 	int subcarriers = 12;	// Fix for LTE
 	int OFDMA_Symbols = 7;	// Fix for LTE
 	
-	// Ignore CQI until we have decided how to compute it
-	//double capacityPerRB = getSpectralEfficiency(CQI) * subcarriers * OFDMA_Symbols;
-	double capacityPerRB = 1.0 * subcarriers * OFDMA_Symbols;
+	double capacityPerRB = getSpectralEfficiency(CQI) * subcarriers * OFDMA_Symbols;
 	double result = capacityPerRB * numberRB;
 	// Round down result, we cannot send half bits.
 	return floor(result);
@@ -219,4 +218,52 @@ double getPer(vec bler){
 		}
 		return result;
 	}
+}
+
+int lcm(int a, int b){
+  int temp = itpp::gcd(a,b);
+  return temp ? (a/temp)*b : 0;
+}
+
+int integerOoM(double val){
+  // Find out which order of magnitude moves the decimal point out of the 
+  // number, leaving only a natural number behind.
+  // If the value has no fractional component, return 0 (10^0 = 1)
+  double tmp;
+  if(std::modf(val,&tmp)==0.0){
+    return 0;
+  }
+  // Kickstart the process with the tenth logarithm of the value
+  int oom = std::floor(std::log10(val));
+  double curr(val*std::pow(10,oom));
+  while(std::modf(curr,&tmp)!=0.0){
+    curr *= 10;
+    ++oom;
+  }
+  return oom;
+}
+
+double lcmSequence(const vector<double>& elems){
+  // First, we need all the input numbers as integers, because LCM
+  // (and GCD, which the algorithm is based on) are only defined for natural
+  // numbers. Rounding is out of the question. 
+  // Instead, represent all numbers in the format x*10^y with such y that 
+  // x is an integer.
+  int largestOoM(0);
+  int curr;
+  for(const double& val:elems){
+    curr = integerOoM(val);
+    if(curr>largestOoM){
+      largestOoM = curr;
+    }
+  }
+  auto makeInt = [&largestOoM](double v) 
+    -> int {return v*std::pow(10,largestOoM);};
+  vector<int> intVals(elems.size());
+  std::transform(elems.begin(),elems.end(),intVals.begin(),makeInt);
+  return lcmSequence(intVals)*std::pow(10,-largestOoM);
+}
+
+int lcmSequence(const vector<int>& elems){
+  return std::accumulate(++(elems.begin()),elems.end(),elems[0],lcm);
 }

@@ -2,13 +2,15 @@
 // to request the use of a Ressource Block for sending in the current TTI.
 
 cplusplus {{
-#include <omnetpp.h>
 #include "MessageTypes.h"
-using QueuePtr = const cQueue*;
+#include "KoiData_m.h"
+#include <list>
+using QueuePtr = std::list<KoiData*>*;
 }}
 
 class noncobject QueuePtr;
 enum MessageType;
+enum MessageDirection;
 
 message StreamTransReq  {
 	
@@ -16,6 +18,8 @@ message StreamTransReq  {
 	int dest; // The MS to which the Packet should be send
 	simtime_t period; // The (average) time between two packets in this stream
 	QueuePtr packets; // The current packet queue for this stream   
-	bool bs; // Is this request originating from the Base Station?
+	int messageDirection @enum(MessageDirection); // The direction of the message, up, down or D2D
+	unsigned long streamId; // The unique ID identifying the stream this schedule concerns
+	int requestOrigin; // The id of the MS where the request originated, or -1 if it originated at the BS
 	kind = MessageType::streamTransReq;
 }

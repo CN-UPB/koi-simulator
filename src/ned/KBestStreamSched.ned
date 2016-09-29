@@ -1,12 +1,15 @@
-// Round Robin scheduling for the StreamScheduler
+// K-Best Round Robin Stream Scheduler
 //
-// This implementation of the StreamScheduler interface assigns streams 
-// to resource block through round robin. After receiving all StreamInfo 
-// messages, the scheduler iterates jointly over them and the list 
-// of available resource blocks. If the list of resource blocks is exhausted 
-// before all streams are assigned, the assigment starts again with the front 
-// of the resource block list.
-simple RoundRobinStreamSched like StreamScheduler{
+// This scheduler is a variant on the RoundRobinStreamScheduler. Instead of 
+// assigning streams until all streams have a resource block, senders get 
+// assigned the k best resource blocks for each direction, until all resource 
+// blocks are used. If, at the end of the assignment, some senders don't have 
+// resource blocks assigned, the assignment starts with them in the next TTI's
+// scheduling.
+//
+// In this way, not all senders get to send in each TTI, but those which do 
+// get k resource blocks.
+simple KBestStreamSched like StreamScheduler{
 	parameters:
 		// Offset from the simulation start reserved for initialization messages.
 		// No traffic is generated/send before it.
@@ -25,7 +28,11 @@ simple RoundRobinStreamSched like StreamScheduler{
 		// A small offset used control message order in cases where ordering 
 		// cannot be guaranteed by generation order.
 		double epsilon @unit(s);
-		@class("StreamScheduler");
+		// Number of best RB assigned to senders each TTI for UP transmissions
+		int upK;
+		// Number of best RB assigned to senders each TTI for DOWN transmissions
+		int downK;
+		@class("KBestStreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.
 		input fromBs;

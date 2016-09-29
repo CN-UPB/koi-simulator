@@ -8,38 +8,64 @@
 #pragma once
 
 #include "includes.h"
+#include "KoiData_m.h"
 #include "Position.h"
+#include "util.h"
 #include <itpp/itbase.h>
 #include <algorithm>
+#include <list>
 #include <unordered_map>
-#include "util.h"
 
 using namespace itpp;
 using namespace std;
 
 class MsMac : public cSimpleModule  {
     private:
-	unordered_map<int,cQueue> streamQueues;
-        Position msPosition;
-        int msId;
-        int bsId;
-        int positionResendInterval;
-        int currentChannel;
-        int packetLength;
-        int downResourceBlocks;
-        simtime_t initOffset;
-        simtime_t epsilon;
-        simtime_t tti;
-        double radius;
-	vector<double> velocity;
-        Position initBsPos; //just used for position centering in Tkenv ms pos calc in init
-        vec SINR_;
-	double transmissionPower;
+			unordered_map<unsigned long,list<KoiData*>> streamQueues;
+			Position msPosition;
+			int msId;
+			int bsId;
+			int positionResendInterval;
+			int currentChannel;
+			int packetLength;
+			int downResourceBlocks;
+			simtime_t initOffset;
+			simtime_t epsilon;
+			simtime_t tti;
+			double radius;
+			vector<double> velocity;
+			Position initBsPos; //just used for position centering in Tkenv ms pos calc in init
+			vector<double> sinrUp;
+			vector<double> sinrDown;
+			double transmissionPower;
+			inline simtime_t positionResendTime();
+			Position initMsPosition(int quadrant, double alpha, double beta, double gamma);
+			Position initMsPositionLinear();
+			Position initMsPositionRand();
+			simsignal_t avgRatePerStation;
+			void updateDisplayString();
+	/**
+	 * @enum Placement
+	 * All possible methods to determine initial Mobile Station placement
+	 */
+	enum Placement: int{uniformRand,params,bySector,linear};
 
-        inline simtime_t positionResendTime();
-        Position initMsPosition(int quadrant, double alpha, double beta, double gamma);
-	Position initMsPositionLinear();
-        void updateDisplayString();
+	/**
+	 * @var MsMac::Placement MsMac::uniformRand
+	 * Place mobile stations uniformly at random in the cell.
+	 */
+	/**
+	 * @var MsMac::Placement MsMac::params
+	 * Place mobile stations as set in the initMsXPos,initMsYPos params.
+	 */
+	/**
+	 * @var MsMac::Placement MsMac::bySector
+	 * Place mobile stations randomly into cell sectors.
+	 */
+	/**
+	 * @var MsMac::Placement MsMac::linear
+	 * Place mobile stations linearly along a "road".
+	 */
 
     protected:
         virtual void initialize();

@@ -9,62 +9,186 @@
 #pragma once
 
 #include "includes.h"
-#include <itpp/itbase.h>
+#include "NeighbourIdMatching.h"
 #include "Position.h"
-#include "TransInfoBs_m.h"
-#include "TransInfoMs_m.h"
+#include "TransInfo_m.h"
 #include <forward_list>
+#include <utility>
+#include <vector>
 
-using namespace std;
-using namespace itpp;
+using std::vector;
 
 class Channel{
 	protected:
-		const static double speedOfLightVac;
-		
-		// Power values and Positions.
-	    vector<Position> senderPosition;
-        vector<Position> targetPosition;
-        vector<vector<Position>> interfererPositions;
-        vector<vector<double>> interfererPower;
-        vector<double> senderPower;
+		/**
+		 * Unique ID of the BS in the cell this channel serves
+		 */
+		int bsId;
+		/**
+		 * @brief Table to save downlink coefficients
+		 *
+		 * [receivingMsId][sendingBsId][counter][RB]
+		 */
+		vector<vector<vector<vector<double>>>> coeffDownTable;
+		/**
+		 * @brief Table to save uplink coefficients
+		 *
+		 * [sendingMsCellID][0][sendingMsId][counter][RB]
+		 */
+		vector<vector<vector<vector<vector<double>>>>> coeffUpTable;
+		/**
+		 * @brief Table to save D2D DOWN Rb coefficients
+		 *
+		 * [sendingMsCellID][receivingMsId][sendingMsId][counter][RB]
+		 */
+		vector<vector<vector<vector<vector<double>>>>> coeffDownD2DTable;
+		/**
+		 * @brief Table to save D2D UP Rb coefficients
+		 *
+		 * [sendingMsCellID][receivingMsId][sendingMsId][counter][RB]
+		 */
+		vector<vector<vector<vector<vector<double>>>>> coeffUpD2DTable;
+		/**
+		 * Number of down resource blocks
+		 */
+		int downRBs;
+		/**
+		 * True iff METISChannel::init has been called
+		 */
+		bool initialized;
+		/**
+		 * Pointer to OMNeT module for intermodule communication
+		 */
+		cSimpleModule *initModule;
+		/**
+		 * Max Number of Neighbour BS
+		 */
+		int maxNumberOfNeighbours;
+		/**
+		 * Information about neighbouring cells
+		 */
+		NeighbourIdMatching *neighbourIdMatching;
+		/**
+		 * Positions of Neighbour BS
+		 */
+		std::map<int,Position> neighbourPositions;
+		/**
+		 * Number of MSs within the local cell
+		 */
+		int numberOfMobileStations;
+		/**
+		 * If position resend intervall > 1, it counts the current TTI
+		 */
+		int SINRcounter;
+		/**
+		 * Size of playground in the X dimension
+		 */
+		double sizeX;
+		/**
+		 * Size of playground in the Y dimension
+		 */
+		double sizeY;
+		/**
+		 * The speed of light in m/s
+		 */
+		const static double speedOfLight;
+		/**
+		 * Number of TTIs until Position is updated 
+		 *
+		 * (Number of Time Samples for Channel Model)
+		 */
+		int timeSamples;
+		/**
+		 * Interference information from local and neighbouring senders
+		 */
+		std::pair<vector<std::forward_list<TransInfo*>>,
+			vector<std::forward_list<TransInfo*>>> transInfo;
+		/**
+		 * Transmission Time Interval
+		 */
+		double tti;
+		/**
+		 * Number of up resource blocks
+		 */
+		int upRBs;
+		/**
+		 * @brief Calculate interference for transmission
+		 */
+		virtual double calcInterference(std::forward_list<TransInfo*>& interferers,
+				int rb,
+				int receiverId,
+				int SINRCounter,
+				MessageDirection dir);
+		/**
+		 * @brief Computes the Termal Noise
+		 *
+		 * The default implementation is the Johnson-Nyquist noise
+		 */
+		double getTermalNoise(double temp, double bandwidth);
 
 	public:
-		// Initialize your Channel through ini access via module pointer. The MS/BS Positions may not be needed for every channel.
-		virtual bool init(cSimpleModule* module, Position** msPositions, std::map <int,Position> neighbourPositions) = 0;
-		// It may be necessary for the Channel to receive Message from other LPs.
-		// Note: If you send a msg with kind x, it is received with kind (x+1) by neighbour cells
-		// When it has the name "CHANNEL_INFO"
-		virtual void handleMessage(cMessage* msg) = 0;
-		// Computes the pathloss for a given distance using an arbitrary model.
-		virtual double calcPathloss(double dist) = 0;
-		// Computes the Termal Noise.
-		virtual double getTermalNoise(double temp, double bandwidth) = 0;
-		// Calculates the current SINR for given interferers and a given RB.
-		virtual double calcSINR(int RB, vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId) = 0;
-		// Calculates the current SINR for given interferers and a given RB.
-		virtual vec calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId) = 0;
-		// Updates the Channel if necessary for moving MS
-		virtual void updateChannel(Position** msPos) = 0;
-		        
-		// Store positions of sender/receiver/interferes (Id because pointer is shared)
-		void setSenderPosition(Position p, double power, int Id) { senderPosition[Id] = p; senderPower[Id] = power; }
+		/**
+		 * @brief Default channel constructor
+		 */
+		Channel(){
+			bsId = -1;
+			initialized = false;
+		}
+
+		virtual void addTransInfo(TransInfo* trans);
 
 		virtual double calcUpSINR(int RB, 
-				std::forward_list<TransInfoMs*> &interferers,
 				int msId,
-				double transPower){return 0.0;}
+				double transPower);
 
 		virtual double calcDownSINR(int RB, 
-				std::forward_list<TransInfoBs*> &interferers,
 				int msId,
-				double transPower){return 0.0;}
+				double transPower);
 
-        Position getSenderPosition(int Id) { return senderPosition.at(Id); }
-        void setTargetPosition(Position p, int Id) { targetPosition[Id] = p; }
-        Position getTargetPosition(int Id) { return targetPosition.at(Id); }
-        void clearInterfererPostitions(int Id) { interfererPositions.at(Id).clear(); interfererPower.at(Id).clear(); }
-        void addInterfererPosition(Position p, double power, int Id) { interfererPositions.at(Id).push_back(p); interfererPower.at(Id).push_back(power); }
+		virtual double calcD2DSINR(int RB, 
+				int sendMsID,
+				int receiveMsId,
+				MessageDirection direction,
+				double transPower);
 
-		virtual ~Channel(){}
+		virtual double calcAvgUpSINR(int RB, 
+				int msId,
+				double transPower);
+
+		virtual double calcAvgDownSINR(int RB, 
+				double transPower);
+
+		virtual double calcAvgD2DDownSINR(int RB, 
+				int msId,
+				double transPower);
+
+		/**
+		 * @brief It may be necessary for the Channel to receive Messages
+		 * 
+		 */
+		virtual void handleMessage(cMessage* msg) = 0;
+
+		/**
+		 * @brief Initialize the channel model with the given positions
+		 */
+		virtual bool init(cSimpleModule* module,
+				const vector<vector<Position>>& msPositions, 
+				std::map<int,Position>& neighbourPositions)=0;
+
+		/**
+		 * @brief Output the Up coefficient table to out stream
+		 */
+		virtual std::ostream& printCoeffUpTables(std::ostream& out);
+
+		/**
+		 * @brief Output the Down coefficient table to out stream
+		 */
+		virtual std::ostream& printCoeffDownTables(std::ostream& out);
+
+		/**
+		 * @brief Updates the Channel if necessary for moving MS
+		 */
+		virtual void updateChannel(const vector<vector<Position>>& msPos) = 0;
+		        
+		virtual ~Channel();
 };

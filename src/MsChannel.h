@@ -7,14 +7,14 @@
 
 #pragma once
 
-#include "includes.h"
-#include "Position.h"
-#include "NeighbourIdMatching.h"
 #include "Channel.h"
-#include "TransInfoBs_m.h"
+#include "includes.h"
+#include "NeighbourIdMatching.h"
+#include "Position.h"
+#include "TransInfo_m.h"
+#include <itpp/itbase.h>
 #include <vector>
 #include <forward_list>
-
 
 class MsChannel : public cSimpleModule  {
     private:
@@ -24,22 +24,17 @@ class MsChannel : public cSimpleModule  {
         int simpleChannelCalcNops;
         int currentChannel;
         int downResourceBlocks;
+        int upResourceBlocks;
         simtime_t epsilon;
         simtime_t tti;
+        simtime_t initOffset;
         double packetLoss;
         Position msPosition;
         int bsId;
         int msId;
-        vec eesm_beta_values;
+				itpp::vec eesm_beta_values;
         NeighbourIdMatching *neighbourIdMatching; //map the bsId to the pos in the data structures
         Channel* channel;
-	/**
-	 * Holds transmission information for the current TTI
-	 *
-	 * The vector holds lists of TransInfoBs messages, sorted by the resource 
-	 * block the transmission uses.
-	 */
-	std::vector<std::forward_list<TransInfoBs*>> transInfos;
 
     protected:
         virtual void initialize();

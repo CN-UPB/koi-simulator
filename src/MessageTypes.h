@@ -16,9 +16,18 @@ enum MessageType: short {
 	streamInfo,
 	streamSched,
 	streamTransReq,
-	transInfoBs,
-	transInfoMs,
+	transInfo,
 	transReqList,
 	scheduleStreams,
-	scheduleRBs
+	scheduleRBs,
+	sendSchedules,
+	sinrEst
+};
+
+enum MessageDirection: int {
+	up,
+	down,
+	d2d,
+	d2dDown,
+	d2dUp
 };

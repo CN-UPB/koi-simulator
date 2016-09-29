@@ -9,11 +9,13 @@
 
 #include <itpp/itbase.h>
 #include "includes.h"
+#include "KoiData_m.h"
 #include "Position.h"
 #include "util.h"
+#include "NeighbourIdMatching.h"
 #include <vector>
 #include <unordered_map>
-#include "NeighbourIdMatching.h"
+#include <list>
 
 using namespace std;
 using namespace itpp;
@@ -24,22 +26,23 @@ class BsMac : public cSimpleModule  {
         int maxNumberOfNeighbours;
         int bsId;
         int currentChannel;
-	int resourceBlocks;
+				int resourceBlocks;
         int sinr_est;
         Position pos;
         double initOffset;
         vector<bool> *msPosUpdateArrived;
         Position *msPositions;
-        mat SINR_;
+        vector<double> sinrDown;
         NeighbourIdMatching *neighbourIdMatching; //matching for bsId <-> dataStrPos
         int ownDataStrId; //pos in the dataStr for bsId
         vec eesm_beta_values;
         mat blerTable;
-	double transmissionPower;
-
+				double transmissionPower;
         simtime_t tti;
         simtime_t epsilon;
-	unordered_map<int,unordered_map<int,cQueue>> streamQueues;
+				simsignal_t avgRatePerStation;
+				unordered_map<unsigned long,std::list<KoiData*>> streamQueues;
+				void writePositions();
 
     protected:
         virtual void initialize();

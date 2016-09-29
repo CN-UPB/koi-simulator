@@ -12,18 +12,44 @@
 #pragma once
 
 #include "includes.h"
-#include <vector>
+#include <unordered_map>
 
 class TrafficGen: public cSimpleModule{
 	private:
+		struct StreamDef{
+			StreamDef(unsigned long streamId,
+					int destBsId,
+					int destMsId,
+					double period,
+					double deadline,
+					bool d2d)
+				:streamId(streamId),
+				destBsId(destBsId),
+				destMsId(destMsId),
+				period(period),
+				deadline(deadline),
+				d2d(d2d)
+			{}
+			StreamDef() = default;
+			unsigned long streamId;
+			int destBsId;
+			int destMsId;
+			double period;
+			double deadline;
+			bool d2d;
+		};
 		int bsId;
-		std::vector<int> commPartners;
-		double deadline;
+		std::unordered_map<unsigned long,StreamDef> streams;
 		double initOffset;
+                double tti;
 		int msId;
 		int packetLength;
-		double period;
 		bool periodicTraffic;
+		simsignal_t genPackets;
+		simsignal_t recPackets;
+		simsignal_t missedDL;
+		static std::vector<StreamDef> parseCommTable(
+				const std::string& path,int bsId, int msId);
 	
 	protected:
 		virtual void initialize();

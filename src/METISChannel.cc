@@ -12,16 +12,20 @@
  */
 
 #include "METISChannel.h"
-#include <iostream>
-#include <iomanip>
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
+#include <itpp/itbase.h>
 #include <complex>
 #include <fstream>
+#include <iostream>
+#include <iomanip>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-using std::vector;
+using itpp::pi;
+using itpp::vec;
+using std::complex;
 using std::tuple;
+using std::vector;
 
 double getMSGain(double AoA, double EoA){ // Hertzian dipole; TODO: Change the return value to a vector for getting both theta and phi components
 	//return (-1.0 * sin(EoA)); 
@@ -39,7 +43,7 @@ double getBSGain(double AoD, double EoD){ // Hertzian dipole; TODO: Change the r
  * The formula is identical to the Matlab intern one.
  */
 inline vec Cart_to_Sph(vec const &input){
-	vec output = zeros(3);
+	vec output = itpp::zeros(3);
 	output.set(0,atan((input(1) / input(0))));
 	output.set(1,atan((input(2) / sqrt(pow(input(0),2) + pow(input(1),2)))));
 	output.set(2,sqrt(pow(input(0),2) + pow(input(1),2) + pow(input(2),2)));
@@ -52,7 +56,7 @@ inline vec Cart_to_Sph(vec const &input){
  * The formula is identical to the Matlab intern one.
  */
 inline vec Sph_to_Cart(vec const &input){
-	vec output = zeros(3);
+	vec output = itpp::zeros(3);
 	output.set(0,input(2) * cos(input(1)) * cos(input(0)));
 	output.set(1,input(2) * cos(input(1)) * sin(input(0)));
 	output.set(2,input(2) * sin(input(1)));
@@ -64,7 +68,28 @@ double METISChannel::ray_offset[20] = {
 		0.3715, -0.3715, 0.5129, -0.5129, 0.6797, -0.6797,
 		0.8844, -0.8844, 1.1481, -1.1481, 1.5195, -1.5195,
 		2.1551, -2.1551
-	};
+};
+
+vector<vector<array<double,3>>> METISChannel::computeAntennaPos(
+		const vector<Position>& transmitterPos,
+		int numAntennas,
+		double heightAntennas){
+	vector<vector<array<double,3>>> antennaPos(transmitterPos.size(),
+			vector<array<double,3>>(numAntennas));
+	for(int i = 0; i < transmitterPos.size(); i++){
+		for(int k = 0; k < (numAntennas/2); k++){
+			antennaPos[i][k][0] = transmitterPos[i].x - (0.25 * wavelength * (numAntennas - 1 - (k*2.0)));
+			antennaPos[i][k][1] = transmitterPos[i].y;
+			antennaPos[i][k][2] = heightAntennas;
+		}
+		for(int k = (numAntennas/2); k < numAntennas ; k++){
+			antennaPos[i][k][0] = antennaPos[i][k-1][0] + (0.5 * wavelength);
+			antennaPos[i][k][1] = transmitterPos[i].y;
+			antennaPos[i][k][2] = heightAntennas;
+		}
+	}
+	return antennaPos;	
+}
 
 /**
 * Function, that initializes all large scale and small scale parameters according to METIS specifications.
@@ -73,91 +98,45 @@ double METISChannel::ray_offset[20] = {
 * @param neighbourPositions Positions of the Neighbour BS.
 * @return True if initialization was successful, false otherwise
 */
-bool METISChannel::init(cSimpleModule* module, Position** msPositions, std::map <int,Position> neighbourPositions){
+bool METISChannel::init(cSimpleModule* module,
+		const vector<vector<Position>>& msPositions, 
+		std::map <int,Position>& neighbourPositions){
+	// First, call the parent init method
+	Channel::init(module,msPositions,neighbourPositions);
 	// Basic Initialization
-	this->neighbourPositions = neighbourPositions;
-	maxNumberOfNeighbours = module->par("maxNumberOfNeighbours");
-	bsId = module->par("bsId");
-	tti = module->par("tti");
-    	numberOfMobileStations = module->par("numberOfMobileStations");
-    	xPos = module->par("xPos");
-	yPos = module->par("yPos");
-	upRBs = module->par("upResourceBlocks");
-	downRBs = module->par("downResourceBlocks");
 	N_cluster_LOS = module->par("NumberOfClusters_LOS");
 	N_cluster_NLOS = module->par("NumberOfClusters_NLOS");
 	numOfRays_LOS = module->par("NumberOfRays_LOS");
 	numOfRays_NLOS = module->par("NumberOfRays_NLOS");
-   	initModule = module;
-    	freq_c = module->par("CarrierFrequency");
-    	SINRcounter = 0;
-    	NumBsAntenna = module->par("NumBsAntenna");
-    	NumMsAntenna = module->par("NumMsAntenna");
-    	heightUE = module->par("OutdoorHeightUE");
-   	heightBS = module->par("BsHeight");
-	vel = module->par("Velocity");
+	freq_c = module->par("CarrierFrequency");
+	NumBsAntenna = module->par("NumBsAntenna");
+	NumMsAntenna = module->par("NumMsAntenna");
+	heightUE = module->par("OutdoorHeightUE");
+	heightBS = module->par("BsHeight");
 	XPR_Mean_LOS = module->par("XPR_Mean_LOS");
 	XPR_Std_LOS = module->par("XPR_Std_LOS");
 	XPR_Mean_NLOS = module->par("XPR_Mean_NLOS");
 	XPR_Std_NLOS = module->par("XPR_Std_NLOS");
     
     
-    	// Find the neighbours and store the pair (bsId, position in data structures) in a map
-    	cModule *cell = module->getParentModule()->getParentModule();
-    	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
+	// Actually, this counts the own BS as well, so substract 1 
+	numOfInterferers = neighbourIdMatching->numberOfNeighbours() - 1;
 
-	// Get Playground size from cell module:
-	sizeX = cell->par("playgroundSizeX");
-	sizeY = cell->par("playgroundSizeY");
-    
-    	// Actually, this counts the own BS as well, so substract 1 
-    	numOfInterferers = neighbourIdMatching->numberOfNeighbours() - 1;
-    
-    
-	// One Channel module per base station
-    	// Half wavelength distance between antennas; give the position of Tx and Rx antennas in GCS
-	// For even value of NumBsAntenna, the antenna elements will be equally spaced around the center of Tx
-    	double wavelength = speedOfLight / freq_c;
-	std::cout << neighbourPositions.size() << std::endl;
-	std::cout << NumBsAntenna << std::endl;
-    	bsAntennaPositions.resize(neighbourPositions.size(),
-			vector<array<double,3>>(NumBsAntenna));
-    	for(size_t i = 0; i < neighbourPositions.size(); i++){
-		for(int j = 0; j < (NumBsAntenna/2); j++){
-			bsAntennaPositions[i][j][0] = neighbourPositions[i].x - (0.25 * wavelength * (NumBsAntenna - 1 - (j*2.0)));
-			bsAntennaPositions[i][j][1] = neighbourPositions[i].y;
-			bsAntennaPositions[i][j][2] = heightBS;
-		}
-
-		for(int j = (NumBsAntenna/2); j < NumBsAntenna; j++){
-			bsAntennaPositions[i][j][0] = bsAntennaPositions[i][j-1][0] + (0.5 * wavelength);
-			bsAntennaPositions[i][j][1] = neighbourPositions[i].y;
-			bsAntennaPositions[i][j][2] = heightBS;
-		}
-
+	// Half wavelength distance between antennas; give the position of Tx and Rx 
+	// antennas in GCS
+	// For even value of NumBsAntenna, the antenna elements will be equally 
+	// spaced around the center of Tx
+	wavelength = speedOfLight / freq_c;
+	vector<Position> tmpPos(neighbourPositions.size());
+	for(size_t i = 0; i<neighbourPositions.size(); i++){
+		tmpPos[i] = neighbourPositions[i];
 	}
-	
-		
-	// Get position resend interval (Stationary MS assumed during this interval)
-	timeSamples = module->par("positionResendInterval");
-	// 4 Samples per TTI; for smooth Fourier transform
-	timeSamples = timeSamples * 4; //scale according to positionResendInterval; timeSamples should be comparable to sim-time-limit
-	timeVector = new double*[numberOfMobileStations];
-	for(int i = 0; i < numberOfMobileStations; i++){
-		timeVector[i] = new double[timeSamples];
-		for(int t = 0; t < timeSamples; t++){
-			timeVector[i][t] = 0.00025 * t;
-		}
-	}
-	
+	bsAntennaPositions = computeAntennaPos(tmpPos,NumBsAntenna,
+			heightBS);
+
 	//compute initial SINR parameters
 	recomputeMETISParams(msPositions);
 
-	// There are a number of dynamically allocated member variables which 
-	// are only allocated in this init method, which need only be freed 
-	// in the destructor iff init has actually been called.
-	initialized = true;
-	
 	return true;
 }
 
@@ -464,8 +443,8 @@ METISChannel::recomputeAngleDirection(
 			vector<double>(numSenders));
 	double x_dir;
 	double y_dir;
-	vec cartLOS_RecToSend_Angle = zeros(3);
-	vec cartLOS_SendToRec_Angle = zeros(3);
+	vec cartLOS_RecToSend_Angle = itpp::zeros(3);
+	vec cartLOS_SendToRec_Angle = itpp::zeros(3);
 	vec sphLOSAngle;
 		
 	// Cycle through all mobile stations
@@ -561,10 +540,12 @@ vector<vector<vector<vector<double>>>> METISChannel::recomputeAzimuthAngles(
 		
 				// First Ray has geometric LOS direction?!
 				if(LOSCondition[i][j]){
-					azimuthCluster[i][k] = azimuthCluster[i][k] * (X_N - X_1) + (Y_N - Y_1) + (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
+					azimuthCluster[i][k] = azimuthCluster[i][k] * (X_N - X_1) 
+						+ (Y_N - Y_1) + (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
 				}
 				else{
-					azimuthCluster[i][k] = azimuthCluster[i][k] * X_N + Y_N + (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
+					azimuthCluster[i][k] = azimuthCluster[i][k] * X_N + Y_N 
+						+ (angleDir[i][j]*180.0/pi);   // since AOA_LOS_dir is in radians
 				}
 		
 				for(int r = 0; r < n_rays; r++){
@@ -645,13 +626,14 @@ METISChannel::genRandomPhases(
 				n_rays = numOfRays_NLOS;
 			}
 			phases[i][j].resize(n_clusters,
-					vector<vector<double>>(n_rays,
-						vector<double>(4)));
+					vector<vector<double>>(n_rays, vector<double>(4)));
 			phases_LOS[i][j] = uniform(-1.0*pi, pi);
 			for(int k = 0; k < n_clusters; k++){
 				for(int r = 0; r < n_rays; r++){
 					for(int l = 0; l < 4; l++){
-						phases[i][j][k][r][l] = uniform(-1.0*pi, pi);			// for the random phases of NLOS component in equation 7-61 of METIS 1.2
+						// for the random phases of NLOS component in equation 7-61 of 
+						// METIS 1.2
+						phases[i][j][k][r][l] = uniform(-1.0*pi, pi);			
 					}
 				}
 			}
@@ -967,6 +949,7 @@ vector<vector<vector<vector<double>>>> METISChannel::computeCoeffs(
 		const vector<Position>& senderPos,
 		double heightReceivers,
 		double heightSenders,
+		bool up,
 		int numRBs,
 		int numReceiverAntenna,
 		int numSenderAntenna,
@@ -998,7 +981,17 @@ vector<vector<vector<vector<double>>>> METISChannel::computeCoeffs(
 			pathloss = CalcPathloss(dist2D, dist3D, LOSCondition[i][idIdx]);
 			for(int t = 0; t < timeSamples; t++){
 				for(int f = 0; f < numRBs; f++){
-					double freq_ = freq_c + f*180000;
+					double freq_;
+					if(up){
+						// Computing values for UP
+						// resource blocks
+						freq_ = freq_c + (f+1)*180000;
+					}
+					else{
+						// Computing values for DOWN
+						// resource blocks
+						freq_ = freq_c - f*180000;
+					}
 					res = complex<double>(0.0,0.0);
 					if(LOSCondition[i][idIdx]){
 						n_clusters = N_cluster_LOS;
@@ -1039,29 +1032,16 @@ vector<vector<vector<vector<double>>>> METISChannel::computeCoeffs(
 
 void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions,
 		const vector<Position>& bsPositions){
-    	double wavelength = speedOfLight / freq_c;
 	int numReceiverAntenna = NumMsAntenna;
 	int numSenderAntenna = NumBsAntenna;
     
-    	// Copy MS Positions
-	vector<Position> receiverPos(msPositions);	/*!< Position of the MS */
-    	// Copy BS Positions
+	// Copy MS Positions
+	vector<Position> receiverPos(msPositions);
+	// Copy BS Positions
 	vector<Position> senderPos(bsPositions);
 
-	vector<vector<array<double,3>>> receiverAntennaPos(receiverPos.size(),
-			vector<array<double,3>>(numReceiverAntenna));
-    	for(int i = 0; i < numberOfMobileStations; i++){
-		for(int j = 0; j < (numReceiverAntenna/2); j++){
-			receiverAntennaPos[i][j][0] = receiverPos[i].x - (0.25 * wavelength * (numReceiverAntenna - 1 - (j*2.0)));
-			receiverAntennaPos[i][j][1] = receiverPos[i].y;
-			receiverAntennaPos[i][j][2] = heightUE;
-		}
-		for(int j = (numReceiverAntenna/2); j < numReceiverAntenna ; j++){
-			receiverAntennaPos[i][j][0] = receiverAntennaPos[i][j-1][0] + (0.5 * wavelength);
-			receiverAntennaPos[i][j][1] = receiverPos[i].y;
-			receiverAntennaPos[i][j][2] = heightUE;
-		}
-	}
+	vector<vector<array<double,3>>> receiverAntennaPos(computeAntennaPos(
+				receiverPos,numReceiverAntenna,heightUE));
 	vector<vector<array<double,3>>>& senderAntennaPos = bsAntennaPositions;
 
 	vector<vector<double>> AoA_LOS_dir;
@@ -1239,6 +1219,7 @@ void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions
 				senderPos,
 				heightUE,
 				heightBS,
+				false,
 				downRBs,
 				numReceiverAntenna,
 				numSenderAntenna,
@@ -1254,7 +1235,6 @@ void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions
 
 void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPositions,
 		const vector<Position>& bsPositions){
-    	double wavelength = speedOfLight / freq_c;
 	int numReceiverAntenna = NumBsAntenna;
 	int numSenderAntenna = NumMsAntenna;
 	// Copy BS Positions
@@ -1262,27 +1242,15 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 	// that base station is the only receiver for the UP direction in any 
 	// given cell.
 	vector<Position> receiverPos{bsPositions[bsId]};
+	vector<vector<array<double,3>>> receiverAntennaPos{bsAntennaPositions[bsId]};
 	coeffUpTable = vector<vector<vector<vector<vector<double>>>>>(bsPositions.size(),
 			vector<vector<vector<vector<double>>>>(1));
 	for(size_t j=0; j<msPositions.size(); j++){
 		// Copy MS Positions
 		vector<Position> senderPos(msPositions[j]);
 
-		vector<vector<array<double,3>>> senderAntennaPos(senderPos.size(),
-				vector<array<double,3>>(numSenderAntenna));
-		for(int i = 0; i < senderPos.size(); i++){
-			for(int j = 0; j < (numSenderAntenna/2); j++){
-				senderAntennaPos[i][j][0] = senderPos[i].x - (0.25 * wavelength * (numSenderAntenna - 1 - (j*2.0)));
-				senderAntennaPos[i][j][1] = senderPos[i].y;
-				senderAntennaPos[i][j][2] = heightUE;
-			}
-			for(int j = (numSenderAntenna/2); j < numSenderAntenna ; j++){
-				senderAntennaPos[i][j][0] = senderAntennaPos[i][j-1][0] + (0.5 * wavelength);
-				senderAntennaPos[i][j][1] = senderPos[i].y;
-				senderAntennaPos[i][j][2] = heightUE;
-			}
-		}
-		vector<vector<array<double,3>>> receiverAntennaPos{bsAntennaPositions[bsId]};
+		vector<vector<array<double,3>>> senderAntennaPos(computeAntennaPos(
+					senderPos,numSenderAntenna,heightUE));
 
 		vector<vector<double>> AoA_LOS_dir;
 		vector<vector<double>> ZoA_LOS_dir;
@@ -1459,6 +1427,7 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 					senderPos,
 					heightBS,
 					heightUE,
+					true,
 					upRBs,
 					numReceiverAntenna,
 					numSenderAntenna,
@@ -1475,7 +1444,7 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 	
 }
 
-void METISChannel::recomputeMETISParams(Position** msPositions){
+void METISChannel::recomputeMETISParams(const vector<vector<Position>>& msPositions){
 	int numMs;
 	vector<vector<Position>> msPos(neighbourPositions.size(),
 			vector<Position>());
@@ -1492,22 +1461,233 @@ void METISChannel::recomputeMETISParams(Position** msPositions){
 		bsPos[j] = neighbourPositions[j];
 	}
 	recomputeDownCoefficients(msPos[bsId],bsPos);
-	// Comment in the following lines to print the down table
-/*	for(size_t i=0; i<numberOfMobileStations; i++){
-		std::cout << "MS: " << i << std::endl;
-		for(size_t j=0; j<bsPos.size(); j++){
-			std::cout << "\tBS: " << j << std::endl;
-			for(size_t t=0; t<timeSamples; t++){
-				std::cout << "\t\tTS: " << t << std::endl;
-				for(size_t r=0; r<downRBs; r++){
-					std::cout << "\t\t\tRB " << r << ": " << coeffDownTable[i][j][t][r] << std::endl;
-				}
-
-			}
-		}
-	}
-*/
 	recomputeUpCoefficients(msPos,bsPos);
+	recomputeD2DCoefficients(msPos);
+}
+
+void METISChannel::recomputeD2DCoefficients(const vector<vector<Position>>& msPositions){
+	int numReceiverAntenna = NumMsAntenna;
+	int numSenderAntenna = NumMsAntenna;
+
+	vector<Position> receiverPos{msPositions[bsId]};
+	vector<vector<array<double,3>>> receiverAntennaPos(computeAntennaPos(
+				receiverPos,numReceiverAntenna,heightUE));
+	coeffUpD2DTable = vector<vector<vector<vector<vector<double>>>>>(msPositions.size(),
+			vector<vector<vector<vector<double>>>>(numberOfMobileStations));
+	coeffDownD2DTable = vector<vector<vector<vector<vector<double>>>>>(msPositions.size(),
+			vector<vector<vector<vector<double>>>>(numberOfMobileStations));
+	for(size_t j=0; j<msPositions.size(); j++){
+		// Copy MS Positions
+		vector<Position> senderPos(msPositions[j]);
+
+		vector<vector<array<double,3>>> senderAntennaPos(computeAntennaPos(
+					senderPos,numSenderAntenna,heightUE));
+
+		vector<vector<double>> AoA_LOS_dir;
+		vector<vector<double>> ZoA_LOS_dir;
+		vector<vector<double>> AoD_LOS_dir;
+		vector<vector<double>> ZoD_LOS_dir;
+		std::tie(AoA_LOS_dir,ZoA_LOS_dir,AoD_LOS_dir,ZoD_LOS_dir) = recomputeAngleDirection(
+				receiverPos,
+				senderPos,
+				heightUE,
+				heightUE
+				);
+
+		//Assign LOS Conditions:
+		vector<vector<bool>> LOSCondition(genLosCond(senderPos,receiverPos));
+
+		vector<vector<double>> sigma_ds_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_asD_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_asA_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_zsD_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_zsA_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_sf_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_kf_LOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_ds_NLOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_asD_NLOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_asA_NLOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_zsD_NLOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_zsA_NLOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		vector<vector<double>> sigma_sf_NLOS(receiverPos.size(),
+				vector<double>(senderPos.size()));
+		recomputeLargeScaleParameters(senderPos,receiverPos,
+				sigma_ds_LOS,
+				sigma_asD_LOS,
+				sigma_asA_LOS,
+				sigma_zsD_LOS,
+				sigma_zsA_LOS,
+				sigma_sf_LOS,
+				sigma_kf_LOS,
+				sigma_ds_NLOS,
+				sigma_asD_NLOS,
+				sigma_asA_NLOS,
+				sigma_zsD_NLOS,
+				sigma_zsA_NLOS,
+				sigma_sf_NLOS
+				);
+		std::cout << "Finished Large Scale parameter.." << std::endl;
+
+		// Begin small scale parameter generation.
+
+		// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
+		vector<vector<vector<double>>> clusterDelays;
+		vector<vector<vector<double>>> clusterDelays_LOS;
+		std::tie(clusterDelays_LOS,clusterDelays) = recomputeClusterDelays(
+				LOSCondition,
+				sigma_ds_LOS,
+				sigma_ds_NLOS,
+				sigma_kf_LOS
+				);
+
+		vector<vector<vector<double>>> clusterPowers(genClusterPowers(LOSCondition,
+					clusterDelays,
+					sigma_ds_LOS,
+					sigma_ds_NLOS,
+					sigma_kf_LOS
+					));
+
+		// Precompute powers per ray (7.46)
+		// While METIS D1.2 clearly states how to compute individual ray 
+		// powers in section 7.3.13, only cluster powers are used 
+		// for further computations.
+		//	vector<vector<vector<double>>> rayPowers(recomputeRayPowers(
+		//				LOSCondition,
+		//				clusterPowers)); /*!< The ray power for each cluster */
+
+
+
+		// Generate azimuth angles of arrival
+		vector<vector<vector<vector<double>>>> azimuth_ASA(recomputeAzimuthAngles(
+					LOSCondition,
+					sigma_asA_LOS,
+					sigma_asA_NLOS,
+					sigma_kf_LOS,
+					clusterPowers,
+					AoA_LOS_dir,
+					true));
+
+		// Generate azimuth angles of departure in the same way 
+		vector<vector<vector<vector<double>>>> azimuth_ASD(recomputeAzimuthAngles(
+					LOSCondition,
+					sigma_asD_LOS,
+					sigma_asD_NLOS,
+					sigma_kf_LOS,
+					clusterPowers,
+					AoD_LOS_dir,
+					false));
+
+		// Generate Zenith angles 
+		vector<vector<vector<vector<double>>>> elevation_ASA(recomputeZenithAngles(
+					LOSCondition,
+					sigma_zsA_LOS,
+					sigma_zsA_NLOS,
+					sigma_kf_LOS,
+					clusterPowers,
+					ZoA_LOS_dir,
+					true));
+
+		vector<vector<vector<vector<double>>>> elevation_ASD(recomputeZenithAngles(
+					LOSCondition,
+					sigma_zsD_LOS,
+					sigma_zsD_NLOS,
+					sigma_kf_LOS,
+					clusterPowers,
+					ZoD_LOS_dir,
+					false));
+
+		// Generate random phases (7.3.17)
+		vector<vector<vector<vector<vector<double>>>>> randomPhase;
+		vector<vector<double>> randomPhase_LOS;
+		std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(LOSCondition);
+
+		// Generate cross polarization values
+		vector<vector<vector<vector<double>>>> Xn_m(genCrossPolarization(
+					LOSCondition));
+
+
+		// initialize arrays for interferer ray sums
+		vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum_LOS;
+		vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum;
+
+		std::cout << "START MAIN LOOP D2D for BS: " << bsId << std::endl;
+
+		std::tie(raySum,raySum_LOS) = computeRaySums(LOSCondition,
+				sigma_kf_LOS,
+				numReceiverAntenna,
+				numSenderAntenna,
+				clusterPowers,
+				azimuth_ASA,
+				azimuth_ASD,
+				elevation_ASA,
+				elevation_ASD,
+				receiverAntennaPos,
+				senderAntennaPos,
+				randomPhase,
+				randomPhase_LOS,
+				AoA_LOS_dir,
+				ZoA_LOS_dir,
+				AoD_LOS_dir,
+				ZoD_LOS_dir
+				);
+
+		std::cout << "FINISHED MAIN LOOP D2D for BS: " << bsId << std::endl;
+
+		//output2 << "Init 3 METIS at BS " << bsId << " with rand: " << normal(0,1) << std::endl;
+
+		//------------------------------------------------------------------
+		// Apply Fourier transform, to get time/frequency domain from time/delay
+
+		std::cout << "START FOURIER TRANSFORM D2D for BS: " << bsId << std::endl;
+
+		coeffUpD2DTable[j] = std::move(computeCoeffs(
+					LOSCondition,
+					receiverPos,
+					senderPos,
+					heightUE,
+					heightUE,
+					true,
+					upRBs,
+					numReceiverAntenna,
+					numSenderAntenna,
+					raySum,
+					raySum_LOS,
+					clusterDelays,
+					clusterDelays_LOS
+					));
+		coeffDownD2DTable[j] = std::move(computeCoeffs(
+					LOSCondition,
+					receiverPos,
+					senderPos,
+					heightUE,
+					heightUE,
+					false,
+					downRBs,
+					numReceiverAntenna,
+					numSenderAntenna,
+					raySum,
+					raySum_LOS,
+					clusterDelays,
+					clusterDelays_LOS
+					));
+
+		std::cout << "FINISHED FOURIER TRANSFORM D2D for BS: " << bsId << std::endl;
+	
+	}
+    
+	
 }
 
 /**
@@ -1891,24 +2071,21 @@ double METISChannel::CalcPathloss(double dist2D, double dist3D, bool LOS){
 	double distBP = 4 * (heightUE - 1.0) * (heightBS - 1.0) * (freq_c / speedOfLight); // Breakpoint Distance
 	double pl_a;
 	
+	// TODO Reinsert minimum distance checks
+	// The following METIS fomulas normally have a minimum distance 
+	// requirement. To allow for easy random placement of mobile 
+	// stations without having to account for that minimum distance
+	// requirements, the checks were removed until another model 
+	// can be implemented.
 	if(LOS){
-		if(dist2D < 10.0 || dist2D > 5000.0){
-			// LOS: 2D distance must be between 10 and 5000 meters.
-			std::cout << "WARNING: LOS Distance outside of allowed boundaries!";
-		}else if(heightUE >= 1.5 && ( dist2D < distBP )){
+		if(heightUE >= 1.5 && ( dist2D < distBP )){
 			// If the 2D distance is below the breakpoint distance (see Document 36873, page 23 for reference)
 			pathloss = 22.0 * log10(dist3D) + 28.0 + 20.0 * log10(freq_c/1000000000);
 		}else{
 			pathloss = 22.0 * log10(dist3D) + 28.0 + 20.0 * log10(freq_c/1000000000) - 9.0 * log10( pow(distBP,2) + pow((heightBS - heightUE),2) );
 		}
 	}else{
-		//pl_a = 36.7 * log10(dist3D) + 23.15 + 26 * log10(freq_c / 1000000000) - 0.3 * (heightUE);
-		//pl_a = pow(10,pl_a/10);
-		
-		if(dist2D < 10.0 || dist2D > 2000.0 || heightUE > 22.5){
-			// NLOS: 2D distance must be between 10 and 2000 meters.
-			std::cout << "WARNING: NLOS Distance outside of allowed boundaries!";
-		}else if(heightUE >= 1.5 && ( dist2D < distBP )){
+		if(heightUE >= 1.5 && ( dist2D < distBP )){
 			// If the 2D distance is below the breakpoint distance (see Document 36873, page 23 for reference)
 			pathloss = 22.0 * log10(dist3D) + 28.0 + 20.0 * log10(freq_c/1000000000);
 		}else{
@@ -1982,112 +2159,21 @@ double METISChannel::sigma_ZSD(double meanZSD, bool LOS){
 * @param msg Concrete message of potentially arbitrary subtype
 */
 void METISChannel::handleMessage(cMessage* msg){
-	if(msg->isName("COUNTER")){
-		SINRcounter++;
-		if(bsId == 3){
-			ofstream myfile;
-			myfile.open ("Counter.txt", std::ofstream::app);
-			myfile << "SINR Counter METIS at BS " << bsId << " with rand: " << normal(0,1) << std::endl;
-			//std::cout << "Counter: " << SINRcounter << std::endl;
-		}
+	if(msg->isName("DEBUG")){
+		std::ofstream upTables;
+		std::string fname("coeff_table_up_"+std::to_string(bsId)+".dat");
+		upTables.open(fname,std::ofstream::trunc);
+		printCoeffUpTables(upTables);
+		upTables.close();
+		std::ofstream downTables;
+		fname = "coeff_table_down_"+std::to_string(bsId)+".dat";
+		downTables.open(fname,std::ofstream::trunc);
+		printCoeffDownTables(downTables);
+		downTables.close();
 	}
 	delete msg;
 }
 
-double METISChannel::calcUpSINR(int RB, 
-		std::forward_list<TransInfoMs*> &interferers,
-		int msId,
-		double transPower){
-	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
-	double received = 0;
-	double interference = 0;
-	forward_list<TransInfoMs*>::iterator prev(interferers.before_begin());
-	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
-		if((*it)->getCreationTime()<simTime()){
-			interference += (*it)->getPower() * coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][RB];
-		}
-		else{
-			delete *it;
-			interferers.erase_after(prev);
-			it=prev;
-
-		}
-	}
-	received = transPower * coeffUpTable[bsId][0][msId][SINRcounter][RB];
-	interference += getTermalNoise(300,180000);
-	// Convert to db scale
-	return 10 * log10( received / interference );
-}
-
-double METISChannel::calcDownSINR(int RB, 
-		std::forward_list<TransInfoBs*> &interferers,
-		int msId,
-		double transPower){
-	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
-	double received = 0;
-	double interference = 0;
-	forward_list<TransInfoBs*>::iterator prev(interferers.before_begin());
-	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
-		if((*it)->getCreationTime()<simTime()){
-			interference += (*it)->getPower() * coeffDownTable[msId][(*it)->getBsId()][SINRCounter][RB];
-		}
-		else{
-			delete *it;
-			interferers.erase_after(prev);
-			it=prev;
-
-		}
-	}
-	received = transPower * coeffDownTable[msId][bsId][SINRcounter][RB];
-	interference += getTermalNoise(300,180000);
-	// Convert to db scale
-	return 10 * log10( received / interference );
-}
-
-double METISChannel::calcSINR(int RB, vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId){
-	// Return 1.0, this method is not used with the METIS channel
-	// See calcDownSINR/calcUpSINR instead
-	return -1.0;
-}
-
-vec METISChannel::calcSINR(vector<double> &power, vector<Position> &pos, vector<int> &bsId_, bool up, int msId){
-	vec result(downRBs);
-	for(int i = 0; i < downRBs; i++){
-		result.set(i,calcSINR(i, power, pos, bsId_, up, msId));
-	}
-	//Placeholder
-	return result;
-}
-
-void METISChannel::updateChannel(Position** msPos){
+void METISChannel::updateChannel(const vector<vector<Position>>& msPos){
 	recomputeMETISParams(msPos);
-}
-
-// Johnson Nyquist Noise
-double METISChannel::getTermalNoise(double temp, double bandwidth){
-	return (temp * bandwidth * 1.3806488e-23);
-}
-
-double METISChannel::calcPathloss(double dist){
-	//Placeholder
-	return 1.0;
-}
-
-METISChannel::~METISChannel(){
-	//TODO: Delete all dynamic memory
-	if(initialized){
-		// All of the following member variables are only allocated 
-		// in the init method, not the constructor. As a result,
-		// the destructor might be called with all of the following 
-		// variables uninitialized, leading to errors. Thus, they 
-		// are only freed when init has been called, as indicated by 
-		// the initialized variable.
-		for(int i=0; i<numberOfMobileStations; i++){
-			delete[] timeVector[i];
-		}
-		delete neighbourIdMatching; 
-		delete[] timeVector;
-	
-	}
-
 }

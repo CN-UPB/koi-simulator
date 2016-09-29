@@ -9,7 +9,6 @@
 
 #include "BsMac.h"
 #include "SINR_m.h"
-#include "DataPacketBundle_m.h"
 #include "PositionExchange_m.h"
 #include "ChannelExchange_m.h"
 #include "BsMsPositions_m.h"
@@ -20,10 +19,13 @@
 #include "StreamTransReq_m.h"
 #include "StreamTransSched_m.h"
 #include "KoiData_m.h"
-#include "TransInfoBs_m.h"
+#include "TransInfo_m.h"
 #include <algorithm>
+#include <fstream>
+#include <set>
 
 using namespace itpp;
+using std::set;
 
 Define_Module(BsMac);
 
@@ -33,28 +35,15 @@ void BsMac::initialize()  {
     bsId = par("bsId");
     currentChannel = par("currentChannel");
     maxNumberOfNeighbours = par("maxNumberOfNeighbours");
-    resourceBlocks = par("resourceBlocks");
+    resourceBlocks = par("downResourceBlocks");
     numberOfMobileStations = par("numberOfMobileStations");
     sinr_est = 0;
     transmissionPower = par("transmissionPower");
-
     initOffset = par("initOffset");
     tti = par("tti");
     epsilon = par("epsilon");
+		avgRatePerStation = registerSignal("avgRatePerStation");
     
-    // We need an default SINR to start with, for the first schedule, but 
-    // cannot calculate it without the previous schedule, which is non existent.
-    // Currently: Random init SINR.
-    SINR_ = zeros(numberOfMobileStations,resourceBlocks);
-    
-    // EESM Beta values for effective SINR
-    string eesm_beta = par("eesm_beta");
-    eesm_beta_values = vec(eesm_beta);
-
-    // Read Block Error Rate Table
-    string bler = par("bler_table");
-    blerTable = mat(bler);
-
     //find the neighbours and store the pair (bsId, position in data structures) in a map
     cModule *cell = getParentModule()->getParentModule();
     neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
@@ -79,8 +68,13 @@ void BsMac::initialize()  {
     //exchange the bs positions one time at the sim begin
     scheduleAt(simTime(), new cMessage("BS_POSITION_INIT"));
 
-    //every tti send transmit requests to stream scheduler
-    scheduleAt(simTime() + initOffset + 2*tti-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
+    // At the end of each tti, send transmit request to scheduler for next 
+    // tti.
+    scheduleAt(simTime() + initOffset-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
+
+    #ifndef NDEBUG
+    scheduleAt(simTime()+initOffset,new cMessage("DEBUG"));
+    #endif
 }
 
 /* important: this method does not delete the msg! */
@@ -115,12 +109,21 @@ void BsMac::handleMessage(cMessage *msg)  {
 		StreamInfo *info = dynamic_cast<StreamInfo*>(msg);
 		// Add a packet queue for this stream, using associative containers 
 		// automatic insertion of new entries when subscripting.
-		streamQueues[info->getSrc()][info->getDest()];
+		streamQueues[info->getStreamId()];
 		delete info;
 	}
-	else if(msg->getKind()==MessageType::transInfoBs){
-		for(int i = 0; i < numberOfMobileStations; ++i)  {
-			send(msg->dup(), "toMsMac", i);
+	else if(msg->getKind()==MessageType::transInfo){
+		// Route transmission information according to origin
+		TransInfo *trans = dynamic_cast<TransInfo*>(msg);
+		if(trans->arrivedOn("fromMsMac")){
+			// The message is transmission information from 
+			// one of the local mobile stations. Forward to 
+			// neighbours.
+			sendToNeighbourCells(trans);
+		}
+		else if(trans->arrivedOn("fromCell")){
+			// Message arrived from neighbouring cell
+			send(trans->dup(),"toBsChannel",0);
 		}
 		delete msg;
 	}
@@ -130,180 +133,176 @@ void BsMac::handleMessage(cMessage *msg)  {
 		}
 		delete msg;
 	}
-	else if(msg->isName("SINR_ESTIMATION")){
+	else if(msg->getKind()==MessageType::sinrEst){
 		SINR *sinrMessage = (SINR *) msg;
-		vec sinr_new;
-		int msId = sinrMessage->getMsId();
-		for(int i = 0;i < resourceBlocks; i++){
-			sinr_new.ins(i,sinrMessage->getSINR(i));
+		// Clear the old estimates
+		sinrDown.clear();
+		sinrDown.resize(sinrMessage->getDownArraySize());
+		for(int i = 0;i < sinrMessage->getDownArraySize(); i++){
+			sinrDown[i] = sinrMessage->getDown(i);
 		}
-		SINR_.set_row(msId,sinr_new);
-		delete msg;
+		// Provide the estimates to the scheduler, too
+		send(msg,"toScheduler");
 	}
-    else if(msg->getKind()==MessageType::streamSched)  {
-	    StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
-	    DataPacketBundle *packetBundle = new DataPacketBundle("DATA_BUNDLE");
+	else if(msg->getKind()==MessageType::streamSched)  {
+		StreamTransSched *sched = dynamic_cast<StreamTransSched*>(msg);
+		KoiData *currPacket = nullptr;
+		set<int> infos;
+		int rate = 0;
+		for(auto streamIter = streamQueues.begin();
+				streamIter!=streamQueues.end(); ++streamIter){
+			list<KoiData*>& currList = streamIter->second;
+			for(auto packetIter = currList.begin(); packetIter!=currList.end();){
+				currPacket = *packetIter;
+				if(currPacket->getScheduled()){
+					packetIter = currList.erase(packetIter);
+					currPacket->setTransPower(transmissionPower);
+					// Set CQI for a fixed value until we decide on how to 
+					// compute it
+					currPacket->setCqi(15);
+					sendDelayed(currPacket, epsilon, "toPhy");
 
-	    int srcMs = sched->getSrc();
-	    int destMs = sched->getDest();
-            vector<double> sinr_values;
-	    sinr_values.push_back(SINR_(destMs,sched->getRb()));
-            
-            double channel_capacity = getChannelCapacity(sinr_values);
-	    /**
-            int cqi;
-            if(sinr_values.size() > 0){
-				cqi = SINR_to_CQI(*(std::min_element(sinr_values.begin(), sinr_values.end())));
-			}else{
-				cqi = 1;
-			}
-            **/
-	    // For now, only 1 packet will be send per RB in each TTI
-            if(channel_capacity > 0)  {
-                packetBundle->setPacketsArraySize(1);
-		KoiData *packet = dynamic_cast<KoiData*>(
-				streamQueues[srcMs][destMs].get(
-					sched->getPacketIndex()));
-		streamQueues[srcMs][destMs].remove(packet);
-		packetBundle->setPackets(0, *packet);
-		packetBundle->setRBsArraySize(1);
-		packetBundle->setRBs(0,sched->getRb());
-		packetBundle->setTransPower(transmissionPower);
-		// Set CQI for a fixed value until we decide on how to 
-		// compute it
-		//packetBundle->setCqi(cqi);
-		packetBundle->setCqi(15);
-		packetBundle->setMsId(destMs);
-		packetBundle->setBsId(packet->getBsId());
-		delete packet;
-
-		TransInfoBs *info = new TransInfoBs();
-		info->setBsId(bsId);
-		info->setPower(transmissionPower);
-		info->setRb(sched->getRb());
-            
-		sendToNeighbourCells(info);
-		delete info;
-                sendDelayed(packetBundle, epsilon, "toPhy");
-            }
-	    delete sched;
-    }
-    else if(msg->isName("BS_MS_POSITIONS"))  {
-        //send the ms positions to the own bs channels
-        //ev << "Forwarding the ms positions to the bs channels" << endl;
-        for(int i = 0; i < numberOfMobileStations; ++i)  {
-            send(msg->dup(), "toBsChannel", i);
-        }
-        delete msg;
-    }
-    else if(msg->isName("MS_POS_UPDATE"))  {
-        //save the position update of the mobile stations
-        PositionExchange *posEx = (PositionExchange *) msg;
-        msPositions[posEx->getId()] = posEx->getPosition();
-        msPosUpdateArrived->at(posEx->getId()) = true;
-
-        //if all ms positions arrived; send the positions to the other cells
-        bool allArrived = true;
-        for(int i = 0; i < numberOfMobileStations; i++)  {
-            if(!msPosUpdateArrived->at(i))
-                allArrived = false;
-        }
-        if(allArrived)  {
-            //ev << "BS " << bsId << " all ms positions arrived!" << endl;
-
-            BsMsPositions *msPos = new BsMsPositions("BS_MS_POSITIONS");
-            msPos->setBsId(bsId);
-            msPos->setPositionsArraySize(numberOfMobileStations);
-            for(int i = 0; i < numberOfMobileStations; ++i)  {
-                msPos->setPositions(i, msPositions[i]);
-            }
-            //send the ms positions to the other connected cells
-            sendToNeighbourCells(msPos);
-            //send the ms positions to the own bs channels
-            for(int i = 0; i < numberOfMobileStations; ++i)  {
-                send(msPos->dup(), "toBsChannel", i);
-            }
-            delete msPos;
-
-            //reset the arrived vector
-            for(int i = 0; i < numberOfMobileStations; ++i)
-                msPosUpdateArrived->at(i) = false;
-        }
-
-        delete msg;
-    }
-    else if(msg->isSelfMessage())  {
-        if(msg->isName("BS_POSITION_INIT"))  {
-            //exchange the bs positions one time at the sim begin
-            PositionExchange *bsPos = new PositionExchange("BS_POSITION_MSG");
-            bsPos->setId(bsId);
-            bsPos->setPosition(pos);
-            //send the bs position to the other cells
-            send(bsPos->dup(), "toBsChannel", 0);
-            sendToNeighbourCells(bsPos);
-            /* send the position also to the own ms
-             * also possible to do with the config
-             * but i think this is more flexible */
-            send(bsPos, "toPhy");
-	    delete msg;
-        }
-	else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
-		// Send requests for each stream to the 
-		// scheduler if that stream has packets.
-		for(auto iterSrc=this->streamQueues.begin(); iterSrc!=streamQueues.end();
-				++iterSrc){
-			if(!iterSrc->second.empty()){
-				for(auto iterDest=iterSrc->second.begin(); 
-						iterDest!=iterSrc->second.end();
-						++iterDest){
-					if(!iterDest->second.empty()){
-						StreamTransReq *req = new StreamTransReq();
-						KoiData *queueHead = dynamic_cast<KoiData*>(iterDest->second.front());
-						req->setSrc(iterSrc->first);
-						req->setDest(iterDest->first);
-						req->setPeriod(queueHead->getInterarrival());
-						req->setPackets(&(iterDest->second));
-						req->setBs(true);
-						send(req,"toScheduler");
-					}
+					// Store used resource block in set for later generation of
+					// TransInfo messages. That way, we can make sure that only one 
+					// TransInfo is send out per used RB.
+					infos.insert(currPacket->getResourceBlock());
+					rate += currPacket->getBitLength();
+				}
+				else{
+					++packetIter;
 				}
 			}
 		}
-		scheduleAt(simTime() + tti-epsilon, msg);
+		emit(avgRatePerStation,rate);
+		// Send out exactly one TransInfo per used resource block
+		for(auto& rb:infos){
+			TransInfo *info = new TransInfo();
+			info->setBsId(bsId);
+			info->setPower(transmissionPower);
+			info->setRb(rb);
+			// It is the BS itself sending, not a MS, which we indicate
+			// with an index of -1 for the MS
+			info->setMsId(-1);
+			info->setMessageDirection(MessageDirection::down);
+			sendToNeighbourCells(info);
+			delete info;
+		}
+		delete sched;
 	}
-    }
-    else if(msg->isName("BS_POSITION_MSG"))  {
-        
-        //DEBUG: send the BS position messages also to BS Channel 0.
-        send(msg->dup(), "toBsChannel", 0);
-        
-        //forward bs position msg from the other cells to the ms
-        send(msg, "toPhy");
-    }
-    //data packet
-    else if(msg->arrivedOn("fromPhy"))  {
-        DataPacketBundle *bundle = (DataPacketBundle *) msg;
-	KoiData packet;
-	for(unsigned int i=0; i<bundle->getPacketsArraySize(); i++){
-		packet = bundle->getPackets(i);
-		streamQueues[packet.getSrc()][packet.getDest()].insert(packet.dup());
-	}
-	delete bundle;
-    }
-    else if(msg->arrivedOn("fromMsMac")){
-	if(msg->getKind()==MessageType::transInfoMs){
-		// Forward transmission info from local MS to neighbour cells
-		sendToNeighbourCells(msg);
+	else if(msg->isName("BS_MS_POSITIONS"))  {
+		//send the ms positions to the own bs channels
+		//ev << "Forwarding the ms positions to the bs channels" << endl;
+		for(int i = 0; i < numberOfMobileStations; ++i)  {
+			send(msg->dup(), "toBsChannel", i);
+		}
 		delete msg;
 	}
-    }
-    else if(msg->arrivedOn("fromCell")){
-	if(msg->getKind()==MessageType::transInfoMs){
-		// Forward transmission info from neighbouring MS to BS 
-		// channels via the BS PHY
-		send(msg,"toPhy");
+	else if(msg->isName("MS_POS_UPDATE"))  {
+		//save the position update of the mobile stations
+		PositionExchange *posEx = (PositionExchange *) msg;
+		msPositions[posEx->getId()] = posEx->getPosition();
+		msPosUpdateArrived->at(posEx->getId()) = true;
+
+		//if all ms positions arrived; send the positions to the other cells
+		bool allArrived = true;
+		for(int i = 0; i < numberOfMobileStations; i++)  {
+			if(!msPosUpdateArrived->at(i))
+				allArrived = false;
+		}
+		if(allArrived)  {
+			//ev << "BS " << bsId << " all ms positions arrived!" << endl;
+
+			BsMsPositions *msPos = new BsMsPositions("BS_MS_POSITIONS");
+			msPos->setBsId(bsId);
+			msPos->setPositionsArraySize(numberOfMobileStations);
+			for(int i = 0; i < numberOfMobileStations; ++i)  {
+				msPos->setPositions(i, msPositions[i]);
+			}
+			//send the ms positions to the other connected cells
+			sendToNeighbourCells(msPos);
+			//send the ms positions to the own bs channels
+			for(int i = 0; i < numberOfMobileStations; ++i)  {
+				send(msPos->dup(), "toBsChannel", i);
+			}
+			delete msPos;
+
+			//reset the arrived vector
+			for(int i = 0; i < numberOfMobileStations; ++i)
+				msPosUpdateArrived->at(i) = false;
+			writePositions();
+		}
+
+		delete msg;
 	}
-    }
+	else if(msg->isSelfMessage())  {
+		if(msg->isName("BS_POSITION_INIT"))  {
+			//exchange the bs positions one time at the sim begin
+			PositionExchange *bsPos = new PositionExchange("BS_POSITION_MSG");
+			bsPos->setId(bsId);
+			bsPos->setPosition(pos);
+			//send the bs position to the other cells
+			send(bsPos->dup(), "toBsChannel", 0);
+			sendToNeighbourCells(bsPos);
+			/* send the position also to the own ms
+			 * also possible to do with the config
+			 * but i think this is more flexible */
+			send(bsPos, "toPhy");
+			delete msg;
+		}
+		else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
+			// Send requests for each stream to the 
+			// scheduler if that stream has packets.
+			for(auto iter=this->streamQueues.begin(); iter!=streamQueues.end();
+					++iter){
+				if(!iter->second.empty()){
+					StreamTransReq *req = new StreamTransReq();
+					KoiData *queueHead = dynamic_cast<KoiData*>(iter->second.front());
+					req->setSrc(queueHead->getSrc());
+					req->setDest(queueHead->getDest());
+					req->setStreamId(iter->first);
+					req->setPeriod(queueHead->getInterarrival());
+					req->setPackets(&(iter->second));
+					req->setMessageDirection(MessageDirection::down);
+					req->setRequestOrigin(-1);
+					send(req,"toScheduler");
+				}
+			}
+			scheduleAt(simTime() + tti-epsilon, msg);
+		}
+		else if(msg->isName("DEBUG")){
+			// forward debug messages to BS channel
+			send(msg->dup(),"toBsChannel",0);
+			delete msg;
+		}
+	}
+	else if(msg->isName("BS_POSITION_MSG"))  {
+
+		//DEBUG: send the BS position messages also to BS Channel 0.
+		send(msg->dup(), "toBsChannel", 0);
+
+		//forward bs position msg from the other cells to the ms
+		send(msg, "toPhy");
+	}
+	//data packet
+	else if(msg->arrivedOn("fromPhy"))  {
+		KoiData *packet = (KoiData *) msg;
+		streamQueues[packet->getStreamId()].push_back(packet);
+	}
+}
+
+void BsMac::writePositions(){
+	std::fstream fout;
+	fout.open("pos_cell_"+std::to_string(bsId)+".dat",std::fstream::out);
+	fout << "[" << "BS_" << bsId << "]" << std::endl
+		<< "posX=" << pos.x << std::endl
+		<< "posY=" << pos.y << std::endl;
+	for(int i = 0; i<numberOfMobileStations; i++){
+		fout << "[MS_" << i << "]" << std::endl
+			<< "posX=" << msPositions[i].x << std::endl
+			<< "posY=" << msPositions[i].y << std::endl
+			<< "bs=" << bsId << std::endl;
+	}
+	fout.close();
 }
 
 BsMac::~BsMac()  {

@@ -1,12 +1,13 @@
-// Round Robin scheduling for the StreamScheduler
+// Earliest Deadline First scheduling for the StreamScheduler
 //
-// This implementation of the StreamScheduler interface assigns streams 
-// to resource block through round robin. After receiving all StreamInfo 
-// messages, the scheduler iterates jointly over them and the list 
-// of available resource blocks. If the list of resource blocks is exhausted 
-// before all streams are assigned, the assigment starts again with the front 
-// of the resource block list.
-simple RoundRobinStreamSched like StreamScheduler{
+// This stream scheduler implements Earliest Deadline First scheduling for 
+// stream to resource block assignments. It tries to utilize the smallest 
+// possible number of resource blocks while ensuring that all streams can 
+// meet their respective deadlines. 
+//
+// For details, see S. Auroux, D. Parruca and H. Karl, "Joint real-time 
+// scheduling and interference coordination for wireless factory automation."
+simple EDFStreamSched like StreamScheduler{
 	parameters:
 		// Offset from the simulation start reserved for initialization messages.
 		// No traffic is generated/send before it.
@@ -17,15 +18,18 @@ simple RoundRobinStreamSched like StreamScheduler{
 		int downResourceBlocks;
 		// The number of MobileStations in the local cell
 		int numberOfMobileStations;
-		// The period after which assignments of streams to resource blocks 
-		// are recomputed.
-		double streamSchedPeriod @unit(s);
+		// The inter-scheduling period is computed dynamically 
+		// in this scheduler
+		double streamSchedPeriod = -1s @unit(s);
 		// Length of single transmission time interval
 		double tti @unit(s);
 		// A small offset used control message order in cases where ordering 
 		// cannot be guaranteed by generation order.
 		double epsilon @unit(s);
-		@class("StreamScheduler");
+		@statistic[unscheduled](record=max);
+		@statistic[scheduledStreams](record=max);
+		@statistic[utilizedRb](record=max);
+		@class("EDFStreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.
 		input fromBs;
