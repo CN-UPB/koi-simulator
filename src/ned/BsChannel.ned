@@ -217,8 +217,11 @@ simple BsChannel  {
 		double BsHeight;
 		double OutdoorHeightUE;
 		double Velocity;
-		// The channel model to use. Should always be 0 for the 
-		// METISChannel implementation.
+		// The 'mean' parameter for the exponential channel model
+		double expMean = default(1.0);
+		// The channel model to use. Possible values:
+		// 0: METIS channel model (default)
+		// 1: Exponential random channel model
 		int channelModel = default(0);
 		@display("i=block/rxtx");
 		

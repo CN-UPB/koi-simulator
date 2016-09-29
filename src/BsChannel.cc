@@ -9,17 +9,18 @@
  * All book references target the book "Pervasive Mobile and Ambient Wireless Communications"
  */
 
-#include "cluster.h"
 #include "BsChannel.h"
+#include "cluster.h"
+#include "ClusterMessage_m.h"
+#include "ExpChannel.h"
 #include "KoiData_m.h"
+#include "METISChannel.h"
 #include "SINR_m.h"
 #include "PositionExchange_m.h"
 #include "PointerExchange_m.h"
-#include "VisibilityRegionMessage_m.h"
-#include "ClusterMessage_m.h"
 #include "Schedule_m.h"
 #include "util.h"
-#include "METISChannel.h"
+#include "VisibilityRegionMessage_m.h"
 
 #include <algorithm>
 #include <cmath>
@@ -62,6 +63,8 @@ void BsChannel::initialize()  {
 		case 0:
 			channel = new METISChannel();
 			break;
+		case 1:
+			channel = new ExpChannel();
 		default:
 			throw std::invalid_argument("Invalid channelModel value");
 	}
