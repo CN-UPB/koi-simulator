@@ -4,6 +4,7 @@
  */
 
 #include "ExpChannel.h"
+#include <fstream>
 #include "includes.h"
 #include "Position.h"
 #include <vector>
@@ -37,34 +38,66 @@ void ExpChannel::recomputeCoefficients(
 				vector<vector<double>>(timeSamples,
 					vector<double>(upRBs))));
 	double pl = 0.0;
+	double exp = 0.0;
+	std::ofstream downValues;
+	std::string fname("coeff_table_down_"+std::to_string(bsId)+".dat");
+	downValues.open(fname,std::ofstream::trunc);
+	downValues << "BS\t" << "MS\t" << "RB\t" << "PL\t" << "Exp\t" << "Coeff" << "\n"; 
 	for(size_t msIds=0; msIds<numberOfMobileStations; ++msIds){
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+			pl = pathloss(neighbourPositions[bsIds],msPositions[bsId][msIds]);
 			for(size_t t=0; t<timeSamples; ++t){
 				for(size_t rb=0; rb<downRBs; ++rb){
-					pl = pathloss(neighbourPositions[bsIds],msPositions[bsId][msIds]);
-					coeffDownTable[msIds][bsIds][t][rb] = pl * exponential(expMean);
+					exp = exponential(expMean);
+					coeffDownTable[msIds][bsIds][t][rb] = pl * exp;
 				}
+			}
+			for(size_t rb=0; rb<downRBs; ++rb){
+				downValues << bsIds << "\t"
+					<< msIds << "\t"
+					<< rb << "\t"
+					<< pl << "\t"
+					<< coeffDownTable[msIds][bsIds][timeSamples-1][rb]/pl << "\t"
+					<< coeffDownTable[msIds][bsIds][timeSamples-1][rb]
+					<< std::endl;
 			}
 		}
 	}
+	downValues.close();
 	// Compute UP RB coefficients
 	coeffUpTable.resize(numBs,
 			vector<vector<vector<vector<double>>>>(1));
 	size_t numMs;
+	std::ofstream upValues;
+	fname = "coeff_table_up_"+std::to_string(bsId)+".dat";
+	upValues.open(fname,std::ofstream::trunc);
+	upValues << "Cell\t" << "MS\t" << "BS\t" << "RB\t" << "PL\t" << "Exp\t" << "Coeff" << "\n"; 
 	for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 		numMs = msPositions[bsIds].size();
 		coeffUpTable[bsIds][0].resize(numMs,
 				vector<vector<double>>(timeSamples,
 					vector<double>(upRBs)));
 		for(size_t msIds=0; msIds<numMs; ++msIds){
+			pl = pathloss(msPositions[bsIds][msIds],neighbourPositions[bsId]);
 			for(size_t t=0; t<timeSamples; ++t){
 				for(size_t rb=0; rb<upRBs; ++rb){
-					pl = pathloss(msPositions[bsIds][msIds],neighbourPositions[bsId]);
-					coeffUpTable[bsIds][0][msIds][t][rb] = pl * exponential(expMean);
+					exp = exponential(expMean);
+					coeffUpTable[bsIds][0][msIds][t][rb] = pl * exp;
 				}
+			}
+			for(size_t rb=0; rb<upRBs; ++rb){
+				upValues << bsIds << "\t"
+					<< msIds << "\t"
+					<< bsId << "\t"
+					<< rb << "\t"
+					<< pl << "\t"
+					<< coeffUpTable[bsIds][0][msIds][timeSamples-1][rb]/pl << "\t"
+					<< coeffUpTable[bsIds][0][msIds][timeSamples-1][rb]
+					<< std::endl;
 			}
 		}
 	}
+	upValues.close();
 	// Compute D2D UP RB coefficients
 	coeffUpD2DTable.resize(numBs,
 			vector<vector<vector<vector<double>>>>(numberOfMobileStations));
