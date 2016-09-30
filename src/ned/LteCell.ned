@@ -70,7 +70,7 @@ module LteCell
 				record=last);
 		@statistic[avgLateness](source="mean(missedDL)";
 				record=last);
-		@statistic[avgRatePerStation](record=mean);
+		@statistic[avgRatePerStation](record=timeavg,vector);
 
 		@display("p=$xPos,$yPos;r=$radius,,black;i=block/network2_l;bgb=330,202");
 
