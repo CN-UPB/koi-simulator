@@ -12,7 +12,9 @@
 class ExpChannel: public Channel{
 	private:
 		double expMean;
+		double plExp;
 
+		double pathloss(Position sender, Position receiver);
 		void recomputeCoefficients(
 				const std::vector<std::vector<Position>>& msPositions);
 	

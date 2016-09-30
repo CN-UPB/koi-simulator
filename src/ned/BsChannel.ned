@@ -219,6 +219,8 @@ simple BsChannel  {
 		double Velocity;
 		// The 'mean' parameter for the exponential channel model
 		double expMean = default(1.0);
+		// Exponent for the ExpChannel pathloss computations
+		double plExp = default(3.0);
 		// The channel model to use. Possible values:
 		// 0: METIS channel model (default)
 		// 1: Exponential random channel model
