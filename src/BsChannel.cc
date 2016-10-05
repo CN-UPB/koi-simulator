@@ -196,6 +196,10 @@ void BsChannel::handleMessage(cMessage *msg)  {
 			delete msg;
 		}
 	}
+	else if(msg->getKind()==MessageType::clearTransInfo){
+		// Clear all TransInfo messages from the channel
+		channel->clearTransInfo();
+	}
 	else if(msg->arrivedOn("fromMs"))  {
 		assert(msg->getKind() == MessageType::koidata);
 		KoiData *packet = dynamic_cast<KoiData*>(msg);

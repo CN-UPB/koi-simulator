@@ -72,35 +72,28 @@ double Channel::calcInterference(forward_list<TransInfo*>& interferers,
 	double interference = 0.0;
 	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
 	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
-		if((*it)->getCreationTime()>=simTime()-tti){
-			if(receiverId==-1){
-				// Interference at the local base station
-				interference += (*it)->getPower() 
-					* coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][rb];
-			}
-			else{
-				// Interference at local mobile stations
-				if((*it)->getMessageDirection()==MessageDirection::down){
-					// Interference from a neighbouring BS
-					interference += (*it)->getPower() * coeffDownTable[receiverId][(*it)->getBsId()][SINRCounter][rb];
-				}
-				else if((*it)->getMessageDirection()==MessageDirection::d2dDown){
-					// Interference from a MS transmitting D2D on the same down resource 
-					// block
-					interference += (*it)->getPower() 
-						* coeffDownD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
-				}
-				else if((*it)->getMessageDirection()==MessageDirection::d2dUp
-						|| (*it)->getMessageDirection()==MessageDirection::up){
-					interference += (*it)->getPower() 
-						* coeffUpD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
-				}
-			}
+		if(receiverId==-1){
+			// Interference at the local base station
+			interference += (*it)->getPower() 
+				* coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][rb];
 		}
 		else{
-			delete *it;
-			interferers.erase_after(prev);
-			it=prev;
+			// Interference at local mobile stations
+			if((*it)->getMessageDirection()==MessageDirection::down){
+				// Interference from a neighbouring BS
+				interference += (*it)->getPower() * coeffDownTable[receiverId][(*it)->getBsId()][SINRCounter][rb];
+			}
+			else if((*it)->getMessageDirection()==MessageDirection::d2dDown){
+				// Interference from a MS transmitting D2D on the same down resource 
+				// block
+				interference += (*it)->getPower() 
+					* coeffDownD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
+			}
+			else if((*it)->getMessageDirection()==MessageDirection::d2dUp
+					|| (*it)->getMessageDirection()==MessageDirection::up){
+				interference += (*it)->getPower() 
+					* coeffUpD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
+			}
 		}
 	}
 	interference += getTermalNoise(300,180000);
@@ -193,6 +186,25 @@ double Channel::calcAvgD2DDownSINR(int RB,
     }
   }
   return res/numberOfMobileStations;
+}
+
+void Channel::clearTransInfo(){
+	for(auto iterRb = transInfo.first.begin(); iterRb!=transInfo.first.end();
+			++iterRb){
+		forward_list<TransInfo*>& currList(*iterRb);
+		for(auto inf:currList){
+			delete inf;
+		}
+		currList.clear();
+	}
+	for(auto iterRb = transInfo.second.begin(); iterRb!=transInfo.second.end();
+			++iterRb){
+		forward_list<TransInfo*>& currList(*iterRb);
+		for(auto inf:currList){
+			delete inf;
+		}
+		currList.clear();
+	}
 }
 
 // Johnson Nyquist Noise

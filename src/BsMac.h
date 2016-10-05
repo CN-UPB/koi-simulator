@@ -28,6 +28,7 @@ class BsMac : public cSimpleModule  {
         int currentChannel;
 				int resourceBlocks;
         int sinr_est;
+				int sinrEstCount;
         Position pos;
         double initOffset;
         vector<bool> *msPosUpdateArrived;

@@ -162,6 +162,8 @@ class Channel{
 				int msId,
 				double transPower);
 
+		virtual void clearTransInfo();
+
 		/**
 		 * @brief It may be necessary for the Channel to receive Messages
 		 * 

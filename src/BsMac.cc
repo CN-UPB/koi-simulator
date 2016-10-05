@@ -43,6 +43,8 @@ void BsMac::initialize()  {
     tti = par("tti");
     epsilon = par("epsilon");
 		avgRatePerStation = registerSignal("avgRatePerStation");
+
+		sinrEstCount = 0;
     
     //find the neighbours and store the pair (bsId, position in data structures) in a map
     cModule *cell = getParentModule()->getParentModule();
@@ -135,6 +137,15 @@ void BsMac::handleMessage(cMessage *msg)  {
 	}
 	else if(msg->getKind()==MessageType::sinrEst){
 		SINR *sinrMessage = (SINR *) msg;
+		sinrEstCount++;
+		if(sinrEstCount==numberOfMobileStations+1){
+			// All local stations have completed their SINR estimates, so the 
+			// last TTI's transmission infos can now be cleared from the local 
+			// channel.
+			send(new cMessage(nullptr,MessageType::clearTransInfo),"toBsChannel",
+					0);
+			sinrEstCount = 0;
+		}
 		// Provide the estimates to the scheduler, too
 		send(msg,"toScheduler");
 	}
