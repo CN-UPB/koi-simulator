@@ -135,12 +135,6 @@ void BsMac::handleMessage(cMessage *msg)  {
 	}
 	else if(msg->getKind()==MessageType::sinrEst){
 		SINR *sinrMessage = (SINR *) msg;
-		// Clear the old estimates
-		sinrDown.clear();
-		sinrDown.resize(sinrMessage->getDownArraySize());
-		for(int i = 0;i < sinrMessage->getDownArraySize(); i++){
-			sinrDown[i] = sinrMessage->getDown(i);
-		}
 		// Provide the estimates to the scheduler, too
 		send(msg,"toScheduler");
 	}

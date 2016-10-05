@@ -345,20 +345,8 @@ void MsMac::handleMessage(cMessage *msg)  {
 		scheduleAt(positionResendTime(), msg);
 	}
 	else if(msg->getKind()==MessageType::sinrEst)  {
-		SINR *sinrMessage = (SINR *) msg;
-		// Clear the old estimates
-		sinrUp.clear();
-		sinrUp.resize(sinrMessage->getUpArraySize());
-		sinrDown.clear();
-		sinrDown.resize(sinrMessage->getDownArraySize());
-		// Set the new estimates
-		for(int i = 0;i < sinrMessage->getUpArraySize(); i++){
-			sinrUp[i] = sinrMessage->getUp(i);
-		}
-		for(int i = 0;i < sinrMessage->getDownArraySize(); i++){
-			sinrDown[i] = sinrMessage->getDown(i);
-		}
-		send(msg,"toScheduler");
+		// Forward estimates to BS Mac
+		send(msg,"toBsMac");
 	}
 	else if(msg->arrivedOn("fromApp"))  {
 		// Packet arrived for sending from traffic generator
