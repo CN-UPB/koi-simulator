@@ -102,13 +102,6 @@ void BsChannel::initialize()  {
 	scheduleAt(simTime()+initOffset-epsilon, new cMessage("SINR_ESTIMATION"));
 }
 
-simtime_t BsChannel::getProcessingDelay(cMessage *msg)  {
-    if(msg->isName("DATA_BUNDLE"))
-        return tti - 2 * epsilon;
-    else
-        return 0;
-}
-
 void BsChannel::handleMessage(cMessage *msg)  {
 	if(msg->isName("CHANNEL_INFO"))  {
 		channel->handleMessage(msg);

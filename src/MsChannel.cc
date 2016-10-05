@@ -46,13 +46,6 @@ void MsChannel::initialize()  {
 	scheduleAt(simTime()+initOffset-epsilon, new cMessage("SINR_ESTIMATION")); //originally set to 1000*tti + epsilon
 }
 
-simtime_t MsChannel::getProcessingDelay(cMessage *msg)  {
-    if(msg->isName("DATA_BUNDLE"))
-        return tti - 2 * epsilon;
-    else
-        return 0;
-}
-
 void MsChannel::handleMessage(cMessage *msg)  {
 	if(msg->isName("SINR_ESTIMATION")){
 		SINR *sinrMessage = new SINR();

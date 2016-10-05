@@ -59,7 +59,6 @@ class BsChannel : public cSimpleModule  {
     protected:
         virtual void initialize();
         virtual void handleMessage(cMessage *msg);
-        virtual simtime_t getProcessingDelay(cMessage *msg);
         NeighbourIdMatching* getNeighbourMatching(){return neighbourIdMatching;}
 
     public:
