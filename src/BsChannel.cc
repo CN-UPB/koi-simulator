@@ -158,7 +158,8 @@ void BsChannel::handleMessage(cMessage *msg)  {
 			// Write out SINR values for all possible links in this cell
 			// First, the downlinks
 			ofstream downSinr;
-			std::string fname("sinr_table_down_"+std::to_string(bsId)+".dat");
+			int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
+			std::string fname("./results/run_"+std::to_string(run)+"_sinr_table_down_"+std::to_string(bsId)+".dat");
 			downSinr.open(fname,ofstream::trunc);
 			outputDownSINR(downSinr);
 			downSinr.close();

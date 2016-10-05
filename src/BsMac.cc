@@ -291,8 +291,9 @@ void BsMac::handleMessage(cMessage *msg)  {
 }
 
 void BsMac::writePositions(){
+	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
 	std::fstream fout;
-	fout.open("pos_cell_"+std::to_string(bsId)+".dat",std::fstream::out);
+	fout.open("./results/run_"+std::to_string(run)+"_pos_cell_"+std::to_string(bsId)+".dat",std::fstream::out);
 	fout << "[" << "BS_" << bsId << "]" << std::endl
 		<< "posX=" << pos.x << std::endl
 		<< "posY=" << pos.y << std::endl;

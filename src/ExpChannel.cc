@@ -32,6 +32,7 @@ double ExpChannel::pathloss(Position sender, Position receiver){
 void ExpChannel::recomputeCoefficients(
 		const vector<vector<Position>>& msPositions){
 	size_t numBs = msPositions.size();
+	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
 	// Compute DOWN RB coefficients
 	coeffDownTable.resize(numberOfMobileStations,
 			vector<vector<vector<double>>>(numBs,
@@ -40,7 +41,7 @@ void ExpChannel::recomputeCoefficients(
 	double pl = 0.0;
 	double exp = 0.0;
 	std::ofstream downValues;
-	std::string fname("coeff_table_down_"+std::to_string(bsId)+".dat");
+	std::string fname("./results/run_"+std::to_string(run)+"_coeff_table_down_"+std::to_string(bsId)+".dat");
 	downValues.open(fname,std::ofstream::trunc);
 	downValues << "BS\t" << "MS\t" << "RB\t" << "PL\t" << "Exp\t" << "Coeff" << "\n"; 
 	for(size_t msIds=0; msIds<numberOfMobileStations; ++msIds){
@@ -69,7 +70,7 @@ void ExpChannel::recomputeCoefficients(
 			vector<vector<vector<vector<double>>>>(1));
 	size_t numMs;
 	std::ofstream upValues;
-	fname = "coeff_table_up_"+std::to_string(bsId)+".dat";
+	fname = "./results/run_"+std::to_string(run)+"_coeff_table_up_"+std::to_string(bsId)+".dat";
 	upValues.open(fname,std::ofstream::trunc);
 	upValues << "Cell\t" << "MS\t" << "BS\t" << "RB\t" << "PL\t" << "Exp\t" << "Coeff" << "\n"; 
 	for(size_t bsIds=0; bsIds<numBs; ++bsIds){
