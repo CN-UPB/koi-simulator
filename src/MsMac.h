@@ -41,7 +41,6 @@ class MsMac : public cSimpleModule  {
 			Position initMsPositionLinear();
 			Position initMsPositionRand();
 			simsignal_t avgRatePerStation;
-			void updateDisplayString();
 	/**
 	 * @enum Placement
 	 * All possible methods to determine initial Mobile Station placement

@@ -34,17 +34,6 @@ inline simtime_t MsMac::positionResendTime()  {
     }
 }
 
-void MsMac::updateDisplayString()  {
-    std::stringstream converter;
-    //correction the center of the cell to (radius,radius)
-    converter << "p=" << msPosition.x - initBsPos.x + radius << "," << msPosition.y - initBsPos.y + radius << ";bgb=200,300;i=device/cellphone;";
-    std::string displayString = converter.str();
-
-    // Setting a module's position, icon and status icon:
-    cDisplayString& dispStr = getParentModule()->getDisplayString();
-    dispStr.parse(displayString.c_str());
-}
-
 /* calc the init pos of the ms in the cell */
 Position MsMac::initMsPosition(int quadrant, double alpha, double beta, double gamma)  { //for random movement of MS
 	Position msPos;
@@ -227,9 +216,6 @@ void MsMac::initialize()  {
 			std::cout << "Invalid Ms placement algorithm " << (int) par("positioning") << std::endl;
 	}
         
-	//for Tkenv
-	updateDisplayString();
-	
 	// disable resending of MS positions for now, we have no movement	
 	//resend the ms position every x times to the BsMac layer
 	//scheduleAt(simTime() + initOffset + tti - epsilon, new cMessage("RESEND_POS")); //originally set to simTime() + initOffset 
