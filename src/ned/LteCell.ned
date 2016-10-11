@@ -70,7 +70,7 @@ module LteCell
 				record=last);
 		@statistic[avgLateness](source="mean(missedDL)";
 				record=last);
-		@statistic[avgRatePerStation](record=timeavg,vector);
+		@statistic[avgRatePerStation](record=timeavg);
 
 		@display("p=$xPos,$yPos;r=$radius,,black;i=block/network2_l;bgb=330,202");
 
@@ -136,7 +136,7 @@ module LteCell
         //connect BaseStation with other Cells
         for i=0..(maxNumberOfNeighbours-1) {
             bs.toCell[i] --> toCell[i];
-            fromCell++ --> bs.fromCell[i];
+            fromCell[i] --> bs.fromCell[i];
         }
 
         //for direct schedule exchange of MS/BS

@@ -57,7 +57,7 @@ simple BsMac  {
 		// The power setting used for transmissions.
 		double transmissionPower = default(1.0);
 		@display("i=block/mac");
-		@statistic[avgRatePerStation](record=timeavg,vector);
+		@statistic[avgRatePerStation](record=timeavg);
         
     gates:
 	// For information exchange with neighbouring cells. 
