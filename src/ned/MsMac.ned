@@ -85,7 +85,7 @@ simple MsMac  {
 			// 3 - Use linear placement simulating a straight road
 			int positioning = default(0);
 
-			@statistic[avgRatePerStation](record=timeavg);
+			@statistic[avgRatePerStation](record=timeavg,vector);
 			@display("i=block/mac");
 
     gates:
