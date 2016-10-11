@@ -42,7 +42,6 @@ void BsMac::initialize()  {
     initOffset = par("initOffset");
     tti = par("tti");
     epsilon = par("epsilon");
-		avgRatePerStation = registerSignal("avgRatePerStation");
 
 		sinrEstCount = 0;
     
@@ -178,7 +177,6 @@ void BsMac::handleMessage(cMessage *msg)  {
 				}
 			}
 		}
-		emit(avgRatePerStation,rate);
 		// Send out exactly one TransInfo per used resource block
 		for(auto& rb:infos){
 			TransInfo *info = new TransInfo();

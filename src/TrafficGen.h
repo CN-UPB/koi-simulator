@@ -45,9 +45,6 @@ class TrafficGen: public cSimpleModule{
 		int msId;
 		int packetLength;
 		bool periodicTraffic;
-		simsignal_t genPackets;
-		simsignal_t recPackets;
-		simsignal_t missedDL;
 		static std::vector<StreamDef> parseCommTable(
 				const std::string& path,int bsId, int msId);
 	

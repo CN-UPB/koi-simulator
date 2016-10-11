@@ -40,15 +40,6 @@ simple TrafficGen {
 		bool periodicTraffic = default(true);
 		// The transmission time interval
 		double tti @unit(s);
-		// Result gathering statistics
-		@statistic[generatedPackets](source="count(genPackets)";
-				record=last);
-		@statistic[receivedPackets](source="count(recPackets)"; 
-				record=last);
-		@statistic[packetsMissedDeadlines](source="count(missedDL)";
-				record=last);
-		@statistic[avgLateness](source="mean(missedDL)";
-				record=last);
 	gates:
 		// For incoming messages and packets from the <em>mac</em>.
 		input fromMac;

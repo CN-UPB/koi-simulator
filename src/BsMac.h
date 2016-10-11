@@ -40,7 +40,6 @@ class BsMac : public cSimpleModule  {
 				double transmissionPower;
         simtime_t tti;
         simtime_t epsilon;
-				simsignal_t avgRatePerStation;
 				unordered_map<unsigned long,std::list<KoiData*>> streamQueues;
 				void writePositions();
 

@@ -191,7 +191,6 @@ void MsMac::initialize()  {
 	downResourceBlocks = par("downResourceBlocks");
 	packetLength = par("packetLength");
 	transmissionPower = par("transmissionPower");
-	avgRatePerStation = registerSignal("avgRatePerStation");
 
 	switch((int)par("positioning")){
 		case MsMac::Placement::params:
@@ -268,7 +267,6 @@ void MsMac::handleMessage(cMessage *msg)  {
 					}
 				}
 			}
-			emit(avgRatePerStation,rate);
 		}
 		for(auto& rb:infos.first){
 			TransInfo *info = new TransInfo();

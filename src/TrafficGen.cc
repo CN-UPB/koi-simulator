@@ -25,9 +25,6 @@ void TrafficGen::initialize(){
 	this->packetLength = par("packetLength");
 	this->periodicTraffic = par("periodicTraffic");
 	this->tti = par("tti");
-	this->genPackets = registerSignal("genPackets");
-	this->recPackets = registerSignal("recPackets");
-	this->missedDL = registerSignal("missedDL");
 
 	string xmlPath = par("commTable");
 	vector<StreamDef> parsedStreams(parseCommTable(xmlPath,bsId,msId));
@@ -84,8 +81,6 @@ void TrafficGen::handleMessage(cMessage *msg){
 					<< " to " << pack->getDest() 
 					<< std::endl;
 				*/
-				// Emit signal for statistics gathering
-				emit(genPackets,true);
 				break;
 			
 		}
@@ -100,10 +95,6 @@ void TrafficGen::handleMessage(cMessage *msg){
 			<< " to " << pack->getDest() 
 			<< std::endl;
                 */
-                emit(recPackets,true);
-                if(pack->getDeadline()>simTime()){
-                  emit(missedDL,pack->getDeadline()-simTime());
-                }
 		delete pack;
 	}
 }

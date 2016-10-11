@@ -27,9 +27,6 @@ Define_Module(EDFStreamScheduler);
 
 void EDFStreamScheduler::initialize(){
 	StreamScheduler::initialize();
-  this->unscheduled = registerSignal("unscheduled");
-  this->scheduledStreams = registerSignal("scheduledStreams");
-  this->utilizedRb = registerSignal("utilizedRb");
 }
 
 
@@ -132,11 +129,6 @@ void EDFStreamScheduler::scheduleStreams(){
         ++unscheduledStreams;
       }
     }
-    emit(scheduledStreams,schedStreams);
-    emit(unscheduled,unscheduledStreams);
-    // Find out how many resource blocks are in use
-    auto utilizedRbPred = [](EDFRb& rb) -> bool {return rb.utilization>0.0;};
-    emit(utilizedRb,std::count_if(blocks.begin(),blocks.end(),utilizedRbPred));
     // Set validity period for schedule to least common multiple of the 
     // periods of all streams.
     this->streamSchedPeriod = computeSchedulingInterval(streams);
