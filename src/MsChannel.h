@@ -13,6 +13,7 @@
 #include "Position.h"
 #include "TransInfo_m.h"
 #include <itpp/itbase.h>
+#include <fstream>
 #include <vector>
 #include <forward_list>
 
@@ -25,6 +26,7 @@ class MsChannel : public cSimpleModule  {
         int currentChannel;
         int downResourceBlocks;
         int upResourceBlocks;
+				std::ofstream sinrFile;
         simtime_t epsilon;
         simtime_t tti;
         simtime_t initOffset;
@@ -38,6 +40,7 @@ class MsChannel : public cSimpleModule  {
 
     protected:
         virtual void initialize();
+				virtual void finish();
         virtual void handleMessage(cMessage *msg);
 
     public:

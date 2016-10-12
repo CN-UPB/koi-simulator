@@ -43,7 +43,18 @@ void MsChannel::initialize()  {
 	string eesm_beta = par("eesm_beta");
 	eesm_beta_values = vec(eesm_beta);
 
+	// File for SINR value storage
+	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
+	std::string fname("./results/run_"+std::to_string(run)+"_sinr_ms_"+std::to_string(bsId)+"_"+std::to_string(msId)+".dat");
+	sinrFile.open(fname,ofstream::trunc);
+	sinrFile << "TTI\t" 
+		<< "Cell\t" << "MS\t" << "RB\t" << "SINR" << std::endl;
+	
 	scheduleAt(simTime()+initOffset-epsilon, new cMessage("SINR_ESTIMATION")); //originally set to 1000*tti + epsilon
+}
+
+void MsChannel::finish(){
+	sinrFile.close();
 }
 
 void MsChannel::handleMessage(cMessage *msg)  {
@@ -67,6 +78,12 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		// Route estimate to MsMac via MsPhy
 		send(sinrMessage,"toPhy");
 		scheduleAt(simTime() + tti, msg);
+		auto val = simTime()/tti;
+		int tti = std::floor(val);
+		for(int i = 0; i < upResourceBlocks; i++){
+			sinrFile << tti << "\t" << bsId << "\t" << msId << "\t" << i << "\t"
+				<< channel->calcUpSINR(i,msId,1.0) << std::endl;
+		}
 	}
 	else if(msg->isName("CHANNEL_INFO"))  {
 		// Whenever you receive a message called CHANNEL_INFO forward it to channel.
