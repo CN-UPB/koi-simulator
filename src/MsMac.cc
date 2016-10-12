@@ -214,6 +214,10 @@ void MsMac::initialize()  {
 			// is invalid.
 			std::cout << "Invalid Ms placement algorithm " << (int) par("positioning") << std::endl;
 	}
+
+	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
+	std::string fname("./results/run_"+std::to_string(run)+"_rate_ms_"+std::to_string(bsId)+"_"+std::to_string(msId)+".dat");
+	rateFile.open(fname,ofstream::trunc);
         
 	// disable resending of MS positions for now, we have no movement	
 	//resend the ms position every x times to the BsMac layer
@@ -227,6 +231,10 @@ void MsMac::initialize()  {
 	posEx->setId(msId);
 	posEx->setPosition(msPosition);
 	send(posEx, "toBsMac");
+}
+
+void MsMac::finish(){
+	rateFile.close();
 }
 
 void MsMac::handleMessage(cMessage *msg)  {
@@ -249,6 +257,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 						// Set CQI for a fixed value until we decide on how to 
 						// compute it
 						currPacket->setCqi(15);
+						this->take(currPacket);
 						sendDelayed(currPacket, epsilon, "toPhy");
 						// Store RB in frequency half dependent sets, so that we send 
 						// at most 1 TransInfo for any given resource block, even 
@@ -267,6 +276,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 					}
 				}
 			}
+		rateFile << rate << std::endl;
 		}
 		for(auto& rb:infos.first){
 			TransInfo *info = new TransInfo();

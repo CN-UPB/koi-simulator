@@ -164,6 +164,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 					// Set CQI for a fixed value until we decide on how to 
 					// compute it
 					currPacket->setCqi(15);
+					this->take(currPacket);
 					sendDelayed(currPacket, epsilon, "toPhy");
 
 					// Store used resource block in set for later generation of

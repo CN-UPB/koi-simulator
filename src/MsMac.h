@@ -13,6 +13,7 @@
 #include "util.h"
 #include <itpp/itbase.h>
 #include <algorithm>
+#include <fstream>
 #include <list>
 #include <unordered_map>
 
@@ -23,6 +24,7 @@ class MsMac : public cSimpleModule  {
     private:
 			unordered_map<unsigned long,list<KoiData*>> streamQueues;
 			Position msPosition;
+			std::ofstream rateFile;
 			int msId;
 			int bsId;
 			int positionResendInterval;
@@ -66,6 +68,7 @@ class MsMac : public cSimpleModule  {
     protected:
         virtual void initialize();
         virtual void handleMessage(cMessage *msg);
+				virtual void finish();
 
     public:
         ~MsMac();
