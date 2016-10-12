@@ -113,7 +113,6 @@ StreamTransSched *RBScheduler::getSchedule(
 				}
 			}
 			if(bestPacket!=nullptr){
-				bestPacket->setScheduled(true);
 				bestPacket->setResourceBlock(rbNumber);
 				int dir;
 				if(bestPacket->getD2d()){
@@ -130,9 +129,14 @@ StreamTransSched *RBScheduler::getSchedule(
 				bestPacket->setMessageDirection(dir);
 				if(channelCap-bestPacket->getBitLength()>=0){
 					channelCap -= bestPacket->getBitLength();
+					bestPacket->setScheduled(true);
 				}
 				else{
 					bestPacket->setBitLength(bestPacket->getBitLength()-channelCap);
+					KoiData *leftover = new KoiData(*bestPacket);
+					leftover->setBitLength(channelCap);
+					leftover->setScheduled(true);
+					currReq->getPackets()->push_back(leftover);
 					channelCap = 0;
 				}
 			}
