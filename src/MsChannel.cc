@@ -73,7 +73,7 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		sinrMessage->setUpArraySize(upResourceBlocks);
 		for(int i = 0; i < upResourceBlocks; i++){
 			sinrMessage->setUp(i,
-                            channel->calcAvgUpSINR(i,msId,1.0));
+                            channel->calcUpSINR(i,msId,1.0));
 		}
 		// Route estimate to MsMac via MsPhy
 		send(sinrMessage,"toPhy");
