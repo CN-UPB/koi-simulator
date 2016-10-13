@@ -35,7 +35,7 @@ double ExpChannel::pathloss(Position sender, Position receiver){
 	double distX = pow(sender.x-receiver.x,2);
 	double distY = pow(sender.y-receiver.y,2);
 	double dist = sqrt(distX+distY);
-	return 10*plExp*log10(dist);
+	return 1/(10*plExp*log10(dist));
 }
 
 void ExpChannel::recomputeCoefficients(
