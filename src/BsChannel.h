@@ -53,8 +53,6 @@ class BsChannel : public cSimpleModule  {
         std::vector<Cluster> remoteCluster;
         Channel* channel;
         vec eesm_beta_values;
-				std::ostream& outputDownSINR(std::ostream& out);
-				std::ostream& outputUpSINR(std::ostream& out);
 
     protected:
         virtual void initialize();

@@ -148,20 +148,6 @@ void BsChannel::handleMessage(cMessage *msg)  {
 			// Base Station.
 			// Forward DEBUG message to the channel implementation
 			channel->handleMessage(msg);
-			// Write out SINR values for all possible links in this cell
-			// First, the downlinks
-			ofstream downSinr;
-			int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
-			std::string fname("./results/run_"+std::to_string(run)+"_sinr_table_down_"+std::to_string(bsId)+".dat");
-			downSinr.open(fname,ofstream::trunc);
-			outputDownSINR(downSinr);
-			downSinr.close();
-			// Second, the uplinks
-			ofstream upSinr;
-			fname = "sinr_table_up_"+std::to_string(bsId)+".dat";
-			upSinr.open(fname,ofstream::trunc);
-			outputUpSINR(upSinr);
-			upSinr.close();
 		}
 	}
 	else if(msg->isName("SINR_ESTIMATION")){
@@ -233,79 +219,6 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		sendDelayed(packet, tti - epsilon, "toPhy");
 
 	}
-}
-
-std::ostream& BsChannel::outputDownSINR(std::ostream& out){
-	double transPower = 1.0;
-	int downResBlocks = par("downResourceBlocks");
-	// Add header for downlink SINR table
-	out << "MS\t" << "RB\t" << "SINR\t" << std::endl;
-	// Generate transmission info messages for all neighbouring base 
-	// stations. We assume that all neighbouring BS are sending and 
-	// we generate for all downlink ressource blocks. We also assume 
-	// that the transmission power used is always 1.
-	forward_list<TransInfo> inf;
-	for(int i=0; i<maxNumberOfNeighbours; i++){
-		if(i!=bsId){
-			TransInfo info;
-			info.setRb(0);
-			info.setPower(transPower);
-			info.setBsId(i);
-			info.setMessageDirection(MessageDirection::down);
-			inf.push_front(info);
-		}
-	}
-	for(int i=0; i<numberOfMobileStations; i++){
-		forward_list<TransInfo*> currInf;
-		for(auto c:inf){
-			currInf.push_front(c.dup());
-		}
-		for(int r=0; r<downResBlocks; r++){
-			out << i << "\t" 
-				<< r << "\t" 
-				<< channel->calcDownSINR(r,i,transPower)
-				<< std::endl;
-		}
-	}
-	return out;
-}
-
-std::ostream& BsChannel::outputUpSINR(std::ostream& out){
-	double transPower = 1.0;
-	// Add header for uplink SINR table
-	out << "MS\t" << "RB\t" << "SINR\t" << std::endl;
-	// Generate transmission info messages for all neighbouring mobile 
-	// stations. We assume that all neighbouring MS are sending and 
-	// we generate for all uplink ressource blocks. We also assume 
-	// that the transmission power used is always 1.
-	forward_list<TransInfo> inf;
-	for(int j=0; j<maxNumberOfNeighbours; j++){
-		if(j!=bsId){
-			int numMs = neighbourIdMatching->getNumberOfMS(j);
-			for(int i=0; i<numMs; i++){
-				TransInfo info;
-				info.setRb(0);
-				info.setPower(transPower);
-				info.setBsId(j);
-				info.setMsId(i);
-				info.setMessageDirection(MessageDirection::up);
-				inf.push_front(info);
-			}
-		}
-	}
-	for(int i=0; i<numberOfMobileStations; i++){
-		forward_list<TransInfo*> currInf;
-		for(auto c:inf){
-			currInf.push_front(c.dup());
-		}
-		for(int r=0; r<upResBlocks; r++){
-			out << i << "\t" 
-				<< r << "\t" 
-				<< channel->calcUpSINR(r,i,transPower)
-				<< std::endl;
-		}
-	}
-	return out;
 }
 
 BsChannel::~BsChannel()  {
