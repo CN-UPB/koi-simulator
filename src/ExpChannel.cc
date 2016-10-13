@@ -4,9 +4,10 @@
  */
 
 #include "ExpChannel.h"
-#include <fstream>
 #include "includes.h"
 #include "Position.h"
+#include <fstream>
+#include <cmath>
 #include <vector>
 
 using std::vector;
@@ -18,6 +19,14 @@ bool ExpChannel::init(cSimpleModule* module,
 	Channel::init(module,msPositions,neighbourPositions);
 	expMean = module->par("expMean");
 	plExp = module->par("plExp");
+	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
+	std::string fname("./results/run_"+std::to_string(run)+"_coeff_table_down_"
+			+std::to_string(bsId)+".dat");
+	downValues.open(fname,std::ofstream::trunc);
+	downValues << "TTI\t" << "BS\t" << "MS\t" << "RB\t" << "PL\t" << "Exp\t" << "Coeff" << "\n"; 
+	fname = "./results/run_"+std::to_string(run)+"_coeff_table_up_"+std::to_string(bsId)+".dat";
+	upValues.open(fname,std::ofstream::trunc);
+	upValues << "TTI\t" << "Cell\t" << "MS\t" << "BS\t" << "RB\t" << "PL\t" << "Exp\t" << "Coeff" << "\n"; 
 	recomputeCoefficients(msPositions);
 	return true;
 }
@@ -31,8 +40,16 @@ double ExpChannel::pathloss(Position sender, Position receiver){
 
 void ExpChannel::recomputeCoefficients(
 		const vector<vector<Position>>& msPositions){
+	auto val = simTime().dbl()/tti;
+	// +1 because when this method is called, it computes the values for the 
+	// NEXT TTI, not the current one.
+	int tti = std::floor(val);
 	size_t numBs = msPositions.size();
-	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
+	// If the mobile station positions have not yet been stored locally, do so 
+	// now.
+	if(msPos.empty()){
+		this->msPos = msPositions;
+	}
 	// Compute DOWN RB coefficients
 	coeffDownTable.resize(numberOfMobileStations,
 			vector<vector<vector<double>>>(numBs,
@@ -40,10 +57,6 @@ void ExpChannel::recomputeCoefficients(
 					vector<double>(upRBs))));
 	double pl = 0.0;
 	double exp = 0.0;
-	std::ofstream downValues;
-	std::string fname("./results/run_"+std::to_string(run)+"_coeff_table_down_"+std::to_string(bsId)+".dat");
-	downValues.open(fname,std::ofstream::trunc);
-	downValues << "BS\t" << "MS\t" << "RB\t" << "PL\t" << "Exp\t" << "Coeff" << "\n"; 
 	for(size_t msIds=0; msIds<numberOfMobileStations; ++msIds){
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 			pl = pathloss(neighbourPositions[bsIds],msPositions[bsId][msIds]);
@@ -54,7 +67,7 @@ void ExpChannel::recomputeCoefficients(
 				}
 			}
 			for(size_t rb=0; rb<downRBs; ++rb){
-				downValues << bsIds << "\t"
+				downValues << tti << "\t" << bsIds << "\t"
 					<< msIds << "\t"
 					<< rb << "\t"
 					<< pl << "\t"
@@ -64,15 +77,10 @@ void ExpChannel::recomputeCoefficients(
 			}
 		}
 	}
-	downValues.close();
 	// Compute UP RB coefficients
 	coeffUpTable.resize(numBs,
 			vector<vector<vector<vector<double>>>>(1));
 	size_t numMs;
-	std::ofstream upValues;
-	fname = "./results/run_"+std::to_string(run)+"_coeff_table_up_"+std::to_string(bsId)+".dat";
-	upValues.open(fname,std::ofstream::trunc);
-	upValues << "Cell\t" << "MS\t" << "BS\t" << "RB\t" << "PL\t" << "Exp\t" << "Coeff" << "\n"; 
 	for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 		numMs = msPositions[bsIds].size();
 		coeffUpTable[bsIds][0].resize(numMs,
@@ -87,7 +95,7 @@ void ExpChannel::recomputeCoefficients(
 				}
 			}
 			for(size_t rb=0; rb<upRBs; ++rb){
-				upValues << bsIds << "\t"
+				upValues << tti << "\t" << bsIds << "\t"
 					<< msIds << "\t"
 					<< bsId << "\t"
 					<< rb << "\t"
@@ -98,7 +106,6 @@ void ExpChannel::recomputeCoefficients(
 			}
 		}
 	}
-	upValues.close();
 	// Compute D2D UP RB coefficients
 	coeffUpD2DTable.resize(numBs,
 			vector<vector<vector<vector<double>>>>(numberOfMobileStations));
@@ -144,4 +151,14 @@ void ExpChannel::updateChannel(const vector<vector<Position>>& msPos){
 }
 
 void ExpChannel::handleMessage(cMessage* msg){
+}
+
+void ExpChannel::clearTransInfo(){
+	Channel::clearTransInfo();
+	recomputeCoefficients(msPos);
+}
+
+ExpChannel::~ExpChannel(){
+	downValues.close();
+	upValues.close();
 }
