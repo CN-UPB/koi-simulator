@@ -77,8 +77,8 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		}
 		// Route estimate to MsMac via MsPhy
 		send(sinrMessage,"toPhy");
+		scheduleAt(simTime() + tti, msg);
 		if(simTime()>initOffset){
-			scheduleAt(simTime() + tti, msg);
 			auto val = simTime()/tti;
 			int tti = std::floor(val);
 			for(int i = 0; i < upResourceBlocks; i++){
