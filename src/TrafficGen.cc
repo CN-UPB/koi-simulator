@@ -38,7 +38,7 @@ void TrafficGen::initialize(){
 			msg->setStreamId(stream.streamId);
 			// schedule initial events randomly in 
 			// [initOffset,initOffset+4*tti]
-			scheduleAt(uniform(initOffset,initOffset+(4*tti)),msg);
+			scheduleAt(initOffset-(2*tti),msg);
 		}
 		// Send stream notification message, which will inform the 
 		// mobile station's MAC, the base station's MAC and the 
