@@ -32,6 +32,7 @@ simple KBestStreamSched like StreamScheduler{
 		int upK;
 		// Number of best RB assigned to senders each TTI for DOWN transmissions
 		int downK;
+		int bsId;
 		@class("KBestStreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.

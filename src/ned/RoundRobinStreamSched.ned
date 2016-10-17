@@ -25,6 +25,7 @@ simple RoundRobinStreamSched like StreamScheduler{
 		// A small offset used control message order in cases where ordering 
 		// cannot be guaranteed by generation order.
 		double epsilon @unit(s);
+		int bsId;
 		@class("StreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.

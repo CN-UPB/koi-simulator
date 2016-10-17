@@ -55,6 +55,7 @@ module Scheduler
         string streamSchedType = default("RoundRobinStreamSched");
 	// The module implementation to use for the RBScheduler.
         string rbSchedType = default("RoundRobinRBSched");
+				int bsId;
         @display("i=block/classifier;bgb=366,173");
     gates:
 	// For Scheduling communication with the local BaseStation.
@@ -70,6 +71,7 @@ module Scheduler
             initOffset = initOffset;
             numberOfMobileStations = numberOfMobileStations;
             tti = tti;
+						bsId = bsId;
             @display("p=69,79");
         }
         rbSchedulersUp[upResourceBlocks]: <rbSchedType> like RBScheduler {

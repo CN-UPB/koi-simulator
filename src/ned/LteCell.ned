@@ -108,6 +108,7 @@ module LteCell
             parameters:
                 numberOfMobileStations = numberOfMobileStations;
                 streamSchedPeriod = streamSchedPeriod;
+								bsId = bsId;
         }
 
     connections allowunconnected:

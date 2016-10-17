@@ -19,6 +19,7 @@ bool ExpChannel::init(cSimpleModule* module,
 	Channel::init(module,msPositions,neighbourPositions);
 	expMean = module->par("expMean");
 	plExp = module->par("plExp");
+	initOffset = module->par("initOffset");
 	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
 	std::string fname("./results/run_"+std::to_string(run)+"_coeff_table_down_"
 			+std::to_string(bsId)+".dat");
@@ -66,14 +67,16 @@ void ExpChannel::recomputeCoefficients(
 					coeffDownTable[msIds][bsIds][t][rb] = pl * exp;
 				}
 			}
-			for(size_t rb=0; rb<downRBs; ++rb){
-				downValues << tti << "\t" << bsIds << "\t"
-					<< msIds << "\t"
-					<< rb << "\t"
-					<< pl << "\t"
-					<< coeffDownTable[msIds][bsIds][timeSamples-1][rb]/pl << "\t"
-					<< coeffDownTable[msIds][bsIds][timeSamples-1][rb]
-					<< std::endl;
+			if(simTime()>initOffset){
+				for(size_t rb=0; rb<downRBs; ++rb){
+					downValues << tti << "\t" << bsIds << "\t"
+						<< msIds << "\t"
+						<< rb << "\t"
+						<< pl << "\t"
+						<< coeffDownTable[msIds][bsIds][timeSamples-1][rb]/pl << "\t"
+						<< coeffDownTable[msIds][bsIds][timeSamples-1][rb]
+						<< std::endl;
+				}
 			}
 		}
 	}
@@ -94,15 +97,17 @@ void ExpChannel::recomputeCoefficients(
 					coeffUpTable[bsIds][0][msIds][t][rb] = pl * exp;
 				}
 			}
-			for(size_t rb=0; rb<upRBs; ++rb){
-				upValues << tti << "\t" << bsIds << "\t"
-					<< msIds << "\t"
-					<< bsId << "\t"
-					<< rb << "\t"
-					<< pl << "\t"
-					<< coeffUpTable[bsIds][0][msIds][timeSamples-1][rb]/pl << "\t"
-					<< coeffUpTable[bsIds][0][msIds][timeSamples-1][rb]
-					<< std::endl;
+			if(simTime()>initOffset){
+				for(size_t rb=0; rb<upRBs; ++rb){
+					upValues << tti << "\t" << bsIds << "\t"
+						<< msIds << "\t"
+						<< bsId << "\t"
+						<< rb << "\t"
+						<< pl << "\t"
+						<< coeffUpTable[bsIds][0][msIds][timeSamples-1][rb]/pl << "\t"
+						<< coeffUpTable[bsIds][0][msIds][timeSamples-1][rb]
+						<< std::endl;
+				}
 			}
 		}
 	}

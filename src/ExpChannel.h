@@ -14,6 +14,7 @@ class ExpChannel: public Channel{
 	private:
 		double expMean;
 		double plExp;
+		simtime_t initOffset;
 		std::ofstream downValues;
 		std::ofstream upValues;
 		std::vector<std::vector<Position>> msPos;

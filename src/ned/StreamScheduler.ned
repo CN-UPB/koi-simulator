@@ -39,6 +39,7 @@ moduleinterface StreamScheduler {
 		// The period after which assignments of streams to resource blocks 
 		// are recomputed.
 		double streamSchedPeriod @unit(s);
+		int bsId;
 		// Length of single transmission time interval
 		double tti @unit(s);
 		// A small offset used control message order in cases where ordering 
