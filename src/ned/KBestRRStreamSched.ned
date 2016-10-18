@@ -9,7 +9,7 @@
 //
 // In this way, not all senders get to send in each TTI, but those which do 
 // get k resource blocks.
-simple KBestStreamSched like StreamScheduler{
+simple KBestRRStreamSched like StreamScheduler{
 	parameters:
 		// Offset from the simulation start reserved for initialization messages.
 		// No traffic is generated/send before it.
@@ -33,7 +33,7 @@ simple KBestStreamSched like StreamScheduler{
 		// Number of best RB assigned to senders each TTI for DOWN transmissions
 		int downK;
 		int bsId;
-		@class("KBestStreamScheduler");
+		@class("KBestRRStreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.
 		input fromBs;
