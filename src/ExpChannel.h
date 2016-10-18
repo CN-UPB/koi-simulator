@@ -19,7 +19,7 @@ class ExpChannel: public Channel{
 		std::ofstream upValues;
 		std::vector<std::vector<Position>> msPos;
 
-		double pathloss(Position sender, Position receiver);
+		double pathgain(Position sender, Position receiver);
 		void recomputeCoefficients(
 				const std::vector<std::vector<Position>>& msPositions);
 	

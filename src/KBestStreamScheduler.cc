@@ -25,6 +25,7 @@ void KBestStreamScheduler::initialize(){
 	StreamScheduler::initialize();
 	this->upK = par("upK");
 	this->downK = par("downK");
+	this->bsId = par("bsId");
 	// Fill the origins set with all possible origins for transmission requests,
 	// a.k.a all local mobile stations plus the local base station.
 	// First add id -1, representing the local base station
@@ -41,6 +42,12 @@ std::set<int>::iterator KBestStreamScheduler::scheduleKBest(
 		std::set<int>::iterator iter,std::vector<int>& blocks,
 		MessageDirection dir,int k){
 	bool assigned = true;
+	/**
+	if(dir==MessageDirection::up){
+		std::cout << "Generating new Schedule for ";
+		std::cout << "UP for Cell " << bsId << std::endl;;
+	}
+	**/
 	while(blocks.size()>=k){
 		if(iter==allOrigins.end()){
 			// We're at the end of the set of senders, start at the beginning
@@ -92,6 +99,14 @@ std::set<int>::iterator KBestStreamScheduler::scheduleKBest(
 		originAssignments[id][dir].resize(k);
 		std::move(blocks.begin(),blocks.begin()+k,originAssignments[id][dir].begin());
 		blocks.erase(blocks.begin(),blocks.begin()+k);
+		/**
+		if(dir==MessageDirection::up){
+			std::cout << "Assigned the following RB to MS " << id << std::endl;
+			for(auto assRB:originAssignments[id][dir]){
+				std::cout << assRB << "(" << estimate->getDown(assRB) << ")" << std::endl;
+			}
+		}
+		**/
 		++iter;
 		assigned = true;
 	}

@@ -32,6 +32,7 @@ class KBestStreamScheduler: public StreamScheduler{
 		std::unordered_map<int,std::unordered_map<int,std::vector<int>>> originAssignments;
 		int upK;
 		int downK;
+		int bsId;
 		std::set<int>::iterator scheduleKBest(std::set<int>::iterator iter,
 				std::vector<int>& blocks,MessageDirection dir,int k);
     virtual void scheduleStreams();

@@ -32,11 +32,13 @@ bool ExpChannel::init(cSimpleModule* module,
 	return true;
 }
 
-double ExpChannel::pathloss(Position sender, Position receiver){
+double ExpChannel::pathgain(Position sender, Position receiver){
 	double distX = pow(sender.x-receiver.x,2);
 	double distY = pow(sender.y-receiver.y,2);
 	double dist = sqrt(distX+distY);
-	return 1/(10*plExp*log10(dist));
+	double pl = (10*plExp*log10(dist));
+	// Convert pathloss to linear scale and return gain instead of loss
+	return std::pow(10,-pl/10);
 }
 
 void ExpChannel::recomputeCoefficients(
@@ -56,15 +58,15 @@ void ExpChannel::recomputeCoefficients(
 			vector<vector<vector<double>>>(numBs,
 				vector<vector<double>>(timeSamples,
 					vector<double>(upRBs))));
-	double pl = 0.0;
+	double pg = 0.0;
 	double exp = 0.0;
 	for(size_t msIds=0; msIds<numberOfMobileStations; ++msIds){
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
-			pl = pathloss(neighbourPositions[bsIds],msPositions[bsId][msIds]);
+			pg = pathgain(neighbourPositions[bsIds],msPositions[bsId][msIds]);
 			for(size_t t=0; t<timeSamples; ++t){
 				for(size_t rb=0; rb<downRBs; ++rb){
 					exp = exponential(expMean);
-					coeffDownTable[msIds][bsIds][t][rb] = pl * exp;
+					coeffDownTable[msIds][bsIds][t][rb] = pg * exp;
 				}
 			}
 			if(simTime()>initOffset){
@@ -72,8 +74,8 @@ void ExpChannel::recomputeCoefficients(
 					downValues << tti << "\t" << bsIds << "\t"
 						<< msIds << "\t"
 						<< rb << "\t"
-						<< pl << "\t"
-						<< coeffDownTable[msIds][bsIds][timeSamples-1][rb]/pl << "\t"
+						<< pg << "\t"
+						<< coeffDownTable[msIds][bsIds][timeSamples-1][rb]/pg << "\t"
 						<< coeffDownTable[msIds][bsIds][timeSamples-1][rb]
 						<< std::endl;
 				}
@@ -90,11 +92,11 @@ void ExpChannel::recomputeCoefficients(
 				vector<vector<double>>(timeSamples,
 					vector<double>(upRBs)));
 		for(size_t msIds=0; msIds<numMs; ++msIds){
-			pl = pathloss(msPositions[bsIds][msIds],neighbourPositions[bsId]);
+			pg = pathgain(msPositions[bsIds][msIds],neighbourPositions[bsId]);
 			for(size_t t=0; t<timeSamples; ++t){
 				for(size_t rb=0; rb<upRBs; ++rb){
 					exp = exponential(expMean);
-					coeffUpTable[bsIds][0][msIds][t][rb] = pl * exp;
+					coeffUpTable[bsIds][0][msIds][t][rb] = pg * exp;
 				}
 			}
 			if(simTime()>initOffset){
@@ -103,8 +105,8 @@ void ExpChannel::recomputeCoefficients(
 						<< msIds << "\t"
 						<< bsId << "\t"
 						<< rb << "\t"
-						<< pl << "\t"
-						<< coeffUpTable[bsIds][0][msIds][timeSamples-1][rb]/pl << "\t"
+						<< pg << "\t"
+						<< coeffUpTable[bsIds][0][msIds][timeSamples-1][rb]/pg << "\t"
 						<< coeffUpTable[bsIds][0][msIds][timeSamples-1][rb]
 						<< std::endl;
 				}
@@ -123,8 +125,8 @@ void ExpChannel::recomputeCoefficients(
 			for(size_t msIds=0; msIds<numMs; ++msIds){
 				for(size_t t=0; t<timeSamples; ++t){
 					for(size_t rb=0; rb<upRBs; ++rb){
-						pl = pathloss(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
-						coeffUpD2DTable[bsIds][recMsId][msIds][t][rb] = pl * exponential(expMean);
+						pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
+						coeffUpD2DTable[bsIds][recMsId][msIds][t][rb] = pg * exponential(expMean);
 					}
 				}
 			}
@@ -142,8 +144,8 @@ void ExpChannel::recomputeCoefficients(
 			for(size_t msIds=0; msIds<numMs; ++msIds){
 				for(size_t t=0; t<timeSamples; ++t){
 					for(size_t rb=0; rb<downRBs; ++rb){
-						pl = pathloss(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
-						coeffDownD2DTable[bsIds][recMsId][msIds][t][rb] = pl * exponential(expMean);
+						pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
+						coeffDownD2DTable[bsIds][recMsId][msIds][t][rb] = pg * exponential(expMean);
 					}
 				}
 			}
