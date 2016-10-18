@@ -18,6 +18,7 @@
 #include "MessageTypes.h"
 #include "StreamTransReq_m.h"
 
+#include <fstream>
 #include <set>
 #include <unordered_map>
 #include <vector>
@@ -33,11 +34,14 @@ class KBestStreamScheduler: public StreamScheduler{
 		int upK;
 		int downK;
 		int bsId;
+		std::ofstream upSchedule;
+		std::ofstream downSchedule;
 		std::set<int>::iterator scheduleKBest(std::set<int>::iterator iter,
 				std::vector<int>& blocks,MessageDirection dir,int k);
     virtual void scheduleStreams();
 	
 	protected:
     virtual void initialize();
+		virtual void finish();
 		virtual void handleMessage(cMessage *msg);
 };

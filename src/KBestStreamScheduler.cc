@@ -10,11 +10,14 @@
 #include "TransReqList_m.h"
 
 #include <algorithm>
+#include <cmath>
 #include <forward_list>
+#include <fstream>
 #include <numeric>
 #include <vector>
 
 using std::forward_list;
+using std::ofstream;
 using std::set;
 using std::unordered_map;
 using std::vector;
@@ -36,18 +39,29 @@ void KBestStreamScheduler::initialize(){
 	}
 	originUpIter = allOrigins.begin();
 	originDownIter = allOrigins.begin();
+	// Prepare result files for schedules
+	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
+	std::string fname("./results/run_"+std::to_string(run)+"_schedule_up_cell_"
+			+std::to_string(bsId)+".dat");
+	upSchedule.open(fname,ofstream::trunc);
+	upSchedule << "TTI\t" 
+		<< "MS\t" << "RB\t" << "SINR" << std::endl;
+	fname = "./results/run_"+std::to_string(run)+"_schedule_down_cell_"
+			+std::to_string(bsId)+".dat";
+	downSchedule.open(fname,ofstream::trunc);
+	downSchedule << "TTI\t" 
+		<< "MS\t" << "RB\t" << "SINR" << std::endl;
+}
+
+void KBestStreamScheduler::finish(){
+	upSchedule.close();
+	downSchedule.close();
 }
 
 std::set<int>::iterator KBestStreamScheduler::scheduleKBest(
 		std::set<int>::iterator iter,std::vector<int>& blocks,
 		MessageDirection dir,int k){
 	bool assigned = true;
-	/**
-	if(dir==MessageDirection::up){
-		std::cout << "Generating new Schedule for ";
-		std::cout << "UP for Cell " << bsId << std::endl;;
-	}
-	**/
 	while(blocks.size()>=k){
 		if(iter==allOrigins.end()){
 			// We're at the end of the set of senders, start at the beginning
@@ -99,14 +113,22 @@ std::set<int>::iterator KBestStreamScheduler::scheduleKBest(
 		originAssignments[id][dir].resize(k);
 		std::move(blocks.begin(),blocks.begin()+k,originAssignments[id][dir].begin());
 		blocks.erase(blocks.begin(),blocks.begin()+k);
-		/**
-		if(dir==MessageDirection::up){
-			std::cout << "Assigned the following RB to MS " << id << std::endl;
-			for(auto assRB:originAssignments[id][dir]){
-				std::cout << assRB << "(" << estimate->getDown(assRB) << ")" << std::endl;
+		if(simTime()>initOffset){
+			auto val = (simTime()-initOffset)/tti;
+			int tti = std::floor(val);
+			if(dir==MessageDirection::up){
+				upSchedule << tti << bsId << id;
+				for(auto assRB:originAssignments[id][dir]){
+					upSchedule << assRB << estimate->getUp(assRB) << std::endl;
+				}
+			}
+			else if(dir==MessageDirection::down){
+				downSchedule << tti << bsId << id;
+				for(auto assRB:originAssignments[id][dir]){
+					downSchedule << assRB << estimate->getDown(assRB) << std::endl;
+				}
 			}
 		}
-		**/
 		++iter;
 		assigned = true;
 	}
