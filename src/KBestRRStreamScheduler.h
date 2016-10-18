@@ -1,5 +1,5 @@
 /**
- * @class KBestStreamScheduler KBestStreamScheduler.h
+ * @class KBestRRStreamScheduler KBestRRStreamScheduler.h
  *
  * This scheduler assigns k RB to each sender via Round Robin
  *
@@ -23,7 +23,7 @@
 #include <unordered_map>
 #include <vector>
 
-class KBestStreamScheduler: public StreamScheduler{
+class KBestRRStreamScheduler: public StreamScheduler{
 	private:
 		std::set<int>::iterator originUpIter;
 		std::set<int>::iterator originDownIter;

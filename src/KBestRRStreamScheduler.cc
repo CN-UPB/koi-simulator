@@ -1,9 +1,9 @@
 /**
- * @file KBestStreamScheduler.cc
- * Implementation of the KBestStreamScheduler class.
+ * @file KBestRRStreamScheduler.cc
+ * Implementation of the KBestRRStreamScheduler class.
  */
 
-#include "KBestStreamScheduler.h"
+#include "KBestRRStreamScheduler.h"
 #include "includes.h"
 #include "MessageTypes.h"
 #include "SINR_m.h"
@@ -22,9 +22,9 @@ using std::set;
 using std::unordered_map;
 using std::vector;
 
-Define_Module(KBestStreamScheduler);
+Define_Module(KBestRRStreamScheduler);
 
-void KBestStreamScheduler::initialize(){
+void KBestRRStreamScheduler::initialize(){
 	StreamScheduler::initialize();
 	this->upK = par("upK");
 	this->downK = par("downK");
@@ -53,12 +53,12 @@ void KBestStreamScheduler::initialize(){
 		<< "MS\t" << "RB\t" << "SINR" << std::endl;
 }
 
-void KBestStreamScheduler::finish(){
+void KBestRRStreamScheduler::finish(){
 	upSchedule.close();
 	downSchedule.close();
 }
 
-std::set<int>::iterator KBestStreamScheduler::scheduleKBest(
+std::set<int>::iterator KBestRRStreamScheduler::scheduleKBest(
 		std::set<int>::iterator iter,std::vector<int>& blocks,
 		MessageDirection dir,int k){
 	bool assigned = true;
@@ -146,7 +146,7 @@ std::set<int>::iterator KBestStreamScheduler::scheduleKBest(
 	return iter;
 }
 
-void KBestStreamScheduler::scheduleStreams(){
+void KBestRRStreamScheduler::scheduleStreams(){
 	// Clear out the current assignments
 	originAssignments.clear();
 	// Build lists of resource block for UP/DOWN bands
@@ -163,7 +163,7 @@ void KBestStreamScheduler::scheduleStreams(){
 	currOrigins.clear();
 }
 
-void KBestStreamScheduler::handleMessage(cMessage *msg){
+void KBestRRStreamScheduler::handleMessage(cMessage *msg){
 	switch(msg->getKind()){
     case MessageType::scheduleStreams:{
 			if(currOrigins.size()>0){
