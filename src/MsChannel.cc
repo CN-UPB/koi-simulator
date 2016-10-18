@@ -79,7 +79,7 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		send(sinrMessage,"toPhy");
 		scheduleAt(simTime() + tti, msg);
 		if(simTime()>initOffset){
-			auto val = simTime()/tti;
+			auto val = (simTime()-initOffset)/tti;
 			int tti = std::floor(val);
 			for(int i = 0; i < upResourceBlocks; i++){
 				sinrFile << tti << "\t" << bsId << "\t" << msId << "\t" << i << "\t"

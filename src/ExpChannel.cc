@@ -43,7 +43,7 @@ double ExpChannel::pathgain(Position sender, Position receiver){
 
 void ExpChannel::recomputeCoefficients(
 		const vector<vector<Position>>& msPositions){
-	auto val = simTime().dbl()/tti;
+	auto val = ((simTime().dbl()-initOffset)/tti).dbl();
 	// +1 because when this method is called, it computes the values for the 
 	// NEXT TTI, not the current one.
 	int tti = std::floor(val);

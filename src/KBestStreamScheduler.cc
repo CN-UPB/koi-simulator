@@ -117,15 +117,23 @@ std::set<int>::iterator KBestStreamScheduler::scheduleKBest(
 			auto val = (simTime()-initOffset)/tti;
 			int tti = std::floor(val);
 			if(dir==MessageDirection::up){
-				upSchedule << tti << bsId << id;
 				for(auto assRB:originAssignments[id][dir]){
-					upSchedule << assRB << estimate->getUp(assRB) << std::endl;
+					upSchedule 
+						<< tti << "\t" 
+						<< bsId << "\t" 
+						<< id << "\t"
+						<< assRB << "\t" 
+						<< estimate->getUp(assRB) << "\t" 
+						<< std::endl;
 				}
 			}
 			else if(dir==MessageDirection::down){
 				downSchedule << tti << bsId << id;
 				for(auto assRB:originAssignments[id][dir]){
-					downSchedule << assRB << estimate->getDown(assRB) << std::endl;
+					downSchedule 
+						<< assRB << "\t" 
+						<< estimate->getDown(assRB) << "\t" 
+						<< std::endl;
 				}
 			}
 		}
