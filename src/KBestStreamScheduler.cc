@@ -44,12 +44,12 @@ void KBestStreamScheduler::initialize(){
 	std::string fname("./results/run_"+std::to_string(run)+"_schedule_up_cell_"
 			+std::to_string(bsId)+".dat");
 	upSchedule.open(fname,ofstream::trunc);
-	upSchedule << "TTI\t" 
+	upSchedule << "TTI\t" << "Cell\t" 
 		<< "MS\t" << "RB\t" << "SINR" << std::endl;
 	fname = "./results/run_"+std::to_string(run)+"_schedule_down_cell_"
 			+std::to_string(bsId)+".dat";
 	downSchedule.open(fname,ofstream::trunc);
-	downSchedule << "TTI\t" 
+	downSchedule << "TTI\t" << "Cell\t"
 		<< "MS\t" << "RB\t" << "SINR" << std::endl;
 }
 
@@ -123,7 +123,7 @@ std::set<int>::iterator KBestStreamScheduler::scheduleKBest(
 						<< bsId << "\t" 
 						<< id << "\t"
 						<< assRB << "\t" 
-						<< estimate->getUp(assRB) << "\t" 
+						<< estimate->getUp(assRB)
 						<< std::endl;
 				}
 			}
@@ -131,8 +131,11 @@ std::set<int>::iterator KBestStreamScheduler::scheduleKBest(
 				downSchedule << tti << bsId << id;
 				for(auto assRB:originAssignments[id][dir]){
 					downSchedule 
+						<< tti << "\t" 
+						<< bsId << "\t" 
+						<< id << "\t"
 						<< assRB << "\t" 
-						<< estimate->getDown(assRB) << "\t" 
+						<< estimate->getDown(assRB)
 						<< std::endl;
 				}
 			}
