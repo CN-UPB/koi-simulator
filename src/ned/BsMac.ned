@@ -39,7 +39,6 @@ simple BsMac  {
 		int numberOfMobileStations;
 		// The id of the BaseStation. This id is unique.
 		int bsId;
-		int currentChannel;
 		// The number of resource blocks for downlink transmissions
 		int downResourceBlocks;
 		// X coordinate of the BaseStation's position
@@ -58,33 +57,33 @@ simple BsMac  {
 		double transmissionPower = default(1.0);
 		@display("i=block/mac");
         
-    gates:
-	// For information exchange with neighbouring cells. 
-	// <strong>Note:</strong> Gate indices do <em>NOT</em> correspond to 
-	// BaseStation ids!
-        input fromCell[];
-	// For information exchange with neighbouring cells. 
-	// <strong>Note:</strong> Gate indices do <em>NOT</em> correspond to 
-	// BaseStation ids!
-        output toCell[];
-        
-    	// For direct information exchange with MsMacs. The gate index 
-	// corresponds to the MobileStation id.
-        input fromMsMac[];
-    	// For direct information exchange with MsMacs. The gate index 
-	// corresponds to the MobileStation id.
-        output toMsMac[];
-        
-        // For transmission/receival of simulation traffic packets
-        input fromPhy;
-        // For transmission/receival of simulation traffic packets
-        output toPhy;
-        
-        // For information messages to BsChannel
-        output toBsChannel[];
+	gates:
+		// For information exchange with neighbouring cells. 
+		// <strong>Note:</strong> Gate indices do <em>NOT</em> correspond to 
+		// BaseStation ids!
+		input fromCell[];
+		// For information exchange with neighbouring cells. 
+		// <strong>Note:</strong> Gate indices do <em>NOT</em> correspond to 
+		// BaseStation ids!
+		output toCell[];
 
-    	// Communication with Scheduler for transmission schedules
-	input fromScheduler;
-    	// Communication with Scheduler for transmission schedules
-	output toScheduler;
+		// For direct information exchange with MsMacs. The gate index 
+		// corresponds to the MobileStation id.
+		input fromMsMac[];
+		// For direct information exchange with MsMacs. The gate index 
+		// corresponds to the MobileStation id.
+		output toMsMac[];
+
+		// For transmission/receival of simulation traffic packets
+		input fromPhy;
+		// For transmission/receival of simulation traffic packets
+		output toPhy;
+
+		// For information messages to BsChannel
+		output toBsChannel[];
+
+		// Communication with Scheduler for transmission schedules
+		input fromScheduler;
+		// Communication with Scheduler for transmission schedules
+		output toScheduler;
 }

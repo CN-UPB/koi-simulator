@@ -28,61 +28,59 @@
 // one channel per MobileStation in the local cell.
 module BaseStation
 {
-    parameters:
-	// X coordinate of the BaseStation's position
-        double xPos;
-	// Y coordinate of the BaseStation's position
-        double yPos;
-	// The number of MobileStations in the local cell
-        int numberOfMobileStations;
-	// The number of neighbouring LteCells
-        int maxNumberOfNeighbours;
-	// The id of the BaseStation. This id is unique.
-        int bsId;
-        int currentChannel;
-        // The transmission time interval
-        double tti @unit(s);
+	parameters:
+		// X coordinate of the BaseStation's position
+		double xPos;
+		// Y coordinate of the BaseStation's position
+		double yPos;
+		// The number of MobileStations in the local cell
+		int numberOfMobileStations;
+		// The number of neighbouring LteCells
+		int maxNumberOfNeighbours;
+		// The id of the BaseStation. This id is unique.
+		int bsId;
+		// The transmission time interval
+		double tti @unit(s);
 
-	@display("bgb=300,300;i=device/antennatower");
+		@display("bgb=300,300;i=device/antennatower");
 
-    gates:
-    	// For simulation traffic packet transmissions with local MobileStations.
-	// The gate index corresponds to the MobileStation id.
-    	input fromMs[];
-    	// For simulation traffic packet transmissions with local MobileStations.
-	// The gate index corresponds to the MobileStation id.
-    	output toMs[];
-    	
-	// For information exchange with neighbouring cells. 
-	// <strong>Note:</strong> Gate indices do <em>NOT</em> correspond to 
-	// BaseStation ids!
-    	input fromCell[];
-	// For information exchange with neighbouring cells. 
-	// <strong>Note:</strong> Gate indices do <em>NOT</em> correspond to 
-	// BaseStation ids!
-    	output toCell[];
-    	
-    	// For direct information exchange with MsMacs. The gate index 
-	// corresponds to the MobileStation id.
-    	input fromMsMac[];
-    	// For direct information exchange with MsMacs. The gate index 
-	// corresponds to the MobileStation id.
-    	output toMsMac[];
+	gates:
+		// For simulation traffic packet transmissions with local MobileStations.
+		// The gate index corresponds to the MobileStation id.
+		input fromMs[];
+		// For simulation traffic packet transmissions with local MobileStations.
+		// The gate index corresponds to the MobileStation id.
+		output toMs[];
 
-    	// Communication with Scheduler for transmission schedules
-    	input fromScheduler;
-    	// Communication with Scheduler for transmission schedules
-    	output toScheduler;
+		// For information exchange with neighbouring cells. 
+		// <strong>Note:</strong> Gate indices do <em>NOT</em> correspond to 
+		// BaseStation ids!
+		input fromCell[];
+		// For information exchange with neighbouring cells. 
+		// <strong>Note:</strong> Gate indices do <em>NOT</em> correspond to 
+		// BaseStation ids!
+		output toCell[];
+
+		// For direct information exchange with MsMacs. The gate index 
+		// corresponds to the MobileStation id.
+		input fromMsMac[];
+		// For direct information exchange with MsMacs. The gate index 
+		// corresponds to the MobileStation id.
+		output toMsMac[];
+
+		// Communication with Scheduler for transmission schedules
+		input fromScheduler;
+		// Communication with Scheduler for transmission schedules
+		output toScheduler;
     	
-   	submodules:
+	submodules:
    		mac: BsMac  {
    			parameters:
    				xPos = xPos;
    				yPos = yPos;
    				tti = tti;
    				bsId = bsId;
-				currentChannel = currentChannel;
-				numberOfMobileStations = numberOfMobileStations;
+					numberOfMobileStations = numberOfMobileStations;
    				@display("p=220,200");
    			gates:
    				fromCell[maxNumberOfNeighbours];
@@ -93,8 +91,8 @@ module BaseStation
    		}
    		phy: BsPhy  {
    			parameters:
-				numberOfMobileStations = numberOfMobileStations;
-   				@display("p=220,100");
+					numberOfMobileStations = numberOfMobileStations;
+					@display("p=220,100");
    			gates:
    				fromChannel[numberOfMobileStations];
    				toChannel[numberOfMobileStations];

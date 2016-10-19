@@ -33,7 +33,6 @@ void BsMac::initialize()  {
     pos.x = par("xPos");
     pos.y = par("yPos");
     bsId = par("bsId");
-    currentChannel = par("currentChannel");
     maxNumberOfNeighbours = par("maxNumberOfNeighbours");
     resourceBlocks = par("downResourceBlocks");
     numberOfMobileStations = par("numberOfMobileStations");

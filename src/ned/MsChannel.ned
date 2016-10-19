@@ -43,9 +43,9 @@ simple MsChannel  {
 		// Length of single transmission time interval
 		double tti @unit(s);
 		// Table of EESM values for CQI computation
-		string eesm_beta;
+		string eesm_beta = default("");
 		// Bit Level Error Rate table for packet loss computations
-		string bler_table;
+		string bler_table = default("");
 		@display("i=block/rxtx");
 	gates:
 		// Gate for incoming simulation traffic packets from the 

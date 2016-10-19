@@ -31,13 +31,10 @@ class BsChannel : public cSimpleModule  {
         int *scheduleDirection;
         double **schedulePower;
         double *maxPower;
-        bool useSimpleChannelCalc;
-        int simpleChannelCalcNops;
         int bsId;
         size_t init_counter;
         int numberOfVR;
         Position bsPosition;
-        double packetLoss;
         bool scheduleCatch;
         simtime_t tti;
         simtime_t epsilon;

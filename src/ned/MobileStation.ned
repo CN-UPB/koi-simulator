@@ -39,7 +39,6 @@ parameters:
 	// within any given cell. Thus, to uniquely identify a MobileStation,
 	// it's <tt>bsId</tt> and it's <tt>msId</tt> are needed.
 	int msId;
-	int currentChannel;
 	// The X position of the local BaseStation.
 	double initBsXPos;
 	// The Y position of the local BaseStation.
@@ -97,7 +96,6 @@ submodules:
 		parameters:
 					 bsId = bsId;
 					 msId = msId;
-					 currentChannel = currentChannel;
 					 radius = radius;
 					 initBsXPos = initBsXPos;
 					 initBsYPos = initBsYPos;

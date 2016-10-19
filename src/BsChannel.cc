@@ -34,9 +34,6 @@ void BsChannel::initialize()  {
 	upResBlocks = par("upResourceBlocks");
 	downResBlocks = par("downResourceBlocks");
 	numberOfMobileStations = par("numberOfMobileStations");
-	useSimpleChannelCalc = par("useSimpleChannelCalc");
-	simpleChannelCalcNops = par("simpleChannelCalcNops");
-	packetLoss = par("packetLoss");
 	tti = par("tti");
 	epsilon = par("epsilon");
 	initOffset = par("initOffset");

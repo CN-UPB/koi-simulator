@@ -181,7 +181,6 @@ void MsMac::initialize()  {
 	radius = par("radius");
 	initBsPos.x = par("initBsXPos");
 	initBsPos.y = par("initBsYPos");
-	currentChannel = par("currentChannel");
 	double initPosAlpha = par("initPosAlpha");
 	double initPosBeta = par("initPosBeta");
 	double initPosGamma = par("initPosGamma");

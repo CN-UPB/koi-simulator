@@ -28,7 +28,6 @@ class MsMac : public cSimpleModule  {
 			int msId;
 			int bsId;
 			int positionResendInterval;
-			int currentChannel;
 			int packetLength;
 			int downResourceBlocks;
 			simtime_t initOffset;

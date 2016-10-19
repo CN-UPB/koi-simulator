@@ -21,16 +21,12 @@ class MsChannel : public cSimpleModule  {
     private:
         int maxNumberOfNeighbours;
         Position *bsPositions;
-        bool useSimpleChannelCalc;
-        int simpleChannelCalcNops;
-        int currentChannel;
         int downResourceBlocks;
         int upResourceBlocks;
 				std::ofstream sinrFile;
         simtime_t epsilon;
         simtime_t tti;
         simtime_t initOffset;
-        double packetLoss;
         Position msPosition;
         int bsId;
         int msId;

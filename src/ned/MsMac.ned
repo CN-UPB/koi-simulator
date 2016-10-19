@@ -48,7 +48,6 @@ simple MsMac  {
 			double initMsYPos = default(0.0);
 			// The quadrant for initial positioning by sector.
 			int initQuadrant;
-			int currentChannel;
 			// Offset from the simulation start reserved for initialization messages.
 			// No traffic is generated/send before it.
 			double initOffset @unit(s);
@@ -70,7 +69,7 @@ simple MsMac  {
 			// The radius of the local cell.
 			double radius;
 			// The random seed used for initial positioning by sector.
-			int PosSeed;
+			int PosSeed = (42);
 			// The number of downlink (BS->MS) resource blocks.
 			int downResourceBlocks;
 			// This is the length in Bits for all packets generated at this 
@@ -88,22 +87,22 @@ simple MsMac  {
 			@display("i=block/mac");
 
     gates:
-    	// Messages to the TrafficGen module
-        input fromApp;
-    	// Messages from the TrafficGen module
-        output toApp;
-        
-        // Connection to the MsPhy for simulation traffic packets
-        input fromPhy;
-        // Connection to the MsPhy for simulation traffic packets
-        output toPhy;
-        
-        // Exchange of direct control messages with the local BaseStation.
-	// This gate is not intended for use with simulation traffic packets!
-        input fromBsMac;
-        // Exchange of direct control messages with the local BaseStation.
-	// This gate is not intended for use with simulation traffic packets!
-        output toBsMac;
+			// Messages to the TrafficGen module
+			input fromApp;
+			// Messages from the TrafficGen module
+			output toApp;
+
+			// Connection to the MsPhy for simulation traffic packets
+			input fromPhy;
+			// Connection to the MsPhy for simulation traffic packets
+			output toPhy;
+
+			// Exchange of direct control messages with the local BaseStation.
+			// This gate is not intended for use with simulation traffic packets!
+			input fromBsMac;
+			// Exchange of direct control messages with the local BaseStation.
+			// This gate is not intended for use with simulation traffic packets!
+			output toBsMac;
 
 	// Communication with the local cell's Scheduler
 	input fromScheduler;

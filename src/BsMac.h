@@ -25,7 +25,6 @@ class BsMac : public cSimpleModule  {
         int numberOfMobileStations;
         int maxNumberOfNeighbours;
         int bsId;
-        int currentChannel;
 				int resourceBlocks;
         int sinr_est;
 				int sinrEstCount;
