@@ -45,15 +45,12 @@ void KBestFairStreamScheduler::initialize(){
 		packCount[id][MessageDirection::down] = 0.0;
 	}
 	// Prepare result files for schedules
-	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
-	std::string fname("./results/run_"+std::to_string(run)+"_schedule_up_cell_"
-			+std::to_string(bsId)+".dat");
-	upSchedule.open(fname,ofstream::trunc);
+	std::string fname("schedule-up-cell-"+std::to_string(bsId));
+	upSchedule = std::move(getResultFile(fname));
 	upSchedule << "TTI\t" << "Cell\t" 
 		<< "MS\t" << "RB\t" << "SINR" << std::endl;
-	fname = "./results/run_"+std::to_string(run)+"_schedule_down_cell_"
-			+std::to_string(bsId)+".dat";
-	downSchedule.open(fname,ofstream::trunc);
+	fname = "schedule-down-cell-"+std::to_string(bsId);
+	downSchedule = std::move(getResultFile(fname));
 	downSchedule << "TTI\t" << "Cell\t"
 		<< "MS\t" << "RB\t" << "SINR" << std::endl;
 }

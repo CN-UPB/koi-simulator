@@ -44,9 +44,8 @@ void MsChannel::initialize()  {
 	eesm_beta_values = vec(eesm_beta);
 
 	// File for SINR value storage
-	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
-	std::string fname("./results/run_"+std::to_string(run)+"_sinr_ms_"+std::to_string(bsId)+"_"+std::to_string(msId)+".dat");
-	sinrFile.open(fname,ofstream::trunc);
+	std::string fname("sinr-ms-"+std::to_string(bsId)+"-"+std::to_string(msId));
+	sinrFile = std::move(getResultFile(fname));
 	sinrFile << "TTI\t" 
 		<< "Cell\t" << "MS\t" << "RB\t" << "SINR" << std::endl;
 	

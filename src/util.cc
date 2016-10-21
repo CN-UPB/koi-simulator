@@ -6,7 +6,10 @@
  */
 
 #include "util.h"
+#include <fstream>
 #include <numeric>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 using namespace itpp;
 using namespace std;
@@ -266,4 +269,17 @@ double lcmSequence(const vector<double>& elems){
 
 int lcmSequence(const vector<int>& elems){
   return std::accumulate(++(elems.begin()),elems.end(),elems[0],lcm);
+}
+
+std::ofstream getResultFile(std::string& fname){
+	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
+	fname = "./results/"+fname+"_run-"+std::to_string(run)+".dat";
+	struct stat info;
+	if(stat("./results",&info)!=0){
+		// The results file does not exist, create it
+		mkdir("./results",0770);
+	}
+	std::ofstream resfile;
+	resfile.open(fname,std::ofstream::trunc);
+	return resfile;
 }

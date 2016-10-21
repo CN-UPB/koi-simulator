@@ -6,6 +6,7 @@
 #include "ExpChannel.h"
 #include "includes.h"
 #include "Position.h"
+#include "util.h"
 #include <fstream>
 #include <cmath>
 #include <vector>
@@ -20,13 +21,11 @@ bool ExpChannel::init(cSimpleModule* module,
 	expMean = module->par("expMean");
 	plExp = module->par("plExp");
 	initOffset = module->par("initOffset");
-	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
-	std::string fname("./results/run_"+std::to_string(run)+"_coeff_table_down_"
-			+std::to_string(bsId)+".dat");
-	downValues.open(fname,std::ofstream::trunc);
+	std::string fname("coeff_table_down-"+std::to_string(bsId));
+	downValues = std::move(getResultFile(fname));
 	downValues << "TTI\t" << "BS\t" << "MS\t" << "RB\t" << "PL\t" << "Exp\t" << "Coeff" << "\n"; 
-	fname = "./results/run_"+std::to_string(run)+"_coeff_table_up_"+std::to_string(bsId)+".dat";
-	upValues.open(fname,std::ofstream::trunc);
+	fname = "coeff_table_up-"+std::to_string(bsId);
+	upValues = std::move(getResultFile(fname));
 	upValues << "TTI\t" << "Cell\t" << "MS\t" << "BS\t" << "RB\t" << "PL\t" << "Exp\t" << "Coeff" << "\n"; 
 	recomputeCoefficients(msPositions);
 	return true;

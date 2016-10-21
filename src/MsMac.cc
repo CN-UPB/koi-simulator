@@ -15,6 +15,7 @@
 #include "StreamTransSched_m.h"
 #include "SINR_m.h"
 #include "TransInfo_m.h"
+#include "util.h"
 #include <stdlib.h>
 #include <cmath>
 #include <random>
@@ -214,9 +215,8 @@ void MsMac::initialize()  {
 			std::cout << "Invalid Ms placement algorithm " << (int) par("positioning") << std::endl;
 	}
 
-	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
-	std::string fname("./results/run_"+std::to_string(run)+"_rate_ms_"+std::to_string(bsId)+"_"+std::to_string(msId)+".dat");
-	rateFile.open(fname,ofstream::trunc);
+	std::string fname("rate-ms-"+std::to_string(bsId)+"-"+std::to_string(msId));
+	rateFile = std::move(getResultFile(fname));
         
 	// disable resending of MS positions for now, we have no movement	
 	//resend the ms position every x times to the BsMac layer

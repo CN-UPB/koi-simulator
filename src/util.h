@@ -9,6 +9,7 @@
 
 #include "includes.h"
 #include <itpp/itbase.h>
+#include <fstream>
 #include <algorithm>
 
 using namespace itpp;
@@ -34,3 +35,5 @@ double lcmSequence(const vector<double>& elems);
 int lcmSequence(const vector<int>& elems);
 
 int integerOoM(double val);
+
+std::ofstream getResultFile(std::string& fname);
