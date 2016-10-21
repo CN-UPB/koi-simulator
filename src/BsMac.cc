@@ -20,6 +20,7 @@
 #include "StreamTransSched_m.h"
 #include "KoiData_m.h"
 #include "TransInfo_m.h"
+#include "util.h"
 #include <algorithm>
 #include <fstream>
 #include <set>
@@ -294,17 +295,12 @@ void BsMac::handleMessage(cMessage *msg)  {
 }
 
 void BsMac::writePositions(){
-	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
-	std::fstream fout;
-	fout.open("./results/run_"+std::to_string(run)+"_pos_cell_"+std::to_string(bsId)+".dat",std::fstream::out);
-	fout << "[" << "BS_" << bsId << "]" << std::endl
-		<< "posX=" << pos.x << std::endl
-		<< "posY=" << pos.y << std::endl;
+	std::string fname("pos-cell-"+std::to_string(bsId));
+	std::ofstream fout(getResultFile(fname));
+	fout << "Station\t" << "PosX\t" << "PosY" << std::endl; 
+	fout << "-1" << "\t" << pos.x << "\t" << pos.y << std::endl;
 	for(int i = 0; i<numberOfMobileStations; i++){
-		fout << "[MS_" << i << "]" << std::endl
-			<< "posX=" << msPositions[i].x << std::endl
-			<< "posY=" << msPositions[i].y << std::endl
-			<< "bs=" << bsId << std::endl;
+		fout << i << "\t" << msPositions[i].x << "\t" << msPositions[i].y << std::endl;
 	}
 	fout.close();
 }
