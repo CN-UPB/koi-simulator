@@ -7,7 +7,6 @@
 
 #include "BsPhy.h"
 #include "KoiData_m.h"
-#include "PointerExchange_m.h"
 #include "MessageTypes.h"
 
 Define_Module(BsPhy);

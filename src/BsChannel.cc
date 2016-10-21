@@ -87,10 +87,8 @@ void BsChannel::initialize()  {
 			schedules[i][j] = -1;
 	}
 	if(this->getIndex() == 0){
-		PtrExchange Pointer;
-		Pointer.ptr = (uintptr_t) channel;
 		PointerExchange *PtrMessage = new PointerExchange("POINTER_EXCHANGE2");
-		PtrMessage->setPtr(Pointer);
+		PtrMessage->setPtr(channel);
 		send(PtrMessage, "toPhy"); //set to 999*tti originally
 	}
 	scheduleAt(simTime()+initOffset-epsilon, new cMessage("SINR_ESTIMATION"));
@@ -104,7 +102,7 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		//cout << "Received Channel Pointer!" << endl;
 		PointerExchange *PtrMessage = (PointerExchange*) msg;
 		Channel *old = channel;
-		channel = (Channel*) (PtrMessage->getPtr()).ptr;
+		channel = PtrMessage->getPtr();
 		if(old!=channel){
 			// when this BS channel makes use of the agreed-upon
 			// channel instance, we need to delete the instance 

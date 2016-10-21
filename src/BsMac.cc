@@ -11,7 +11,6 @@
 #include "SINR_m.h"
 #include "PositionExchange_m.h"
 #include "BsMsPositions_m.h"
-#include "PointerExchange_m.h"
 #include "StreamInfo_m.h"
 #include "StreamTransReq_m.h"
 #include "StreamTransSched_m.h"

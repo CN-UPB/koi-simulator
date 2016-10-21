@@ -92,7 +92,7 @@ void MsChannel::handleMessage(cMessage *msg)  {
 	else if(msg->isName("POINTER_EXCHANGE2"))  {
 		//cout << "channel arrived at MS" << endl;
 		PointerExchange *PtrMessage = (PointerExchange*) msg;
-		channel = (Channel*) (PtrMessage->getPtr()).ptr;
+		channel = PtrMessage->getPtr();
 		delete msg;
 	}
 	else if(msg->isName("MS_POS_UPDATE"))  {

@@ -1,9 +1,10 @@
 cplusplus {{
-	#include "PtrExchange.h"
+	#include "Channel.h"
+	using ChPtr = Channel*;
 }}
 
-struct PtrExchange;
+class noncobject ChPtr;
 
 message PointerExchange  {
-	PtrExchange ptr;
+	ChPtr ptr;
 }
