@@ -9,8 +9,6 @@
 #include "MsChannel.h"
 #include "SINR_m.h"
 #include "PositionExchange_m.h"
-#include "ChannelExchange_m.h"
-#include "SimpleChannelCalc.h"
 #include "PointerExchange_m.h"
 #include "util.h"
 #include <math.h>

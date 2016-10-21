@@ -13,10 +13,9 @@
 #include "Position.h"
 #include "BsMsPositions_m.h"
 #include "NeighbourIdMatching.h"
-#include "VisibilityRegion.h"
-#include "cluster.h"
 #include "Channel.h"
 #include "TransInfo_m.h"
+#include <itpp/itbase.h>
 #include <vector>
 #include <forward_list>
 #include <ostream>
@@ -42,14 +41,8 @@ class BsChannel : public cSimpleModule  {
         std::vector<std::vector<Position>> msPositions;
         NeighbourIdMatching *neighbourIdMatching;          // map the bsId to the pos in the data structures
         std::map <int,Position> neighbourPositions;
-        std::vector<VisibilityRegion> VR;
-        VisibilityRegion LOS_VR;
-        std::vector<VisibilityRegion> ForeignVR;
-        Cluster localcluster_bs;
-        Cluster localcluster_ms;
-        std::vector<Cluster> remoteCluster;
         Channel* channel;
-        vec eesm_beta_values;
+				itpp::vec eesm_beta_values;
 
     protected:
         virtual void initialize();

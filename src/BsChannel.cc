@@ -10,8 +10,6 @@
  */
 
 #include "BsChannel.h"
-#include "cluster.h"
-#include "ClusterMessage_m.h"
 #include "ExpChannel.h"
 #include "KoiData_m.h"
 #include "METISChannel.h"
@@ -20,7 +18,6 @@
 #include "PointerExchange_m.h"
 #include "Schedule_m.h"
 #include "util.h"
-#include "VisibilityRegionMessage_m.h"
 
 #include <algorithm>
 #include <cmath>
