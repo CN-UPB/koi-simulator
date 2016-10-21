@@ -218,10 +218,6 @@ void MsMac::initialize()  {
 	std::string fname("rate-ms-"+std::to_string(bsId)+"-"+std::to_string(msId));
 	rateFile = std::move(getResultFile(fname));
         
-	// disable resending of MS positions for now, we have no movement	
-	//resend the ms position every x times to the BsMac layer
-	//scheduleAt(simTime() + initOffset + tti - epsilon, new cMessage("RESEND_POS")); //originally set to simTime() + initOffset 
-
 	//every tti send transmit requests to stream scheduler
 	scheduleAt(simTime() + initOffset-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
 
@@ -324,18 +320,6 @@ void MsMac::handleMessage(cMessage *msg)  {
 			}
 		}
 		scheduleAt(simTime() + tti-epsilon, msg);
-	}
-	else if(msg->isName("RESEND_POS"))  {
-		PositionExchange *posEx = new PositionExchange("MS_POS_UPDATE");
-		msPosition.x = msPosition.x + (positionResendInterval/1000.0) * velocity.at(0);
-		msPosition.y = msPosition.y + (positionResendInterval/1000.0) * velocity.at(1);
-		//cout << "MS Pos: " << msPosition.x << " " << msPosition.y << endl;
-		//cout << "MS Vel: " << velocity.at(0) << " " << velocity.at(1) << endl;
-		posEx->setId(msId);
-		posEx->setPosition(msPosition);
-		send(posEx->dup(), "toPhy"); //send position to the own channel module
-		send(posEx, "toBsMac");
-		scheduleAt(positionResendTime(), msg);
 	}
 	else if(msg->getKind()==MessageType::sinrEst)  {
 		// Forward estimates to BS Mac

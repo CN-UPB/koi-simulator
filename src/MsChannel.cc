@@ -29,13 +29,8 @@ void MsChannel::initialize()  {
 	msId = par("msId");
 	downResourceBlocks = par("downResourceBlocks");
 	upResourceBlocks = par("upResourceBlocks");
-	msPosition.x = 6;
-	msPosition.y = 21;
 	//find the neighbours and store the pair (bsId, position in data structures) in a map
 	cModule *cell = getParentModule()->getParentModule();
-	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
-
-	bsPositions = new Position[neighbourIdMatching->numberOfNeighbours()];
 
 	// EESM Beta values for effective SINR
 	string eesm_beta = par("eesm_beta");
@@ -84,27 +79,10 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			}
 		}
 	}
-	else if(msg->isName("CHANNEL_INFO"))  {
-		// Whenever you receive a message called CHANNEL_INFO forward it to channel.
-		// This way channel can realise arbitrary communication if necessary.
-		channel->handleMessage(msg);
-	}
 	else if(msg->isName("POINTER_EXCHANGE2"))  {
 		//cout << "channel arrived at MS" << endl;
 		PointerExchange *PtrMessage = (PointerExchange*) msg;
 		channel = PtrMessage->getPtr();
-		delete msg;
-	}
-	else if(msg->isName("MS_POS_UPDATE"))  {
-		//save the position update of the mobile stations
-		PositionExchange *posEx = (PositionExchange *) msg;
-		msPosition = posEx->getPosition();
-		delete msg;
-	}
-	else if(msg->isName("BS_POSITION_MSG"))  {
-		PositionExchange *bsPos = (PositionExchange *) msg;
-		int dataStrPos = neighbourIdMatching->getDataStrId(bsPos->getId());
-		bsPositions[dataStrPos] = bsPos->getPosition();
 		delete msg;
 	}
 	else if(msg->getKind()==MessageType::koidata)  {
@@ -156,6 +134,4 @@ void MsChannel::handleMessage(cMessage *msg)  {
 }
 
 MsChannel::~MsChannel()  {
-    delete[] bsPositions;
-    delete neighbourIdMatching;
 }

@@ -15,11 +15,8 @@ void MsPhy::initialize()  {
 }
 
 void MsPhy::handleMessage(cMessage *msg)  {
-	if(msg->isName("MS_POS_UPDATE"))  {
-		send(msg, "toMsChannel");
-	}
 	//currently it only forward the packets
-	else if(msg->arrivedOn("fromMac"))  {
+	if(msg->arrivedOn("fromMac"))  {
 		switch(msg->getKind()){
 			case MessageType::transInfo:
 				send(msg,"toMsChannel");

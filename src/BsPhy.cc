@@ -18,9 +18,9 @@ void BsPhy::initialize()  {
 void BsPhy::handleMessage(cMessage *msg)  {
 	if(msg->isName("POINTER_EXCHANGE2")){
 		send(msg->dup(), "toMac");
-        for(int i = 0; i < numberOfMobileStations; i++)  {
-            send(msg->dup(), "toChannel", i);
-        }
+		for(int i = 0; i < numberOfMobileStations; i++)  {
+			send(msg->dup(), "toChannel", i);
+		}
 		delete msg;
 	}
 	else if(msg->isName("CHANNEL_INFO")){
@@ -31,35 +31,20 @@ void BsPhy::handleMessage(cMessage *msg)  {
 		delete msg;
 	}
 	else if(msg->isName("POINTER_EXCHANGE")){
-        send(msg->dup(), "toMac");
-        for(int i = 0; i < numberOfMobileStations; i++)  {
-            send(msg->dup(), "toChannel", i);
-        }
+		send(msg->dup(), "toMac");
+		for(int i = 0; i < numberOfMobileStations; i++)  {
+			send(msg->dup(), "toChannel", i);
+		}
 		delete msg;
 	}
-	else if(msg->isName("BS_POSITION_MSG"))  {
-        for(int i = 0; i < numberOfMobileStations; i++)  {
-            send(msg->dup(), "toChannel", i);
-        }
-        delete msg;
-    }
-    else if(msg->isName("TEST_VR"))  {
-        send(msg, "toMac");
-    }
-    else if(msg->isName("VR_RETURN"))  {
-        send(msg, "toMac");
-    }
-    else if(msg->isName("CLUSTER_INFO"))  {
-        send(msg, "toMac");
-    }
-    else if(msg->arrivedOn("fromMac"))  {
-        //forward the packet to the channel of the ms
-        KoiData *packet = (KoiData *) msg;
-        send(packet, "toChannel", packet->getDest());
-    }
-    else if(msg->arrivedOn("fromChannel"))  {
-        //forward the packet from the bs channel to the bs mac
-        //ev << "Forwarding packet bundle to BsMac" << endl;
-        send(msg, "toMac");
-    }
+	else if(msg->arrivedOn("fromMac"))  {
+		//forward the packet to the channel of the ms
+		KoiData *packet = (KoiData *) msg;
+		send(packet, "toChannel", packet->getDest());
+	}
+	else if(msg->arrivedOn("fromChannel"))  {
+		//forward the packet from the bs channel to the bs mac
+		//ev << "Forwarding packet bundle to BsMac" << endl;
+		send(msg, "toMac");
+	}
 }

@@ -27,11 +27,9 @@ class MsChannel : public cSimpleModule  {
         simtime_t epsilon;
         simtime_t tti;
         simtime_t initOffset;
-        Position msPosition;
         int bsId;
         int msId;
 				itpp::vec eesm_beta_values;
-        NeighbourIdMatching *neighbourIdMatching; //map the bsId to the pos in the data structures
         Channel* channel;
 
     protected:

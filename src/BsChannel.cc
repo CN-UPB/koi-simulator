@@ -95,10 +95,7 @@ void BsChannel::initialize()  {
 }
 
 void BsChannel::handleMessage(cMessage *msg)  {
-	if(msg->isName("CHANNEL_INFO"))  {
-		channel->handleMessage(msg);
-	}
-	else if(msg->isName("POINTER_EXCHANGE2"))  {
+	if(msg->isName("POINTER_EXCHANGE2"))  {
 		//cout << "Received Channel Pointer!" << endl;
 		PointerExchange *PtrMessage = (PointerExchange*) msg;
 		Channel *old = channel;

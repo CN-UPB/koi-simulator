@@ -91,18 +91,7 @@ void BsMac::sendDelayedToNeighbourCells(cMessage *msg, simtime_t delay)  {
 }
 
 void BsMac::handleMessage(cMessage *msg)  {
-	if(msg->isName("CHANNEL_INFO")){
-		if(msg->getKind() % 2 == 1){
-			msg->setKind(msg->getKind() + 1);
-			sendToNeighbourCells(msg->dup());
-			send(msg->dup(), "toBsChannel", 0);
-			delete msg;
-		}else if(msg->getKind() % 2 == 0){
-			send(msg->dup(), "toBsChannel", 0);
-			delete msg;
-		}
-	}
-	else if(msg->getKind()==MessageType::streamInfo){
+	if(msg->getKind()==MessageType::streamInfo){
 		StreamInfo *info = dynamic_cast<StreamInfo*>(msg);
 		// Add a packet queue for this stream, using associative containers 
 		// automatic insertion of new entries when subscripting.
@@ -243,10 +232,6 @@ void BsMac::handleMessage(cMessage *msg)  {
 			//send the bs position to the other cells
 			send(bsPos->dup(), "toBsChannel", 0);
 			sendToNeighbourCells(bsPos);
-			/* send the position also to the own ms
-			 * also possible to do with the config
-			 * but i think this is more flexible */
-			send(bsPos, "toPhy");
 			delete msg;
 		}
 		else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
@@ -276,12 +261,9 @@ void BsMac::handleMessage(cMessage *msg)  {
 		}
 	}
 	else if(msg->isName("BS_POSITION_MSG"))  {
-
-		//DEBUG: send the BS position messages also to BS Channel 0.
+		// send the BS position messages BS Channel 0, where it is needed for 
+		// channel model initialization.
 		send(msg->dup(), "toBsChannel", 0);
-
-		//forward bs position msg from the other cells to the ms
-		send(msg, "toPhy");
 	}
 	//data packet
 	else if(msg->arrivedOn("fromPhy"))  {
