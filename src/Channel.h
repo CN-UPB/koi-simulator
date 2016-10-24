@@ -49,6 +49,10 @@ class Channel{
 		 */
 		vector<vector<vector<vector<vector<double>>>>> coeffUpD2DTable;
 		/**
+		 * Should interference be considered or not
+		 */
+		bool considerInterference;
+		/**
 		 * Number of down resource blocks
 		 */
 		int downRBs;

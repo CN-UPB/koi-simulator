@@ -29,6 +29,8 @@
 // containing a pointer to that instance. 
 simple BsChannel  {
 	parameters:
+		// Should interference be considered in SINR calculations?
+		bool considerInterference = default(true); 
 		// The number of neighbouring LteCells
 		int maxNumberOfNeighbours;
 		// The number of MobileStations in the local cell

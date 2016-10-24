@@ -22,6 +22,7 @@ bool Channel::init(cSimpleModule* module,
 		const vector<vector<Position>>& msPositions, 
 		std::map<int,Position>& neighbourPositions){
 	bsId = module->par("bsId");
+	considerInterference = module->par("considerInterference");
 	downRBs = module->par("downResourceBlocks");
 	initModule = module;
 	maxNumberOfNeighbours = module->par("maxNumberOfNeighbours");
@@ -45,8 +46,10 @@ bool Channel::init(cSimpleModule* module,
 	timeSamples *= 4; 
 	// Resize the vectors for the per-RB trans infos to the number of 
 	// resource blocks.
-	transInfo.first.resize(upRBs);
-	transInfo.second.resize(downRBs);
+	if(considerInterference){
+		transInfo.first.resize(upRBs);
+		transInfo.second.resize(downRBs);
+	}
 	// There are a number of dynamically allocated member variables which 
 	// are only allocated in this init method, which need only be freed 
 	// in the destructor iff init has actually been called.
@@ -55,12 +58,18 @@ bool Channel::init(cSimpleModule* module,
 }
 
 void Channel::addTransInfo(TransInfo* trans){
-	int dir = trans->getMessageDirection();
-	if(dir==MessageDirection::up || dir==MessageDirection::d2dUp){
-		transInfo.first[trans->getRb()].push_front(trans);
+	if(considerInterference){
+		int dir = trans->getMessageDirection();
+		if(dir==MessageDirection::up || dir==MessageDirection::d2dUp){
+			transInfo.first[trans->getRb()].push_front(trans);
+		}
+		else if(dir==MessageDirection::down || dir==MessageDirection::d2dDown){
+			transInfo.second[trans->getRb()].push_front(trans);
+		}
 	}
-	else if(dir==MessageDirection::down || dir==MessageDirection::d2dDown){
-		transInfo.second[trans->getRb()].push_front(trans);
+	else{
+		// We don't consider interference, so delete the message
+		delete trans;
 	}
 }
 
@@ -71,28 +80,30 @@ double Channel::calcInterference(forward_list<TransInfo*>& interferers,
 		MessageDirection dir){
 	double interference = 0.0;
 	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
-	for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
-		if(receiverId==-1){
-			// Interference at the local base station
-			interference += (*it)->getPower() 
-				* coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][rb];
-		}
-		else{
-			// Interference at local mobile stations
-			if((*it)->getMessageDirection()==MessageDirection::down){
-				// Interference from a neighbouring BS
-				interference += (*it)->getPower() * coeffDownTable[receiverId][(*it)->getBsId()][SINRCounter][rb];
-			}
-			else if((*it)->getMessageDirection()==MessageDirection::d2dDown){
-				// Interference from a MS transmitting D2D on the same down resource 
-				// block
+	if(considerInterference){
+		for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
+			if(receiverId==-1){
+				// Interference at the local base station
 				interference += (*it)->getPower() 
-					* coeffDownD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
+					* coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][rb];
 			}
-			else if((*it)->getMessageDirection()==MessageDirection::d2dUp
-					|| (*it)->getMessageDirection()==MessageDirection::up){
-				interference += (*it)->getPower() 
-					* coeffUpD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
+			else{
+				// Interference at local mobile stations
+				if((*it)->getMessageDirection()==MessageDirection::down){
+					// Interference from a neighbouring BS
+					interference += (*it)->getPower() * coeffDownTable[receiverId][(*it)->getBsId()][SINRCounter][rb];
+				}
+				else if((*it)->getMessageDirection()==MessageDirection::d2dDown){
+					// Interference from a MS transmitting D2D on the same down resource 
+					// block
+					interference += (*it)->getPower() 
+						* coeffDownD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
+				}
+				else if((*it)->getMessageDirection()==MessageDirection::d2dUp
+						|| (*it)->getMessageDirection()==MessageDirection::up){
+					interference += (*it)->getPower() 
+						* coeffUpD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
+				}
 			}
 		}
 	}
