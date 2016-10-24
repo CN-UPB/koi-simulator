@@ -34,6 +34,7 @@ class KBestFairStreamScheduler: public StreamScheduler{
 		int downK;
 		int bsId;
 		int packetLength;
+		int numSubcarriers;
 		std::ofstream upSchedule;
 		std::ofstream downSchedule;
 		void scheduleKBest(std::vector<int>& blocks,MessageDirection dir,int k);

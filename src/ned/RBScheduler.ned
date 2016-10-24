@@ -19,6 +19,8 @@ moduleinterface RBScheduler {
 	parameters:
 		// The id of the resource block this scheduler is responsible for.
 		int rbNumber;
+		// Number of subcarriers for OFDM
+		int numSubcarriers;
 		@display("i=block/subqueue");
 	gates:
 		// For communication with the StreamScheduler.

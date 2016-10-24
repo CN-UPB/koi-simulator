@@ -30,6 +30,7 @@
 class RBScheduler: public cSimpleModule{
 	private:
 		int rbNumber;
+		int numSubcarriers;
 		virtual StreamTransSched *getSchedule(
 				std::vector<StreamTransReq*>& reqs,
 				int direction,

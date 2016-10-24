@@ -31,6 +31,7 @@ void KBestFairStreamScheduler::initialize(){
 	this->downK = par("downK");
 	this->bsId = par("bsId");
 	this->packetLength = par("packetLength");
+	this->numSubcarriers = par("numSubcarriers");
 	// Fill the origins set with all possible origins for transmission requests,
 	// a.k.a all local mobile stations plus the local base station.
 	// First add id -1, representing the local base station
@@ -152,7 +153,7 @@ void KBestFairStreamScheduler::scheduleKBest(
 			else{
 				vals[0] = estimate->getUp(assRB);
 			}
-			cap += getChannelCapacity(vals);
+			cap += getChannelCapacity(vals,numSubcarriers);
 		}
 		packCount[id][dir] = cap/packetLength;
 		++iter;

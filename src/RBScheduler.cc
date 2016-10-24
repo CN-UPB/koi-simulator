@@ -21,6 +21,7 @@ Define_Module(RBScheduler);
 
 void RBScheduler::initialize(){
 	this->rbNumber = par("rbNumber");
+	this->numSubcarriers = par("numSubcarriers");
 }
 
 StreamTransSched *RBScheduler::getSchedule(
@@ -85,7 +86,7 @@ StreamTransSched *RBScheduler::getSchedule(
 		else{
 			sinrValues.push_back(estimates->at(bestReq->getRequestOrigin())->getDown(rbNumber));
 		}
-		double channelCap = getChannelCapacity(sinrValues);
+		double channelCap = getChannelCapacity(sinrValues,numSubcarriers);
 		// Schedule the best packets according to the compare method
 		// until the channel capacity is used up.
 		while(channelCap>0){
