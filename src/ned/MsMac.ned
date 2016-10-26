@@ -57,6 +57,8 @@ simple MsMac  {
 			// This parameter currently has no effect as there is no movement 
 			// currently implemented.
 			int positionResendInterval;
+			// The number of MobileStations in the local cell
+			int numberOfMobileStations;
 			// The alpha angle for initial positioning by sector.
 			double initPosAlpha;
 			// The beta angle for initial positioning by sector.
@@ -82,6 +84,7 @@ simple MsMac  {
 			// 1 - Use the positions given as OMNet parameters (initMsXPos,initMsXPos)
 			// 2 - Use initial placement by sector
 			// 3 - Use linear placement simulating a straight road
+			// 4 - Use line placement
 			int positioning = default(0);
 
 			@display("i=block/mac");

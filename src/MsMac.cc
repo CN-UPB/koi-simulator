@@ -174,10 +174,19 @@ Position MsMac::initMsPositionRand(){
 	return initPos;
 }
 
+Position MsMac::initMsPositionLine(){
+	Position initPos;
+	double msDists = (radius-1.01)/numberOfMobileStations;
+	initPos.x = initBsPos.x+1.01+(msId*msDists);
+	initPos.y = initBsPos.y;
+	return initPos;
+}
+
 void MsMac::initialize()  {
 	positionResendInterval = par("positionResendInterval");
 	msId = par("msId");
 	bsId = par("bsId");
+	numberOfMobileStations = par("numberOfMobileStations");
 	epsilon = par("epsilon");
 	radius = par("radius");
 	initBsPos.x = par("initBsXPos");
@@ -208,6 +217,9 @@ void MsMac::initialize()  {
 			break;
 		case MsMac::Placement::uniformRand:
 			msPosition = initMsPositionRand();
+			break;
+		case MsMac::Placement::line:
+			msPosition = initMsPositionLine();
 			break;
 		default:
 			// TODO Notify the user that the value for MS positioning

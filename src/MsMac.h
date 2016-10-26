@@ -27,6 +27,7 @@ class MsMac : public cSimpleModule  {
 			std::ofstream rateFile;
 			int msId;
 			int bsId;
+			int numberOfMobileStations;
 			int positionResendInterval;
 			int packetLength;
 			int downResourceBlocks;
@@ -41,11 +42,12 @@ class MsMac : public cSimpleModule  {
 			Position initMsPosition(int quadrant, double alpha, double beta, double gamma);
 			Position initMsPositionLinear();
 			Position initMsPositionRand();
+			Position initMsPositionLine();
 			/**
 			 * @enum Placement
 			 * All possible methods to determine initial Mobile Station placement
 			 */
-			enum Placement: int{uniformRand,params,bySector,linear};
+			enum Placement: int{uniformRand,params,bySector,linear,line};
 
 			/**
 			 * @var MsMac::Placement MsMac::uniformRand
@@ -62,6 +64,12 @@ class MsMac : public cSimpleModule  {
 			/**
 			 * @var MsMac::Placement MsMac::linear
 			 * Place mobile stations linearly along a "road".
+			 */
+			/**
+			 * @var MsMac::Placement MsMac::line
+			 * Place mobile stations in a straight line to the right of their BS.
+			 *
+			 * The grater the MS ID, the greater the distance.
 			 */
 
     protected:
