@@ -154,13 +154,18 @@ simple BsChannel  {
 		int NumMsAntenna = default(2);
 		double BsHeight = default(0.0);
 		double OutdoorHeightUE = default(0.0);
-		// The 'mean' parameter for the exponential channel model
+		// The 'mean' parameter for fast fading channel models
 		double expMean = default(1.0);
-		// Exponent for the ExpChannel pathloss computations
+		// Pathloss exponent
 		double plExp = default(3.0);
+		// Reference distance for pathloss models
+		double d0 = default(1m);
+		// Pathloss at the reference distance for pathloss models
+		double pl0 = default(1);
 		// The channel model to use. Possible values:
 		// 0: METIS channel model (default)
 		// 1: Exponential random channel model
+		// 2: Factory channel model, Tanghe et al.
 		int channelModel = default(0);
 		@display("i=block/rxtx");
 		

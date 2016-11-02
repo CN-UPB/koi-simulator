@@ -11,6 +11,7 @@
 
 #include "BsChannel.h"
 #include "ExpChannel.h"
+#include "FactoryChannel.h"
 #include "KoiData_m.h"
 #include "METISChannel.h"
 #include "SINR_m.h"
@@ -60,6 +61,8 @@ void BsChannel::initialize()  {
 		case 1:
 			channel = new ExpChannel();
 			break;
+		case 2:
+			channel = new FactoryChannel();
 		default:
 			throw std::invalid_argument("Invalid channelModel value");
 	}
