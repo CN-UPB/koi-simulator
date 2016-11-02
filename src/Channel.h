@@ -21,6 +21,10 @@ using std::vector;
 class Channel{
 	protected:
 		/**
+		 * Channel bandwidth in Hz
+		 */
+		double chnBandwidth;
+		/**
 		 * Unique ID of the BS in the cell this channel serves
 		 */
 		int bsId;

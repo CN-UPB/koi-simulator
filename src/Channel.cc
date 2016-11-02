@@ -21,6 +21,7 @@ const double Channel::speedOfLight = 299792458.0;
 bool Channel::init(cSimpleModule* module,
 		const vector<vector<Position>>& msPositions, 
 		std::map<int,Position>& neighbourPositions){
+	chnBandwidth = module->par("chnBandwidth");
 	bsId = module->par("bsId");
 	considerInterference = module->par("considerInterference");
 	downRBs = module->par("downResourceBlocks");
@@ -107,7 +108,7 @@ double Channel::calcInterference(forward_list<TransInfo*>& interferers,
 			}
 		}
 	}
-	interference += getTermalNoise(300,180000);
+	interference += getTermalNoise(300,chnBandwidth);
 	return interference;
 }
 

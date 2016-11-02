@@ -55,6 +55,8 @@ simple BsChannel  {
 		// Offset from the simulation start reserved for initialization messages.
 		// No traffic is generated/send before it.
 		double initOffset @unit(s);
+		// Channel bandwidth
+		double chnBandwidth = default(180000Hz) @unit(Hz);
 		// Table of EESM values for CQI computation
 		string eesm_beta = default("");
 		// Bit Level Error Rate table for packet loss computations
@@ -159,7 +161,7 @@ simple BsChannel  {
 		// Pathloss exponent
 		double plExp = default(3.0);
 		// Reference distance for pathloss models
-		double d0 = default(1m);
+		double d0 = default(1m) @unit(m);
 		// Pathloss at the reference distance for pathloss models
 		double pl0 = default(1);
 		// The channel model to use. Possible values:
