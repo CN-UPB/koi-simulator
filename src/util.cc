@@ -222,6 +222,10 @@ double getPer(vec bler){
 	}
 }
 
+double toDB(double val){
+	return 10*std::log10(val);
+}
+
 int lcm(int a, int b){
   int temp = itpp::gcd(a,b);
   return temp ? (a/temp)*b : 0;

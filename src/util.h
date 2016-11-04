@@ -28,6 +28,8 @@ double getEffectiveSINR(vector<double> sinrValues, vec eesm_beta_values);
 
 double getPer(vec bler);
 
+double toDB(double val);
+
 int lcm(int a, int b);
 
 double lcmSequence(const vector<double>& elems);
