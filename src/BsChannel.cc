@@ -32,7 +32,10 @@ void BsChannel::initialize()  {
 	upResBlocks = par("upResourceBlocks");
 	downResBlocks = par("downResourceBlocks");
 	numberOfMobileStations = par("numberOfMobileStations");
+	numMSAntenna = par("NumMsAntenna");
+	numBSAntenna = par("NumBSAntenna");
 	tti = par("tti");
+	coding.init(par("MCSTable"),tti,par("bandwidthPerRB"));
 	epsilon = par("epsilon");
 	initOffset = par("initOffset");
 	bsId = par("bsId");
@@ -151,9 +154,13 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		// We only need the down SINR estimate, because the 
 		// base station only ever uses DOWN resource blocks.
 		bsSINREst->setDownArraySize(downResBlocks);
+		bsSINREst->setRDownArraySize(downResBlocks);
+		double sinr;
 		for(int i = 0; i < downResBlocks; i++){
-			bsSINREst->setDown(i,
-					channel->calcAvgDownSINR(i,1.0));
+			sinr = channel->calcAvgDownSINR(i,1.0);
+			bsSINREst->setDown(i,sinr);
+			bsSINREst->setRDown(i,coding.getRBCapacity(sinr,numBSAntenna,
+						numMSAntenna));
 		}
 		// Route message to BS via MsPhy and MsMac
 		send(bsSINREst,"toPhy");

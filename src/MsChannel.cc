@@ -29,6 +29,9 @@ void MsChannel::initialize()  {
 	msId = par("msId");
 	downResourceBlocks = par("downResourceBlocks");
 	upResourceBlocks = par("upResourceBlocks");
+	numMSAntenna = par("NumMsAntenna");
+	numBSAntenna = par("NumBSAntenna");
+	coding.init(par("MCSTable"),tti,par("bandwidthPerRB"));
 	//find the neighbours and store the pair (bsId, position in data structures) in a map
 	cModule *cell = getParentModule()->getParentModule();
 
@@ -55,17 +58,24 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		sinrMessage->setBsId(bsId);
 		sinrMessage->setMsId(msId);
 
-		// Set SINR estimation to the average SINR value over all 
+		// Set SINR and rate estimation to the average SINR value over all 
 		// possible transmission recipients in the previous tti.
 		sinrMessage->setDownArraySize(downResourceBlocks);
+		sinrMessage->setRDownArraySize(downResourceBlocks);
+		double sinr = 0.0;
 		for(int i = 0; i < downResourceBlocks; i++){
-			sinrMessage->setDown(i,
-                            channel->calcAvgD2DDownSINR(i,msId,1.0));
+			sinr = channel->calcAvgD2DDownSINR(i,msId,1.0);
+			sinrMessage->setDown(i,sinr);
+			sinrMessage->setRDown(i,coding.getRBCapacity(sinr,numMSAntenna,
+						numBSAntenna));
 		}
 		sinrMessage->setUpArraySize(upResourceBlocks);
+		sinrMessage->setRUpArraySize(upResourceBlocks);
 		for(int i = 0; i < upResourceBlocks; i++){
-			sinrMessage->setUp(i,
-                            channel->calcUpSINR(i,msId,1.0));
+			sinr = channel->calcUpSINR(i,msId,1.0);
+			sinrMessage->setUp(i,sinr);
+			sinrMessage->setRUp(i,coding.getRBCapacity(sinr,numMSAntenna,
+						numBSAntenna));
 		}
 		// Route estimate to MsMac via MsPhy
 		send(sinrMessage,"toPhy");
@@ -75,7 +85,7 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			int tti = std::floor(val);
 			for(int i = 0; i < upResourceBlocks; i++){
 				sinrFile << tti << "\t" << bsId << "\t" << msId << "\t" << i << "\t"
-					<< channel->calcUpSINR(i,msId,1.0) << std::endl;
+					<< sinrMessage->getUp(i) << std::endl;
 			}
 		}
 	}

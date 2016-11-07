@@ -169,6 +169,8 @@ simple BsChannel  {
 		// 1: Exponential random channel model
 		// 2: Factory channel model, Tanghe et al.
 		int channelModel = default(0);
+		// Table with min SINR for Modulation and Coding Schemes
+		string MSCTable;
 		@display("i=block/rxtx");
 		
 	gates:

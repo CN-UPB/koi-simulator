@@ -46,6 +46,12 @@ simple MsChannel  {
 		string eesm_beta = default("");
 		// Bit Level Error Rate table for packet loss computations
 		string bler_table = default("");
+		// Number of antennas on BaseStation
+		int NumBsAntenna = default(8);
+		// Number of antennas on MobileStation
+		int NumMsAntenna = default(2);
+		// Table with min SINR for Modulation and Coding Schemes
+		string MSCTable;
 		@display("i=block/rxtx");
 	gates:
 		// Gate for incoming simulation traffic packets from the 

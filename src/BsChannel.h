@@ -9,11 +9,12 @@
 
 #pragma once
 
-#include "includes.h"
-#include "Position.h"
 #include "BsMsPositions_m.h"
-#include "NeighbourIdMatching.h"
 #include "Channel.h"
+#include "Coding.h"
+#include "includes.h"
+#include "NeighbourIdMatching.h"
+#include "Position.h"
 #include "TransInfo_m.h"
 #include <itpp/itbase.h>
 #include <vector>
@@ -22,8 +23,11 @@
 
 class BsChannel : public cSimpleModule  {
     private:
+				Coding coding;
         int maxNumberOfNeighbours;
         int numberOfMobileStations;
+				int numMSAntenna;
+				int numBSAntenna;
         int upResBlocks;
         int downResBlocks;
         int **schedules;

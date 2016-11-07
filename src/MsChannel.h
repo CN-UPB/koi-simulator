@@ -8,6 +8,7 @@
 #pragma once
 
 #include "Channel.h"
+#include "Coding.h"
 #include "includes.h"
 #include "NeighbourIdMatching.h"
 #include "Position.h"
@@ -19,10 +20,13 @@
 
 class MsChannel : public cSimpleModule  {
     private:
+				Coding coding;
         int maxNumberOfNeighbours;
         Position *bsPositions;
         int downResourceBlocks;
         int upResourceBlocks;
+				int numBSAntenna;
+				int numMSAntenna;
 				std::ofstream sinrFile;
         simtime_t epsilon;
         simtime_t tti;
