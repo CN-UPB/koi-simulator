@@ -66,6 +66,7 @@ void BsChannel::initialize()  {
 			break;
 		case 2:
 			channel = new FactoryChannel();
+			break;
 		default:
 			throw std::invalid_argument("Invalid channelModel value");
 	}
