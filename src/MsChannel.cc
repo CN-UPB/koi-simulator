@@ -30,7 +30,7 @@ void MsChannel::initialize()  {
 	downResourceBlocks = par("downResourceBlocks");
 	upResourceBlocks = par("upResourceBlocks");
 	numMSAntenna = par("NumMsAntenna");
-	numBSAntenna = par("NumBSAntenna");
+	numBSAntenna = par("NumBsAntenna");
 	coding.init(par("MCSTable"),tti.dbl(),par("bandwidthPerRB"));
 	//find the neighbours and store the pair (bsId, position in data structures) in a map
 	cModule *cell = getParentModule()->getParentModule();

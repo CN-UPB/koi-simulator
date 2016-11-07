@@ -33,7 +33,7 @@ void BsChannel::initialize()  {
 	downResBlocks = par("downResourceBlocks");
 	numberOfMobileStations = par("numberOfMobileStations");
 	numMSAntenna = par("NumMsAntenna");
-	numBSAntenna = par("NumBSAntenna");
+	numBSAntenna = par("NumBsAntenna");
 	tti = par("tti");
 	coding.init(par("MCSTable"),tti.dbl(),par("bandwidthPerRB"));
 	epsilon = par("epsilon");

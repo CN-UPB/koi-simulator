@@ -51,7 +51,11 @@ simple MsChannel  {
 		// Number of antennas on MobileStation
 		int NumMsAntenna = default(2);
 		// Table with min SINR for Modulation and Coding Schemes
-		string MSCTable;
+		string MCSTable;
+		// Channel bandwidth
+		double chnBandwidth = default(180000Hz) @unit(Hz);
+		// Bandwidth available to each resource block
+		double bandwidthPerRB = chnBandwidth/upResourceBlocks @unit(Hz);
 		@display("i=block/rxtx");
 	gates:
 		// Gate for incoming simulation traffic packets from the 

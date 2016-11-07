@@ -40,7 +40,6 @@ void Coding::loadTable(const string& tpath, int rbBW){
 	double refbw = 0.0;
 	size_t currPos = 0;
 	for(std::getline(tableFile,line);tableFile.good(); std::getline(tableFile,line)){
-		std::cout << line << std::endl;
 		tx = std::stoi(line,&currPos);
 		rx = std::stoi(line.substr(currPos),&currPos);
 		mcs = std::stoi(line.substr(currPos),&currPos);

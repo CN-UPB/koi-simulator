@@ -170,7 +170,9 @@ simple BsChannel  {
 		// 2: Factory channel model, Tanghe et al.
 		int channelModel = default(0);
 		// Table with min SINR for Modulation and Coding Schemes
-		string MSCTable;
+		string MCSTable;
+		// Bandwidth available to each resource block
+		double bandwidthPerRB = chnBandwidth/upResourceBlocks @unit(Hz);
 		@display("i=block/rxtx");
 		
 	gates:
