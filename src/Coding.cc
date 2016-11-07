@@ -15,7 +15,7 @@ using std::map;
 using std::string;
 
 int Coding::refBits = 0;
-simtime_t Coding::reftti = 0;
+double Coding::reftti = 0;
 std::once_flag Coding::tFlag;
 Coding::MCSTable Coding::tMCS;
 
@@ -50,7 +50,7 @@ void Coding::loadTable(const string& tpath, int rbBW){
 	tableFile.close();
 }
 
-void Coding::init(const string& tpath,simtime_t tti, double rbBW){
+void Coding::init(const string& tpath,double tti, double rbBW){
 	tti = tti;
 	rbBW = rbBW;
 	// Load the table only once per simulation

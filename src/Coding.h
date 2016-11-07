@@ -27,7 +27,7 @@ class Coding{
 		/**
 		 * TTI in seconds used in MCS table calculation
 		 */
-		static simtime_t reftti;
+		static double reftti;
 		/**
 		 * Flag signaling that table loading should only be conducted once
 		 */
@@ -39,7 +39,7 @@ class Coding{
 		/**
 		 * The TTI length for the current system in seconds
 		 */
-		simtime_t tti;
+		double tti;
 
 	private:
 		unsigned getNumBits(double bwMCS);
@@ -47,7 +47,7 @@ class Coding{
 
 	public:
 		Coding(){}
-		void init(const std::string& tpath,simtime_t tti, double rbBW);
+		void init(const std::string& tpath,double tti, double rbBW);
 		unsigned getRBCapacity(double sinr,int numTx,int numRx);
 
 };

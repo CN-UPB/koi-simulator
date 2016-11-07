@@ -35,7 +35,7 @@ void BsChannel::initialize()  {
 	numMSAntenna = par("NumMsAntenna");
 	numBSAntenna = par("NumBSAntenna");
 	tti = par("tti");
-	coding.init(par("MCSTable"),tti,par("bandwidthPerRB"));
+	coding.init(par("MCSTable"),tti.dbl(),par("bandwidthPerRB"));
 	epsilon = par("epsilon");
 	initOffset = par("initOffset");
 	bsId = par("bsId");
