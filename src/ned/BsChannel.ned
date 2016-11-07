@@ -156,6 +156,10 @@ simple BsChannel  {
 		int NumMsAntenna = default(2);
 		double BsHeight = default(0.0);
 		double OutdoorHeightUE = default(0.0);
+		// K mean for Ricean fading models
+		double kMean = default(1.0);
+		// K standard deviation for Ricean fading models
+		double kSigma = default(1.0);
 		// The 'mean' parameter for fast fading channel models
 		double expMean = default(1.0);
 		// Pathloss exponent
@@ -173,6 +177,12 @@ simple BsChannel  {
 		string MCSTable;
 		// Bandwidth available to each resource block
 		double bandwidthPerRB = chnBandwidth/upResourceBlocks @unit(Hz);
+		// Gain of BS antennas in dB
+		double bsGain = default(1.0dB) @unit(dB);
+		// Gain of MS antennas in dB
+		double msGain = default(1.0dB) @unit(dB);
+		// Transmission power in Watts
+		double transmissionPower = default(1.0W) @unit(W);
 		@display("i=block/rxtx");
 		
 	gates:

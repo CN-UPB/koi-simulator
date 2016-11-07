@@ -12,17 +12,21 @@
 
 class FactoryChannel: public Channel{
 	private:
-		double expMean;
 		double plExp;
 		double d0;
 		double pl0;
+		double kMean;
+		double kSigma;
+		double bsGain;
+		double msGain;
+		double transPower;
 		simtime_t initOffset;
 		std::ofstream downValues;
 		std::ofstream upValues;
 		std::vector<std::vector<Position>> msPos;
 
 		double pathgain(Position sender, Position receiver);
-		double shadowfading();
+		double shadowfading(double pl, double gainTx, double gainRx);
 		void recomputeCoefficients(
 				const std::vector<std::vector<Position>>& msPositions);
 	
