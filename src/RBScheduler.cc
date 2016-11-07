@@ -77,16 +77,14 @@ StreamTransSched *RBScheduler::getSchedule(
 				++delIter;
 			}
 		}
-		// Determine potential channel capacity based on the SINR 
-		// estimates.
-		vector<double> sinrValues;
+		// Determine potential channel capacity.
+		double channelCap;
 		if(direction==MessageDirection::up){
-			sinrValues.push_back(estimates->at(bestReq->getRequestOrigin())->getUp(rbNumber));
+			channelCap = estimates->at(bestReq->getRequestOrigin())->getRUp(rbNumber);
 		}
 		else{
-			sinrValues.push_back(estimates->at(bestReq->getRequestOrigin())->getDown(rbNumber));
+			channelCap = estimates->at(bestReq->getRequestOrigin())->getRDown(rbNumber);
 		}
-		double channelCap = getChannelCapacity(sinrValues,numSubcarriers);
 		// Schedule the best packets according to the compare method
 		// until the channel capacity is used up.
 		while(channelCap>0){
