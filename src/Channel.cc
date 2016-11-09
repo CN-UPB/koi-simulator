@@ -109,7 +109,7 @@ double Channel::calcInterference(forward_list<TransInfo*>& interferers,
 			}
 		}
 	}
-	interference += getTermalNoise(300,rbBandwidth);
+	interference += getTermalNoise(300,chnBandwidth);
 	return interference;
 }
 

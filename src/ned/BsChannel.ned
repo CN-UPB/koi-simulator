@@ -149,7 +149,7 @@ simple BsChannel  {
 		double XPR_Mean_LOS = default(0.0);
 		double XPR_Std_LOS = default(0.0);
 		double positionResendInterval = default(0.0);
-		double CarrierFrequency = default(0.0);
+		double CarrierFrequency = default(5.2e9) @unit(Hz);
 		// Number of antennas on BaseStation
 		int NumBsAntenna = default(8);
 		// Number of antennas on MobileStation
@@ -176,7 +176,7 @@ simple BsChannel  {
 		// Table with min SINR for Modulation and Coding Schemes
 		string MCSTable;
 		// Bandwidth available to each resource block
-		double bandwidthPerRB = chnBandwidth/upResourceBlocks @unit(Hz);
+		double bandwidthPerRB @unit(Hz);
 		// Gain of BS antennas in dB
 		double bsGain = default(1.0dB) @unit(dB);
 		// Gain of MS antennas in dB
