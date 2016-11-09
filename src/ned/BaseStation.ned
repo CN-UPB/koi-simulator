@@ -112,6 +112,7 @@ module BaseStation
 					upResourceBlocks = upResourceBlocks;
 					downResourceBlocks = downResourceBlocks;
 					bandwidthPerRB = bandwidthPerRB;
+   				tti = tti;
 				@display("p=100,200");
    		}
    		

@@ -66,6 +66,8 @@ module LteCell
 		int bsId;
 		// Bandwidth available to each resource block
 		double bandwidthPerRB @unit(Hz);
+		// The transmission time interval
+		double tti @unit(s);
 		@display("p=$xPos,$yPos;r=$radius,,black;i=block/network2_l;bgb=330,202");
 
 	gates:
@@ -88,6 +90,7 @@ module LteCell
 								upResourceBlocks = upResourceBlocks;
 								downResourceBlocks = downResourceBlocks;
 								bandwidthPerRB = bandwidthPerRB;
+								tti = tti;
 
             gates:
                 fromMs[numberOfMobileStations];
@@ -109,6 +112,7 @@ module LteCell
 								upResourceBlocks = upResourceBlocks;
 								downResourceBlocks = downResourceBlocks;
 								bandwidthPerRB = bandwidthPerRB;
+								tti = tti;
             gates:
                 toMs[numberOfMobileStations];
                 fromMs[numberOfMobileStations];
@@ -120,6 +124,7 @@ module LteCell
 								bsId = bsId;
 								upResourceBlocks = upResourceBlocks;
 								downResourceBlocks = downResourceBlocks;
+								tti = tti;
         }
 
     connections allowunconnected:

@@ -59,6 +59,8 @@ parameters:
 	double radius;
 	// Bandwidth available to each resource block
 	double bandwidthPerRB @unit(Hz);
+	// The transmission time interval
+	double tti @unit(s);
 
 	@display("bgb=200,300;i=device/cellphone");
 
@@ -96,6 +98,7 @@ submodules:
 		parameters:
 					 bsId = bsId;
 					 msId = msId;
+					 tti = tti;
 					 @display("p=50,50");
 	}
 	mac: MsMac  {
@@ -109,6 +112,7 @@ submodules:
 					 initPosAlpha = initPosAlpha;
 					 initPosBeta = initPosBeta;
 					 initPosGamma = initPosGamma;
+					 tti = tti;
 					 @display("p=50,120");
 	}
 	phy: MsPhy  {
@@ -121,6 +125,7 @@ submodules:
 		parameters:
 						 msId = msId;
 						 bsId = bsId;
+						 tti = tti;
 						 upResourceBlocks = upResourceBlocks;
 						 downResourceBlocks = downResourceBlocks;
 						 @display("p=50,260");
