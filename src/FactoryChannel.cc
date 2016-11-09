@@ -23,6 +23,7 @@ bool FactoryChannel::init(cSimpleModule* module,
 	d0 = module->par("d0");
 	kMean = module->par("kMean");
 	kSigma = module->par("kSigma");
+	expMean = module->par("expMean");
 	// We need the gains in linear scale
 	bsGain = module->par("bsGain");
 	bsGain = std::pow(10,bsGain/10.0);
@@ -32,10 +33,10 @@ bool FactoryChannel::init(cSimpleModule* module,
 	initOffset = module->par("initOffset");
 	std::string fname("coeff_table_down-"+std::to_string(bsId));
 	downValues = std::move(getResultFile(fname));
-	downValues << "TTI\t" << "BS\t" << "MS\t" << "RB\t" << "PL\t" << "SF\t" << "Coeff" << "\n"; 
+	downValues << "TTI\t" << "BS\t" << "MS\t" << "RB\t" << "PL\t" << "Fade\t" << "Coeff" << "\n"; 
 	fname = "coeff_table_up-"+std::to_string(bsId);
 	upValues = std::move(getResultFile(fname));
-	upValues << "TTI\t" << "Cell\t" << "MS\t" << "BS\t" << "RB\t" << "PL\t" << "SF\t" << "Coeff" << "\n"; 
+	upValues << "TTI\t" << "Cell\t" << "MS\t" << "BS\t" << "RB\t" << "PL\t" << "Fade\t" << "Coeff" << "\n"; 
 	recomputeCoefficients(msPositions);
 	return true;
 }
@@ -68,15 +69,15 @@ void FactoryChannel::recomputeCoefficients(
 					vector<double>(upRBs))));
 	double pg = 0.0;
 	double pl = 0.0;
-	double sf = 0.0;
+	double fading = 0.0;
 	for(size_t msIds=0; msIds<numberOfMobileStations; ++msIds){
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 			pg = pathgain(neighbourPositions[bsIds],msPositions[bsId][msIds]);
 			pl = 1.0/pg;
 			for(size_t t=0; t<timeSamples; ++t){
 				for(size_t rb=0; rb<downRBs; ++rb){
-					sf = shadowfading(pl,bsGain,msGain);
-					coeffDownTable[msIds][bsIds][t][rb] = pg * sf;
+					fading = fadingExponential();
+					coeffDownTable[msIds][bsIds][t][rb] = pg * fading;
 				}
 			}
 			if(simTime()>initOffset){
@@ -106,8 +107,8 @@ void FactoryChannel::recomputeCoefficients(
 			pl = 1.0/pg;
 			for(size_t t=0; t<timeSamples; ++t){
 				for(size_t rb=0; rb<upRBs; ++rb){
-					sf = shadowfading(pl,msGain,bsGain);
-					coeffUpTable[bsIds][0][msIds][t][rb] = pg * sf;
+					fading = fadingExponential();
+					coeffUpTable[bsIds][0][msIds][t][rb] = pg * fading;
 				}
 			}
 			if(simTime()>initOffset){
@@ -138,8 +139,8 @@ void FactoryChannel::recomputeCoefficients(
 				pl = 1.0/pg;
 				for(size_t t=0; t<timeSamples; ++t){
 					for(size_t rb=0; rb<upRBs; ++rb){
-						sf = shadowfading(pl,msGain,msGain);
-						coeffUpD2DTable[bsIds][recMsId][msIds][t][rb] = pg * sf;
+						fading = fadingExponential();
+						coeffUpD2DTable[bsIds][recMsId][msIds][t][rb] = pg * fading;
 					}
 				}
 			}
@@ -159,8 +160,8 @@ void FactoryChannel::recomputeCoefficients(
 				pl = 1.0/pg;
 				for(size_t t=0; t<timeSamples; ++t){
 					for(size_t rb=0; rb<downRBs; ++rb){
-						sf = shadowfading(pl,msGain,msGain);
-						coeffDownD2DTable[bsIds][recMsId][msIds][t][rb] = pg * sf;
+						fading = fadingExponential();
+						coeffDownD2DTable[bsIds][recMsId][msIds][t][rb] = pg * fading;
 					}
 				}
 			}
@@ -180,13 +181,17 @@ void FactoryChannel::clearTransInfo(){
 	recomputeCoefficients(msPos);
 }
 
-double FactoryChannel::shadowfading(double pl, double gainTx, double gainRx){
+double FactoryChannel::fadingRicean(double pl, double gainTx, double gainRx){
 	// Doesn't work properly when K is negative!
 	double K = normal(kMean,kSigma);
 	double omega = (transPower*gainTx*gainRx)/pl;
 	double v = std::sqrt(K*omega/(K+1.0));
 	double sigma = std::sqrt(omega/(2*(K+1)));
 	return normal(v,sigma);
+}
+
+double FactoryChannel::fadingExponential(){
+	return exponential(expMean);
 }
 
 FactoryChannel::~FactoryChannel(){
