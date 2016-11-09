@@ -72,6 +72,8 @@ module Scheduler
             numberOfMobileStations = numberOfMobileStations;
             tti = tti;
 						bsId = bsId;
+						upResourceBlocks = upResourceBlocks;
+						downResourceBlocks = downResourceBlocks;
             @display("p=69,79");
         }
         rbSchedulersUp[upResourceBlocks]: <rbSchedType> like RBScheduler {

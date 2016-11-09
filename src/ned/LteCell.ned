@@ -41,6 +41,10 @@
 module LteCell
 {
 	parameters:
+		// The number of resource blocks for uplink transmissions
+		int upResourceBlocks;
+		// The number of resource blocks for downlink transmissions
+		int downResourceBlocks;
 		// The number of neighbouring LteCells
 		int maxNumberOfNeighbours;
 		// The number of MobileStations in the local cell
@@ -79,6 +83,8 @@ module LteCell
                 yPos = yPos;
                 bsId = bsId;
                 numberOfMobileStations = numberOfMobileStations;
+								upResourceBlocks = upResourceBlocks;
+								downResourceBlocks = downResourceBlocks;
 
             gates:
                 fromMs[numberOfMobileStations];
@@ -97,6 +103,8 @@ module LteCell
                 initBsXPos = xPos;
                 initBsYPos = yPos;
                 radius = radius;
+								upResourceBlocks = upResourceBlocks;
+								downResourceBlocks = downResourceBlocks;
             gates:
                 toMs[numberOfMobileStations];
                 fromMs[numberOfMobileStations];
@@ -106,6 +114,8 @@ module LteCell
                 numberOfMobileStations = numberOfMobileStations;
                 streamSchedPeriod = streamSchedPeriod;
 								bsId = bsId;
+								upResourceBlocks = upResourceBlocks;
+								downResourceBlocks = downResourceBlocks;
         }
 
     connections allowunconnected:

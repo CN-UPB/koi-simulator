@@ -29,6 +29,10 @@
 module BaseStation
 {
 	parameters:
+		// The number of resource blocks for uplink transmissions
+		int upResourceBlocks;
+		// The number of resource blocks for downlink transmissions
+		int downResourceBlocks;
 		// X coordinate of the BaseStation's position
 		double xPos;
 		// Y coordinate of the BaseStation's position
@@ -103,6 +107,8 @@ module BaseStation
    				yPos = yPos;
    				bsId = bsId;
    				numberOfMobileStations = numberOfMobileStations;
+					upResourceBlocks = upResourceBlocks;
+					downResourceBlocks = downResourceBlocks;
 				@display("p=100,200");
    		}
    		

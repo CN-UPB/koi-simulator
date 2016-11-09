@@ -149,7 +149,7 @@ simple BsChannel  {
 		double XPR_Mean_LOS = default(0.0);
 		double XPR_Std_LOS = default(0.0);
 		double positionResendInterval = default(0.0);
-		double CarrierFrequency = default(5.2e9) @unit(Hz);
+		double CarrierFrequency = default(5.2e9Hz) @unit(Hz);
 		// Number of antennas on BaseStation
 		int NumBsAntenna = default(8);
 		// Number of antennas on MobileStation

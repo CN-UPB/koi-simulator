@@ -33,6 +33,10 @@
 module MobileStation
 {
 parameters:
+	// The number of resource blocks for uplink transmissions
+	int upResourceBlocks;
+	// The number of resource blocks for downlink transmissions
+	int downResourceBlocks;
 	// The ID of the MobileStation's current cell.
 	int bsId;
 	// The ID of this MobileStation. MobileStation IDs are unique only 
@@ -115,6 +119,8 @@ submodules:
 		parameters:
 						 msId = msId;
 						 bsId = bsId;
+						 upResourceBlocks = upResourceBlocks;
+						 downResourceBlocks = downResourceBlocks;
 						 @display("p=50,260");
 		gates:
 						 fromMs[sizeof(fromMs)];
