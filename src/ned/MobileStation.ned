@@ -57,6 +57,8 @@ parameters:
 	double initPosGamma;
 	// The radius of the local cell
 	double radius;
+	// Bandwidth available to each resource block
+	double bandwidthPerRB @unit(Hz);
 
 	@display("bgb=200,300;i=device/cellphone");
 
@@ -122,6 +124,7 @@ submodules:
 						 upResourceBlocks = upResourceBlocks;
 						 downResourceBlocks = downResourceBlocks;
 						 @display("p=50,260");
+						 bandwidthPerRB = bandwidthPerRB;
 		gates:
 						 fromMs[sizeof(fromMs)];
 	}

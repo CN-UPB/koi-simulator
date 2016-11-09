@@ -45,6 +45,8 @@ module BaseStation
 		int bsId;
 		// The transmission time interval
 		double tti @unit(s);
+		// Bandwidth available to each resource block
+		double bandwidthPerRB @unit(Hz);
 
 		@display("bgb=300,300;i=device/antennatower");
 
@@ -109,6 +111,7 @@ module BaseStation
    				numberOfMobileStations = numberOfMobileStations;
 					upResourceBlocks = upResourceBlocks;
 					downResourceBlocks = downResourceBlocks;
+					bandwidthPerRB = bandwidthPerRB;
 				@display("p=100,200");
    		}
    		

@@ -64,6 +64,8 @@ module LteCell
 		double streamSchedPeriod @unit(s);
 		// The id of the BaseStation in this LteCell. This id is unique.
 		int bsId;
+		// Bandwidth available to each resource block
+		double bandwidthPerRB @unit(Hz);
 		@display("p=$xPos,$yPos;r=$radius,,black;i=block/network2_l;bgb=330,202");
 
 	gates:
@@ -85,6 +87,7 @@ module LteCell
                 numberOfMobileStations = numberOfMobileStations;
 								upResourceBlocks = upResourceBlocks;
 								downResourceBlocks = downResourceBlocks;
+								bandwidthPerRB = bandwidthPerRB;
 
             gates:
                 fromMs[numberOfMobileStations];
@@ -105,6 +108,7 @@ module LteCell
                 radius = radius;
 								upResourceBlocks = upResourceBlocks;
 								downResourceBlocks = downResourceBlocks;
+								bandwidthPerRB = bandwidthPerRB;
             gates:
                 toMs[numberOfMobileStations];
                 fromMs[numberOfMobileStations];
