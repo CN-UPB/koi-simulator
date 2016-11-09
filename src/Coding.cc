@@ -37,15 +37,22 @@ void Coding::loadTable(const string& tpath, int rbBW){
 	int tx = 0;
 	int mcs = 0;
 	double normSnr = 0.0;
+	double specSNR = 0.0;
 	double refbw = 0.0;
 	size_t currPos = 0;
 	for(std::getline(tableFile,line);tableFile.good(); std::getline(tableFile,line)){
+		currPos = 0;
 		tx = std::stoi(line,&currPos);
-		rx = std::stoi(line.substr(currPos),&currPos);
-		mcs = std::stoi(line.substr(currPos),&currPos);
-		normSnr = std::stod(line.substr(currPos),&currPos) - bwDB;
-		refbw = std::stod(line.substr(currPos),&currPos);
-		tMCS[tx][rx][mcs] = std::make_tuple(normSnr,refbw);
+		line = line.substr(currPos);
+		rx = std::stoi(line,&currPos);
+		line = line.substr(currPos);
+		mcs = std::stoi(line,&currPos);
+		line = line.substr(currPos);
+		normSnr = std::stod(line,&currPos);
+		specSNR = normSnr - bwDB;
+		line = line.substr(currPos);
+		refbw = std::stod(line,&currPos);
+		tMCS[tx][rx][mcs] = std::make_tuple(specSNR,refbw);
 	}
 	tableFile.close();
 }
