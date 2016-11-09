@@ -85,6 +85,10 @@ class Channel{
 		 */
 		int numberOfMobileStations;
 		/**
+		 * Bandwidth in Hz per resource block
+		 */
+		double rbBandwidth;
+		/**
 		 * If position resend intervall > 1, it counts the current TTI
 		 */
 		int SINRcounter;

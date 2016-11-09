@@ -22,6 +22,7 @@ bool Channel::init(cSimpleModule* module,
 		const vector<vector<Position>>& msPositions, 
 		std::map<int,Position>& neighbourPositions){
 	chnBandwidth = module->par("chnBandwidth");
+	rbBandwidth = module->par("bandwidthPerRB");
 	bsId = module->par("bsId");
 	considerInterference = module->par("considerInterference");
 	downRBs = module->par("downResourceBlocks");
@@ -108,7 +109,7 @@ double Channel::calcInterference(forward_list<TransInfo*>& interferers,
 			}
 		}
 	}
-	interference += getTermalNoise(300,chnBandwidth);
+	interference += getTermalNoise(300,rbBandwidth);
 	return interference;
 }
 
