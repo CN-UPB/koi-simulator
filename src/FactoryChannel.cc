@@ -181,6 +181,7 @@ void FactoryChannel::clearTransInfo(){
 }
 
 double FactoryChannel::shadowfading(double pl, double gainTx, double gainRx){
+	// Doesn't work properly when K is negative!
 	double K = normal(kMean,kSigma);
 	double omega = (transPower*gainTx*gainRx)/pl;
 	double v = std::sqrt(K*omega/(K+1.0));

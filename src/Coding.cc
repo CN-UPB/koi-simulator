@@ -57,9 +57,9 @@ void Coding::loadTable(const string& tpath, int rbBW){
 	tableFile.close();
 }
 
-void Coding::init(const string& tpath,double tti, double rbBW){
-	tti = tti;
-	rbBW = rbBW;
+void Coding::init(const string& tpath,double ptti, double prbBW){
+	tti = ptti;
+	rbBW = prbBW;
 	// Load the table only once per simulation
 	std::call_once(tFlag,loadTable,tpath,rbBW);
 }
