@@ -197,7 +197,6 @@ void MsMac::initialize()  {
 	int initQuadrant = par("initQuadrant");
 	initOffset = par("initOffset");
 	tti = par("tti");
-	downResourceBlocks = par("downResourceBlocks");
 	packetLength = par("packetLength");
 	transmissionPower = par("transmissionPower");
 

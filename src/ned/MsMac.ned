@@ -72,8 +72,6 @@ simple MsMac  {
 			double radius;
 			// The random seed used for initial positioning by sector.
 			int PosSeed = (42);
-			// The number of downlink (BS->MS) resource blocks.
-			int downResourceBlocks;
 			// This is the length in Bits for all packets generated at this 
 			// mobile station
 			int packetLength = default(1500b) @unit(b);

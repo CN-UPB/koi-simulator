@@ -30,7 +30,6 @@ class MsMac : public cSimpleModule  {
 			int numberOfMobileStations;
 			int positionResendInterval;
 			int packetLength;
-			int downResourceBlocks;
 			simtime_t initOffset;
 			simtime_t epsilon;
 			simtime_t tti;
