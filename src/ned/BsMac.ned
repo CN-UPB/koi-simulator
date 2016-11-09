@@ -39,8 +39,6 @@ simple BsMac  {
 		int numberOfMobileStations;
 		// The id of the BaseStation. This id is unique.
 		int bsId;
-		// The number of resource blocks for downlink transmissions
-		int downResourceBlocks;
 		// X coordinate of the BaseStation's position
 		double xPos;
 		// Y coordinate of the BaseStation's position

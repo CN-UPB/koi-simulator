@@ -31,7 +31,6 @@ void BsMac::initialize()  {
     pos.y = par("yPos");
     bsId = par("bsId");
     maxNumberOfNeighbours = par("maxNumberOfNeighbours");
-    resourceBlocks = par("downResourceBlocks");
     numberOfMobileStations = par("numberOfMobileStations");
     sinr_est = 0;
     transmissionPower = par("transmissionPower");
