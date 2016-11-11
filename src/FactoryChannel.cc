@@ -23,6 +23,7 @@ bool FactoryChannel::init(cSimpleModule* module,
 	d0 = module->par("d0");
 	kMean = module->par("kMean");
 	kSigma = module->par("kSigma");
+	shSigma = module->par("shadowSigma");
 	expMean = module->par("expMean");
 	// We need the gains in linear scale
 	bsGain = module->par("bsGain");
@@ -33,10 +34,10 @@ bool FactoryChannel::init(cSimpleModule* module,
 	initOffset = module->par("initOffset");
 	std::string fname("coeff_table_down-"+std::to_string(bsId));
 	downValues = std::move(getResultFile(fname));
-	downValues << "TTI\t" << "BS\t" << "MS\t" << "RB\t" << "PL\t" << "Fade\t" << "Coeff" << "\n"; 
+	downValues << "TTI\t" << "BS\t" << "MS\t" << "RB\t" << "PL\t" << "Fade\t" << "Shadow\t" << "Coeff" << "\n"; 
 	fname = "coeff_table_up-"+std::to_string(bsId);
 	upValues = std::move(getResultFile(fname));
-	upValues << "TTI\t" << "Cell\t" << "MS\t" << "BS\t" << "RB\t" << "PL\t" << "Fade\t" << "Coeff" << "\n"; 
+	upValues << "TTI\t" << "Cell\t" << "MS\t" << "BS\t" << "RB\t" << "PL\t" << "Fade\t" << "Shadow\t" << "Coeff" << "\n"; 
 	recomputeCoefficients(msPositions);
 	return true;
 }
@@ -70,6 +71,7 @@ void FactoryChannel::recomputeCoefficients(
 	double pg = 0.0;
 	double pl = 0.0;
 	double fading = 0.0;
+	double sh = 0.0;
 	for(size_t msIds=0; msIds<numberOfMobileStations; ++msIds){
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 			pg = pathgain(neighbourPositions[bsIds],msPositions[bsId][msIds]);
@@ -77,18 +79,18 @@ void FactoryChannel::recomputeCoefficients(
 			for(size_t t=0; t<timeSamples; ++t){
 				for(size_t rb=0; rb<downRBs; ++rb){
 					fading = fadingExponential();
-					coeffDownTable[msIds][bsIds][t][rb] = pg * fading;
-				}
-			}
-			if(simTime()>initOffset){
-				for(size_t rb=0; rb<downRBs; ++rb){
-					downValues << tti << "\t" << bsIds << "\t"
-						<< msIds << "\t"
-						<< rb << "\t"
-						<< pg << "\t"
-						<< coeffDownTable[msIds][bsIds][timeSamples-1][rb]/pg << "\t"
-						<< coeffDownTable[msIds][bsIds][timeSamples-1][rb]
-						<< std::endl;
+					sh = shadowing();
+					coeffDownTable[msIds][bsIds][t][rb] = pg * fading * sh;
+					if(simTime()>initOffset && t==3){
+						downValues << tti << "\t" << bsIds << "\t"
+							<< msIds << "\t"
+							<< rb << "\t"
+							<< pg << "\t"
+							<< fading << "\t"
+							<< sh << "\t"
+							<< coeffDownTable[msIds][bsIds][3][rb]
+							<< std::endl;
+					}
 				}
 			}
 		}
@@ -108,19 +110,19 @@ void FactoryChannel::recomputeCoefficients(
 			for(size_t t=0; t<timeSamples; ++t){
 				for(size_t rb=0; rb<upRBs; ++rb){
 					fading = fadingExponential();
-					coeffUpTable[bsIds][0][msIds][t][rb] = pg * fading;
-				}
-			}
-			if(simTime()>initOffset){
-				for(size_t rb=0; rb<upRBs; ++rb){
-					upValues << tti << "\t" << bsIds << "\t"
-						<< msIds << "\t"
-						<< bsId << "\t"
-						<< rb << "\t"
-						<< pg << "\t"
-						<< coeffUpTable[bsIds][0][msIds][timeSamples-1][rb]/pg << "\t"
-						<< coeffUpTable[bsIds][0][msIds][timeSamples-1][rb]
-						<< std::endl;
+					sh = shadowing();
+					coeffUpTable[bsIds][0][msIds][t][rb] = pg * fading * sh;
+					if(simTime()>initOffset && t==3){
+						upValues << tti << "\t" << bsIds << "\t"
+							<< msIds << "\t"
+							<< bsId << "\t"
+							<< rb << "\t"
+							<< pg << "\t"
+							<< fading << "\t"
+							<< sh << "\t"
+							<< coeffUpTable[bsIds][0][msIds][3][rb]
+							<< std::endl;
+					}
 				}
 			}
 		}
@@ -140,7 +142,8 @@ void FactoryChannel::recomputeCoefficients(
 				for(size_t t=0; t<timeSamples; ++t){
 					for(size_t rb=0; rb<upRBs; ++rb){
 						fading = fadingExponential();
-						coeffUpD2DTable[bsIds][recMsId][msIds][t][rb] = pg * fading;
+						sh = shadowing();
+						coeffUpD2DTable[bsIds][recMsId][msIds][t][rb] = pg * fading * sh;
 					}
 				}
 			}
@@ -161,7 +164,8 @@ void FactoryChannel::recomputeCoefficients(
 				for(size_t t=0; t<timeSamples; ++t){
 					for(size_t rb=0; rb<downRBs; ++rb){
 						fading = fadingExponential();
-						coeffDownD2DTable[bsIds][recMsId][msIds][t][rb] = pg * fading;
+						sh = shadowing();
+						coeffDownD2DTable[bsIds][recMsId][msIds][t][rb] = pg * fading * sh;
 					}
 				}
 			}
@@ -192,6 +196,10 @@ double FactoryChannel::fadingRicean(double pl, double gainTx, double gainRx){
 
 double FactoryChannel::fadingExponential(){
 	return exponential(expMean);
+}
+
+double FactoryChannel::shadowing(){
+	return lognormal(0,shSigma);
 }
 
 FactoryChannel::~FactoryChannel(){

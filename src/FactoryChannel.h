@@ -18,6 +18,7 @@ class FactoryChannel: public Channel{
 		double pl0;
 		double kMean;
 		double kSigma;
+		double shSigma;
 		double bsGain;
 		double msGain;
 		double transPower;
@@ -29,6 +30,7 @@ class FactoryChannel: public Channel{
 		double pathgain(Position sender, Position receiver);
 		double fadingRicean(double pl, double gainTx, double gainRx);
 		double fadingExponential();
+		double shadowing();
 		void recomputeCoefficients(
 				const std::vector<std::vector<Position>>& msPositions);
 	

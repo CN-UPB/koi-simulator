@@ -183,6 +183,8 @@ simple BsChannel  {
 		double msGain = default(1.0dB) @unit(dB);
 		// Transmission power in Watts
 		double transmissionPower = default(1.0W) @unit(W);
+		// Standard deviation of the normal distribution for Shadowing
+		double shadowSigma = default(1.0);
 		@display("i=block/rxtx");
 		
 	gates:
