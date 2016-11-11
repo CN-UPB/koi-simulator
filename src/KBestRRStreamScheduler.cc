@@ -14,6 +14,7 @@
 #include <cmath>
 #include <forward_list>
 #include <fstream>
+#include <iterator>
 #include <numeric>
 #include <vector>
 
@@ -108,8 +109,7 @@ std::set<int>::iterator KBestRRStreamScheduler::scheduleKBest(
 		std::sort(blocks.begin(),blocks.end(),blockComp);
 		// Assign the k best resource blocks to station id and remove them from 
 		// the list of available resource blocks.
-		originAssignments[id][dir].resize(k);
-		std::move(blocks.begin(),blocks.begin()+k,originAssignments[id][dir].begin());
+		std::move(blocks.begin(),blocks.begin()+k,std::back_inserter(originAssignments[id][dir]));
 		blocks.erase(blocks.begin(),blocks.begin()+k);
 		if(simTime()>initOffset){
 			auto val = (simTime()-initOffset)/tti;

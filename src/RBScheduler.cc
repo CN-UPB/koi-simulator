@@ -12,6 +12,7 @@
 #include "QueueSort_m.h"
 #include "TransReqList_m.h"
 #include "util.h"
+#include <algorithm>
 #include <list>
 
 using std::vector;
@@ -37,7 +38,7 @@ StreamTransSched *RBScheduler::getSchedule(
 		KoiData *bestPacket = nullptr;
 		// The following code iterates over all transmission requests and finds 
 		// the rquest with the best packet, according to the scheduler's "compare" 
-		// method.
+		// member.
 		StreamTransReq *currReq;
 		for(auto iter=reqs.begin(); iter!=reqs.end(); iter++){
 			currReq = *iter;
@@ -58,6 +59,10 @@ StreamTransSched *RBScheduler::getSchedule(
 					// scheduled.
 					bestReq = currReq;
 					bestPacket = currPacket;
+					// Packets are sorted according to comparator, no further searching
+					// needed as there are not going to be better packets deeper into 
+					// the queue.
+					break;
 				}
 			}
 		}
@@ -112,6 +117,7 @@ StreamTransSched *RBScheduler::getSchedule(
 						// becomes the new package to be 
 						// scheduled.
 						bestPacket = currPacket;
+						break;
 					}
 				}
 			}
@@ -130,7 +136,7 @@ StreamTransSched *RBScheduler::getSchedule(
 					dir = direction;
 				}
 				bestPacket->setMessageDirection(dir);
-				if(channelCap-bestPacket->getBitLength()>=0){
+				if(channelCap-bestPacket->getBitLength()>0){
 					channelCap -= bestPacket->getBitLength();
 					bestPacket->setScheduled(true);
 				}
@@ -139,7 +145,10 @@ StreamTransSched *RBScheduler::getSchedule(
 					KoiData *leftover = new KoiData(*bestPacket);
 					leftover->setBitLength(channelCap);
 					leftover->setScheduled(true);
-					currReq->getPackets()->push_back(leftover);
+					list<KoiData*>* squeue(currReq->getPackets());
+					auto p = std::lower_bound(squeue->begin(),squeue->end(),leftover,
+							comparator);
+					squeue->insert(p,leftover);
 					channelCap = 0;
 				}
 			}
