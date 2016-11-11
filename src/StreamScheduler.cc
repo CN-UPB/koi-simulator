@@ -185,6 +185,15 @@ void StreamScheduler::handleMessage(cMessage *msg){
           }
         }
 			} break;
+		case MessageType::sortOrder:
+			// Forward the sort order function for packet queues to all local 
+			// MS and the local BS
+			send(msg->dup(),"toBs");
+			for(int i=0; i<gateSize("toMs"); ++i){
+				send(msg->dup(),"toMs",i);
+			}
+			delete msg;
+			break;
     default:
         std::cerr << "Received invalid Message in "
           << "StreamScheduler handleMessage"

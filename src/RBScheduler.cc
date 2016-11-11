@@ -9,6 +9,7 @@
 
 #include "RBScheduler.h"
 #include "MessageTypes.h"
+#include "QueueSort_m.h"
 #include "TransReqList_m.h"
 #include "util.h"
 #include <list>
@@ -22,6 +23,9 @@ Define_Module(RBScheduler);
 void RBScheduler::initialize(){
 	this->rbNumber = par("rbNumber");
 	this->numSubcarriers = par("numSubcarriers");
+	QueueSort *s = new QueueSort();
+	s->setSortfn(comparator);
+	scheduleAt(simTime(),s);
 }
 
 StreamTransSched *RBScheduler::getSchedule(
@@ -177,8 +181,7 @@ void RBScheduler::handleMessage(cMessage *msg){
 		}
 		delete req;
 	}
-}
-
-bool RBScheduler::comparator(const KoiData *left, const KoiData *right) const{
-	return left->getCreationTime()<right->getCreationTime();
+	else if(msg->getKind()==MessageType::sortOrder){
+		send(msg,"scheduler$o");
+	}
 }

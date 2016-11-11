@@ -8,6 +8,7 @@
 #include "MsMac.h"
 #include "PositionExchange_m.h"
 #include "KoiData_m.h"
+#include "QueueSort_m.h"
 #include "TransmitRequest_m.h"
 #include "Schedule_m.h"
 #include "StreamInfo_m.h"
@@ -306,6 +307,11 @@ void MsMac::handleMessage(cMessage *msg)  {
 	}
 	else if(msg->getKind()==MessageType::transInfo){
 		send(msg,"toPhy");
+	}
+	else if(msg->getKind()==MessageType::sortOrder){
+		QueueSort *s = dynamic_cast<QueueSort*>(msg);
+		comparator = s->getSortfn();
+		delete msg;
 	}
 	else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
 		// Send requests for each stream originating from this MS to the 

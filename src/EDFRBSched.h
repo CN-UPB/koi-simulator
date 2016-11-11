@@ -20,8 +20,11 @@
 #include <vector>
 
 class EDFRBSched: public RBScheduler{
+	private:
+		const std::function<bool(const KoiData*,const KoiData*)> comparator = 
+			[](const KoiData *left,const KoiData *right) -> bool{
+				return left->getCreationTime()<right->getCreationTime();
+			};
 	public:
-		virtual bool comparator(const KoiData *left, 
-				const KoiData *right) const;
 		~EDFRBSched() = default;
 };

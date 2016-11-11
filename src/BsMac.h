@@ -16,12 +16,14 @@
 #include <vector>
 #include <unordered_map>
 #include <list>
+#include <functional>
 
 using namespace std;
 using namespace itpp;
 
 class BsMac : public cSimpleModule  {
     private:
+				std::function<bool(const KoiData*, const KoiData*)> comparator;
         int numberOfMobileStations;
         int maxNumberOfNeighbours;
         int bsId;

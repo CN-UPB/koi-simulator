@@ -11,6 +11,7 @@
 #include "SINR_m.h"
 #include "PositionExchange_m.h"
 #include "BsMsPositions_m.h"
+#include "QueueSort_m.h"
 #include "StreamInfo_m.h"
 #include "StreamTransReq_m.h"
 #include "StreamTransSched_m.h"
@@ -220,6 +221,11 @@ void BsMac::handleMessage(cMessage *msg)  {
 			writePositions();
 		}
 
+		delete msg;
+	}
+	else if(msg->getKind()==MessageType::sortOrder){
+		QueueSort *s = dynamic_cast<QueueSort*>(msg);
+		comparator = s->getSortfn();
 		delete msg;
 	}
 	else if(msg->isSelfMessage())  {

@@ -14,6 +14,7 @@
 #include <itpp/itbase.h>
 #include <algorithm>
 #include <fstream>
+#include <functional>
 #include <list>
 #include <unordered_map>
 
@@ -23,6 +24,7 @@ using namespace std;
 class MsMac : public cSimpleModule  {
     private:
 			unordered_map<unsigned long,list<KoiData*>> streamQueues;
+			std::function<bool(const KoiData*, const KoiData*)> comparator;
 			Position msPosition;
 			std::ofstream rateFile;
 			int msId;

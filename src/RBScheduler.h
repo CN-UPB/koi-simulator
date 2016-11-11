@@ -23,6 +23,7 @@
 #include "StreamTransReq_m.h"
 #include "KoiData_m.h"
 
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -31,6 +32,11 @@ class RBScheduler: public cSimpleModule{
 	private:
 		int rbNumber;
 		int numSubcarriers;
+		const std::function<bool(const KoiData*,const KoiData*)> comparator = 
+			[](const KoiData *left,const KoiData *right) -> bool{
+				return left->getCreationTime()<right->getCreationTime();
+			};
+
 		virtual StreamTransSched *getSchedule(
 				std::vector<StreamTransReq*>& reqs,
 				int direction,
@@ -41,6 +47,5 @@ class RBScheduler: public cSimpleModule{
 		virtual void handleMessage(cMessage *msg);
 	
 	public:
-		virtual bool comparator(const KoiData *left,const KoiData *right) const;
 		~RBScheduler() = default;
 };
