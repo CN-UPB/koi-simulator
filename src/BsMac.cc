@@ -272,8 +272,10 @@ void BsMac::handleMessage(cMessage *msg)  {
 	}
 	//data packet
 	else if(msg->arrivedOn("fromPhy"))  {
-		KoiData *packet = (KoiData *) msg;
-		streamQueues[packet->getStreamId()].push_back(packet);
+		KoiData *data = dynamic_cast<KoiData*>(msg);
+		list<KoiData*>& squeue(streamQueues[data->getStreamId()]);
+		auto p = std::lower_bound(squeue.begin(),squeue.end(),data,comparator);
+		this->streamQueues[data->getStreamId()].insert(p,data);
 	}
 }
 

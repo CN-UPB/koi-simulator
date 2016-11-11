@@ -17,6 +17,7 @@
 #include "SINR_m.h"
 #include "TransInfo_m.h"
 #include "util.h"
+#include <algorithm>
 #include <stdlib.h>
 #include <cmath>
 #include <random>
@@ -355,7 +356,9 @@ void MsMac::handleMessage(cMessage *msg)  {
 			} break;
 			case MessageType::koidata:{
 				KoiData *data = dynamic_cast<KoiData*>(msg);
-				this->streamQueues[data->getStreamId()].push_back(data);
+				list<KoiData*>& squeue(streamQueues[data->getStreamId()]);
+				auto p = std::lower_bound(squeue.begin(),squeue.end(),data,comparator);
+				this->streamQueues[data->getStreamId()].insert(p,data);
 			} break;
 		}
 	}
