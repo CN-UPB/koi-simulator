@@ -165,9 +165,7 @@ Position MsMac::initMsPositionLinear()  { //for MS Position along a straight roa
 
 Position MsMac::initMsPositionRand(){
 	double angle = uniform(0,360);
-	// Choose radius between 10m and the cell radius
-	// 10 meters is the minimum dist for the METIS model
-	double distToBs = uniform(10,radius);
+	double distToBs = uniform(1.1,radius);
 	// Convert angle to radians for math library functions
 	angle = angle * (M_PI/180);
 	Position initPos;
