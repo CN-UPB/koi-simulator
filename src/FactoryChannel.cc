@@ -199,7 +199,8 @@ double FactoryChannel::fadingExponential(){
 }
 
 double FactoryChannel::shadowing(){
-	return lognormal(0,shSigma);
+	double inDB = normal(0,shSigma);
+	return std::pow(10.0,inDB/10);
 }
 
 FactoryChannel::~FactoryChannel(){
