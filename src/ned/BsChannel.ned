@@ -185,6 +185,8 @@ simple BsChannel  {
 		double transmissionPower = default(1.0W) @unit(W);
 		// Standard deviation of the normal distribution for Shadowing
 		double shadowSigma = default(1.0);
+		// Do Debug output?
+		bool debug = default(false);
 		@display("i=block/rxtx");
 		
 	gates:

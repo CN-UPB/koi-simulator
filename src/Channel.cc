@@ -26,6 +26,7 @@ bool Channel::init(cSimpleModule* module,
 	bsId = module->par("bsId");
 	considerInterference = module->par("considerInterference");
 	downRBs = module->par("downResourceBlocks");
+	debug = module->par("debug");
 	initModule = module;
 	maxNumberOfNeighbours = module->par("maxNumberOfNeighbours");
 	this->neighbourPositions = neighbourPositions;

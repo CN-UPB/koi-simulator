@@ -32,12 +32,16 @@ bool FactoryChannel::init(cSimpleModule* module,
 	msGain = std::pow(10,msGain/10.0);
 	transPower = module->par("transmissionPower");
 	initOffset = module->par("initOffset");
-	std::string fname("coeff_table_down-"+std::to_string(bsId));
-	downValues = std::move(getResultFile(fname));
-	downValues << "TTI\t" << "BS\t" << "MS\t" << "RB\t" << "PL\t" << "Fade\t" << "Shadow\t" << "Coeff" << "\n"; 
-	fname = "coeff_table_up-"+std::to_string(bsId);
-	upValues = std::move(getResultFile(fname));
-	upValues << "TTI\t" << "Cell\t" << "MS\t" << "BS\t" << "RB\t" << "PL\t" << "Fade\t" << "Shadow\t" << "Coeff" << "\n"; 
+	if(debug){
+		std::string fname("coeff_table_down-"+std::to_string(bsId));
+		downValues = std::move(getResultFile(fname));
+		downValues << "TTI\t" << "BS\t" << "MS\t" << "RB\t" << "PL\t" 
+			<< "Fade\t" << "Shadow\t" << "Coeff" << "\n"; 
+		fname = "coeff_table_up-"+std::to_string(bsId);
+		upValues = std::move(getResultFile(fname));
+		upValues << "TTI\t" << "Cell\t" << "MS\t" << "BS\t" << "RB\t" << "PL\t" 
+			<< "Fade\t" << "Shadow\t" << "Coeff" << "\n"; 
+	}
 	recomputeCoefficients(msPositions);
 	return true;
 }
@@ -81,7 +85,7 @@ void FactoryChannel::recomputeCoefficients(
 					fading = fadingExponential();
 					sh = shadowing();
 					coeffDownTable[msIds][bsIds][t][rb] = pg * fading * sh;
-					if(simTime()>initOffset && t==3){
+					if(simTime()>initOffset && t==3 && debug){
 						downValues << tti << "\t" << bsIds << "\t"
 							<< msIds << "\t"
 							<< rb << "\t"
@@ -112,7 +116,7 @@ void FactoryChannel::recomputeCoefficients(
 					fading = fadingExponential();
 					sh = shadowing();
 					coeffUpTable[bsIds][0][msIds][t][rb] = pg * fading * sh;
-					if(simTime()>initOffset && t==3){
+					if(simTime()>initOffset && t==3 && debug){
 						upValues << tti << "\t" << bsIds << "\t"
 							<< msIds << "\t"
 							<< bsId << "\t"

@@ -57,6 +57,12 @@ class Channel{
 		 */
 		bool considerInterference;
 		/**
+		 * Be more verbose.
+		 *
+		 * WARNING! This may potentially produce Gigabytes of additional data!
+		 */
+		bool debug;
+		/**
 		 * Number of down resource blocks
 		 */
 		int downRBs;
