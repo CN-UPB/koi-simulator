@@ -32,6 +32,10 @@ bool FactoryChannel::init(cSimpleModule* module,
 	msGain = std::pow(10,msGain/10.0);
 	transPower = module->par("transmissionPower");
 	initOffset = module->par("initOffset");
+	randEng = std::mt19937_64(module->getRNG(0)->intRand());
+	distExp = std::exponential_distribution<double>(expMean);
+	distNorm = std::normal_distribution<double>(0.0,shSigma);
+
 	if(debug){
 		std::string fname("coeff_table_down-"+std::to_string(bsId));
 		downValues = std::move(getResultFile(fname));
@@ -199,11 +203,11 @@ double FactoryChannel::fadingRicean(double pl, double gainTx, double gainRx){
 }
 
 double FactoryChannel::fadingExponential(){
-	return exponential(expMean);
+	return distExp(randEng);
 }
 
 double FactoryChannel::shadowing(){
-	double inDB = normal(0,shSigma);
+	double inDB = distNorm(randEng);
 	return std::pow(10.0,inDB/10);
 }
 
