@@ -7,8 +7,12 @@
 #include "Channel.h"
 #include "includes.h"
 #include "Position.h"
+
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/exponential_distribution.hpp>
+#include <boost/random/normal_distribution.hpp>
+
 #include <fstream>
-#include <random>
 #include <vector>
 
 class FactoryChannel: public Channel{
@@ -27,9 +31,9 @@ class FactoryChannel: public Channel{
 		std::ofstream downValues;
 		std::ofstream upValues;
 		std::vector<std::vector<Position>> msPos;
-		std::mt19937_64 randEng;
-		std::exponential_distribution<double> distExp;
-		std::normal_distribution<double> distNorm;
+		boost::random::mt19937 randEng;
+		boost::random::exponential_distribution<double> distExp;
+		boost::random::normal_distribution<double> distNorm;
 
 		double pathgain(Position sender, Position receiver);
 		double fadingRicean(double pl, double gainTx, double gainRx);

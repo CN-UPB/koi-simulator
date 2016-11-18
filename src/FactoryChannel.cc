@@ -32,9 +32,9 @@ bool FactoryChannel::init(cSimpleModule* module,
 	msGain = std::pow(10,msGain/10.0);
 	transPower = module->par("transmissionPower");
 	initOffset = module->par("initOffset");
-	randEng = std::mt19937_64(module->getRNG(0)->intRand());
-	distExp = std::exponential_distribution<double>(expMean);
-	distNorm = std::normal_distribution<double>(0.0,shSigma);
+	randEng = boost::random::mt19937(module->getRNG(0)->intRand());
+	distExp = boost::random::exponential_distribution<double>(expMean);
+	distNorm = boost::random::normal_distribution<double>(0.0,shSigma);
 
 	if(debug){
 		std::string fname("coeff_table_down-"+std::to_string(bsId));
