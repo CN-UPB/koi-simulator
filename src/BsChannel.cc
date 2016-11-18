@@ -97,8 +97,8 @@ void BsChannel::initialize()  {
 		PointerExchange *PtrMessage = new PointerExchange("POINTER_EXCHANGE2");
 		PtrMessage->setPtr(channel);
 		send(PtrMessage, "toPhy"); //set to 999*tti originally
+		scheduleAt(simTime()+initOffset-epsilon, new cMessage("SINR_ESTIMATION"));
 	}
-	scheduleAt(simTime()+initOffset-epsilon, new cMessage("SINR_ESTIMATION"));
 }
 
 void BsChannel::handleMessage(cMessage *msg)  {
