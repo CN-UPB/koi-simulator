@@ -12,6 +12,7 @@
 #pragma once
 
 #include "includes.h"
+#include <fstream>
 #include <unordered_map>
 
 class TrafficGen: public cSimpleModule{
@@ -41,17 +42,18 @@ class TrafficGen: public cSimpleModule{
 		int bsId;
 		std::unordered_map<unsigned long,StreamDef> streams;
 		double initOffset;
-                double tti;
+		double tti;
 		int msId;
 		int packetLength;
 		bool periodicTraffic;
 		static std::vector<StreamDef> parseCommTable(
 				const std::string& path,int bsId, int msId);
+		std::ofstream delays;
 	
 	protected:
 		virtual void initialize();
 		virtual void handleMessage(cMessage *msg);
 	
 	public:
-		~TrafficGen() = default;
+		~TrafficGen();
 };

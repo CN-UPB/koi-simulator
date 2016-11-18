@@ -9,7 +9,9 @@
 #include "StreamInfo_m.h"
 #include "MessageTypes.h"
 #include "omnetpp.h"
+#include "util.h"
 
+#include <fstream>
 #include <iostream>
 #include <vector>
 
@@ -26,6 +28,8 @@ void TrafficGen::initialize(){
 	this->periodicTraffic = par("periodicTraffic");
 	this->tti = par("tti");
 
+	std::string fname("delay_ms-"+std::to_string(bsId)+"-"+std::to_string(msId));
+	delays = std::move(getResultFile(fname));
 	string xmlPath = par("commTable");
 	vector<StreamDef> parsedStreams(parseCommTable(xmlPath,bsId,msId));
 	simtime_t currTime = simTime();
@@ -95,6 +99,9 @@ void TrafficGen::handleMessage(cMessage *msg){
 			<< " to " << pack->getDest() 
 			<< std::endl;
                 */
+		// Write total transmission time in ms to file
+		simtime_t delay = (simTime()-pack->getCreationTime());
+		delays << delay*1000 << std::endl;
 		delete pack;
 	}
 }
@@ -121,4 +128,8 @@ vector<TrafficGen::StreamDef> TrafficGen::parseCommTable(const string& commTable
 			std::stoi(curr->getAttribute("d2d")));
 	}
 	return parsedStreams;
+}
+
+TrafficGen::~TrafficGen(){
+	delays.close();
 }
