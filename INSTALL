@@ -29,6 +29,8 @@ The KOI simulation also requires the IT++ library. Install it via your
 distribution's package manager. The library is probably named "itpp" or 
 "libitpp".
 
+In addition, the BOOST random library is needed.
+
 Compilation
 -----------
 
