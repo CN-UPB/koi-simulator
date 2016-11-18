@@ -27,6 +27,8 @@ simple EDFStreamSched like StreamScheduler{
 		// cannot be guaranteed by generation order.
 		double epsilon @unit(s);
 		int bsId;
+		// Do Debug output?
+		bool debug = default(false);
 		@class("EDFStreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.

@@ -56,6 +56,8 @@ simple MsChannel  {
 		double chnBandwidth = default(180000Hz) @unit(Hz);
 		// Bandwidth available to each resource block
 		double bandwidthPerRB @unit(Hz);
+		// Do Debug output?
+		bool debug = default(false);
 		@display("i=block/rxtx");
 	gates:
 		// Gate for incoming simulation traffic packets from the 

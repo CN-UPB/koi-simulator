@@ -32,6 +32,7 @@ class StreamScheduler: public cSimpleModule{
 	protected:
 		simtime_t initOffset;
 		simtime_t epsilon;
+		bool debug;
 		int numberOfMs;
 		int upRB;
 		int downRB;

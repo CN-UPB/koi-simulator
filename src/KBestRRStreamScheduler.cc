@@ -31,6 +31,7 @@ void KBestRRStreamScheduler::initialize(){
 	this->upK = par("upK");
 	this->downK = par("downK");
 	this->bsId = par("bsId");
+	this->debug = par("debug");
 	// Fill the origins set with all possible origins for transmission requests,
 	// a.k.a all local mobile stations plus the local base station.
 	// First add id -1, representing the local base station
@@ -41,20 +42,24 @@ void KBestRRStreamScheduler::initialize(){
 	}
 	originUpIter = allOrigins.begin();
 	originDownIter = allOrigins.begin();
-	// Prepare result files for schedules
-	std::string fname("schedule-up-cell-"+std::to_string(bsId));
-	upSchedule = std::move(getResultFile(fname));
-	upSchedule << "TTI\t" << "Cell\t" 
-		<< "MS\t" << "RB\t" << "SINR" << std::endl;
-	fname = "schedule-down-cell-"+std::to_string(bsId);
-	downSchedule = std::move(getResultFile(fname));
-	downSchedule << "TTI\t" << "Cell\t"
-		<< "MS\t" << "RB\t" << "SINR" << std::endl;
+	if(debug){
+		// Prepare result files for schedules
+		std::string fname("schedule-up-cell-"+std::to_string(bsId));
+		upSchedule = std::move(getResultFile(fname));
+		upSchedule << "TTI\t" << "Cell\t" 
+			<< "MS\t" << "RB\t" << "SINR" << std::endl;
+		fname = "schedule-down-cell-"+std::to_string(bsId);
+		downSchedule = std::move(getResultFile(fname));
+		downSchedule << "TTI\t" << "Cell\t"
+			<< "MS\t" << "RB\t" << "SINR" << std::endl;
+	}
 }
 
 void KBestRRStreamScheduler::finish(){
-	upSchedule.close();
-	downSchedule.close();
+	if(debug){
+		upSchedule.close();
+		downSchedule.close();
+	}
 }
 
 std::set<int>::iterator KBestRRStreamScheduler::scheduleKBest(
@@ -111,7 +116,7 @@ std::set<int>::iterator KBestRRStreamScheduler::scheduleKBest(
 		// the list of available resource blocks.
 		std::move(blocks.begin(),blocks.begin()+k,std::back_inserter(originAssignments[id][dir]));
 		blocks.erase(blocks.begin(),blocks.begin()+k);
-		if(simTime()>initOffset){
+		if(simTime()>initOffset && debug){
 			auto val = (simTime()-initOffset)/tti;
 			int tti = std::floor(val);
 			if(dir==MessageDirection::up){

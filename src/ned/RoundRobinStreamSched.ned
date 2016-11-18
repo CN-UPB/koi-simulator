@@ -26,6 +26,8 @@ simple RoundRobinStreamSched like StreamScheduler{
 		// cannot be guaranteed by generation order.
 		double epsilon @unit(s);
 		int bsId;
+		// Do Debug output?
+		bool debug = default(false);
 		@class("StreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.

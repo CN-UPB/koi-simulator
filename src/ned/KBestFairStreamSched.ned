@@ -26,6 +26,8 @@ simple KBestFairStreamSched like StreamScheduler{
 		int packetLength @unit(b);
 		// Number of subcarriers for OFDM
 		int numSubcarriers = default(12);
+		// Do Debug output?
+		bool debug = default(false);
 		@class("KBestFairStreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.

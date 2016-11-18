@@ -33,6 +33,8 @@ simple KBestRRStreamSched like StreamScheduler{
 		// Number of best RB assigned to senders each TTI for DOWN transmissions
 		int downK;
 		int bsId;
+		// Do Debug output?
+		bool debug = default(false);
 		@class("KBestRRStreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.

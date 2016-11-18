@@ -45,6 +45,8 @@ moduleinterface StreamScheduler {
 		// A small offset used control message order in cases where ordering 
 		// cannot be guaranteed by generation order.
 		double epsilon @unit(s);
+		// Do Debug output?
+		bool debug;
 		@display("i=block/dispatch");
 	gates:
 		// For schedule exchange with the local BaseStation.

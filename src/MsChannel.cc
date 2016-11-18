@@ -27,6 +27,7 @@ void MsChannel::initialize()  {
 	initOffset = par("initOffset");
 	tti = par("tti");
 	msId = par("msId");
+	debug = par("debug");
 	downResourceBlocks = par("downResourceBlocks");
 	upResourceBlocks = par("upResourceBlocks");
 	numMSAntenna = par("NumMsAntenna");
@@ -38,18 +39,21 @@ void MsChannel::initialize()  {
 	// EESM Beta values for effective SINR
 	string eesm_beta = par("eesm_beta");
 	eesm_beta_values = vec(eesm_beta);
-
-	// File for SINR value storage
-	std::string fname("sinr-ms-"+std::to_string(bsId)+"-"+std::to_string(msId));
-	sinrFile = std::move(getResultFile(fname));
-	sinrFile << "TTI\t" 
-		<< "Cell\t" << "MS\t" << "RB\t" << "SINR" << std::endl;
+	if(debug){
+		// File for SINR value storage
+		std::string fname("sinr-ms-"+std::to_string(bsId)+"-"+std::to_string(msId));
+		sinrFile = std::move(getResultFile(fname));
+		sinrFile << "TTI\t" 
+			<< "Cell\t" << "MS\t" << "RB\t" << "SINR" << std::endl;
+	}
 	
 	scheduleAt(simTime()+initOffset-epsilon, new cMessage("SINR_ESTIMATION")); //originally set to 1000*tti + epsilon
 }
 
 void MsChannel::finish(){
-	sinrFile.close();
+	if(debug){
+		sinrFile.close();
+	}
 }
 
 void MsChannel::handleMessage(cMessage *msg)  {
@@ -80,7 +84,7 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		// Route estimate to MsMac via MsPhy
 		send(sinrMessage,"toPhy");
 		scheduleAt(simTime() + tti, msg);
-		if(simTime()>initOffset){
+		if(simTime()>initOffset && debug){
 			auto val = (simTime()-initOffset)/tti;
 			int tti = std::floor(val);
 			for(int i = 0; i < upResourceBlocks; i++){
