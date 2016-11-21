@@ -335,7 +335,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 				send(req,"toScheduler");
 			}
 		}
-		scheduleAt(simTime() + tti-epsilon, msg);
+		scheduleAt(simTime() + tti, msg);
 	}
 	else if(msg->getKind()==MessageType::sinrEst)  {
 		// Forward estimates to BS Mac

@@ -142,7 +142,7 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		  }
 		 **/
 		// For now, all packets are received successfully
-		sendDelayed(packet, tti - epsilon, "toPhy");
+		sendDelayed(packet, epsilon, "toPhy");
 	}
 	
 }

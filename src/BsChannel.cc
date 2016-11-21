@@ -216,7 +216,7 @@ void BsChannel::handleMessage(cMessage *msg)  {
 			}
 		 **/
 		//For now, all packets are send successfully
-		sendDelayed(packet, tti - epsilon, "toPhy");
+		sendDelayed(packet, epsilon, "toPhy");
 
 	}
 }

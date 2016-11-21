@@ -257,7 +257,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 					send(req,"toScheduler");
 				}
 			}
-			scheduleAt(simTime() + tti-epsilon, msg);
+			scheduleAt(simTime() + tti, msg);
 		}
 		else if(msg->isName("DEBUG")){
 			// forward debug messages to BS channel
