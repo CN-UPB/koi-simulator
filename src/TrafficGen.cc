@@ -100,8 +100,7 @@ void TrafficGen::handleMessage(cMessage *msg){
 			<< std::endl;
                 */
 		// Write total transmission time in ms to file
-		simtime_t delay = (simTime()-pack->getCreationTime());
-		delays << delay*1000 << std::endl;
+		delays << pack->getTotalQueueDelay()*1000 << std::endl;
 		delete pack;
 	}
 }

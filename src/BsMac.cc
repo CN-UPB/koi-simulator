@@ -138,6 +138,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 		KoiData *currPacket = nullptr;
 		set<int> infos;
 		int rate = 0;
+		simtime_t delay = 0.0;
 		for(auto streamIter = streamQueues.begin();
 				streamIter!=streamQueues.end(); ++streamIter){
 			list<KoiData*>& currList = streamIter->second;
@@ -149,6 +150,8 @@ void BsMac::handleMessage(cMessage *msg)  {
 					// Set CQI for a fixed value until we decide on how to 
 					// compute it
 					currPacket->setCqi(15);
+					delay = currPacket->getTotalQueueDelay() + (simTime() - currPacket->getLatestQueueEntry());
+					currPacket->setTotalQueueDelay(delay);
 					this->take(currPacket);
 					sendDelayed(currPacket, epsilon, "toPhy");
 
@@ -273,6 +276,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 	//data packet
 	else if(msg->arrivedOn("fromPhy"))  {
 		KoiData *data = dynamic_cast<KoiData*>(msg);
+		data->setLatestQueueEntry(simTime());
 		list<KoiData*>& squeue(streamQueues[data->getStreamId()]);
 		auto p = std::lower_bound(squeue.begin(),squeue.end(),data,comparator);
 		this->streamQueues[data->getStreamId()].insert(p,data);

@@ -23,5 +23,7 @@ packet KoiData {
 	double transPower; // The transmission power used for this packet
 	int messageDirection @enum(MessageDirection);
 	bool scheduled = false; // This packet is scheduled to be send in the current TTI
+	simtime_t latestQueueEntry; // Most recent entry time into a queue
+	simtime_t totalQueueDelay; // Total timew spend in Queues
 	kind = MessageType::koidata;
 }
