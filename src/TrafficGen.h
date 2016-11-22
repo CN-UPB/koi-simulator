@@ -13,6 +13,7 @@
 
 #include "includes.h"
 #include <fstream>
+#include <mutex>
 #include <unordered_map>
 
 class TrafficGen: public cSimpleModule{
@@ -46,9 +47,14 @@ class TrafficGen: public cSimpleModule{
 		int msId;
 		int packetLength;
 		bool periodicTraffic;
-		static std::vector<StreamDef> parseCommTable(
-				const std::string& path,int bsId, int msId);
 		std::ofstream delays;
+		/**
+		 * Flag signaling that comm table loading should only be conducted once
+		 */
+		static std::once_flag tFlag;
+		static cXMLElement* commTable;
+		static std::vector<StreamDef> parseCommTable(int bsId, int msId);
+		static void loadComTable(const std::string& fpath);
 	
 	protected:
 		virtual void initialize();

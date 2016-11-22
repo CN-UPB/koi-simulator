@@ -13,12 +13,16 @@
 
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include <vector>
 
 using std::vector;
 using std::string;
 
 Define_Module(TrafficGen);
+
+std::once_flag TrafficGen::tFlag;
+cXMLElement* TrafficGen::commTable;
 
 void TrafficGen::initialize(){
 	this->bsId = par("bsId");
@@ -30,9 +34,12 @@ void TrafficGen::initialize(){
 
 	std::string fname("delay_ms-"+std::to_string(bsId)+"-"+std::to_string(msId));
 	delays = std::move(getResultFile(fname));
+
 	string xmlPath = par("commTable");
-	vector<StreamDef> parsedStreams(parseCommTable(xmlPath,bsId,msId));
-	simtime_t currTime = simTime();
+	// Only load the table once!
+	std::call_once(tFlag,loadComTable,xmlPath);
+
+	vector<StreamDef> parsedStreams(parseCommTable(bsId,msId));
 	for(StreamDef& stream:parsedStreams){
 		this->streams[stream.streamId] = stream;
 		if(this->periodicTraffic){
@@ -105,15 +112,12 @@ void TrafficGen::handleMessage(cMessage *msg){
 	}
 }
 
-vector<TrafficGen::StreamDef> TrafficGen::parseCommTable(const string& commTable,
-		int bsId,
-		int msId){
+vector<TrafficGen::StreamDef> TrafficGen::parseCommTable(int bsId, int msId){
 	vector<TrafficGen::StreamDef> parsedStreams;
 	string xpath("/root/cell[@id='"
 			+std::to_string(bsId)
 			+"']/ms[@id='"+std::to_string(msId)+"']");
-	cXMLElement *msNode = ev.getXMLDocument(commTable.c_str(),
-			xpath.c_str());
+	cXMLElement *msNode = commTable->getElementByPath(xpath.c_str(),commTable);
 	unsigned long sId;
 	for(cXMLElement *curr=msNode->getFirstChild();curr!=nullptr;
 			curr=curr->getNextSibling()){
@@ -127,6 +131,10 @@ vector<TrafficGen::StreamDef> TrafficGen::parseCommTable(const string& commTable
 			std::stoi(curr->getAttribute("d2d")));
 	}
 	return parsedStreams;
+}
+
+void TrafficGen::loadComTable(const std::string& fpath){
+	commTable = ev.getXMLDocument(fpath.c_str(),nullptr);
 }
 
 TrafficGen::~TrafficGen(){
