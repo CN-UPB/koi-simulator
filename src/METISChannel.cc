@@ -157,13 +157,10 @@ void METISChannel::recomputeLargeScaleParameters(const vector<Position>& senders
 		vector<vector<double>>& sigma_sf_NLOS
 		){
 	double dist2D;
-	std::cout << "Before Auto Correlation!" << std::endl;
 	
 	// Generate Autocorrelation
 	vector<vector<vector<double>>> correlation;
 	generateAutoCorrelation_LOS(senders,receivers,correlation);
-	
-	std::cout << "After Auto Correlation!" << std::endl;
        
 	//TODO: Remove hardcoded, values taken after taking the square-root of the cross_matrix using sqrtm() in MATLAB
 	double cross_matrix[7][7] = {
@@ -207,14 +204,10 @@ void METISChannel::recomputeLargeScaleParameters(const vector<Position>& senders
 		}
 	}
 
-    	// Initialize large scale parameters (Non Line of Sight)
-	std::cout << "Before Auto Correlation (NLOS)!" << std::endl;
-	
+	// Initialize large scale parameters (Non Line of Sight)
 	// Generate Autocorrelation
 	correlation.clear();
 	generateAutoCorrelation_NLOS(senders,receivers,correlation);
-	
-	std::cout << "After Auto Correlation (NLOS)!" << std::endl;
        
 	//TODO: Remove hardcoded, values taken after taking the square-root of the cross_matrix using sqrtm() in MATLAB 
 	double cross_matrix2[6][6] = {
@@ -291,7 +284,7 @@ METISChannel::recomputeClusterDelays(const vector<vector<bool>>& LOSCondition,
 	double delayScaling;
 	double min_delay;
 	double sigma_ds;
-    	for(size_t i = 0; i < LOSCondition.size(); i++){
+	for(size_t i = 0; i < LOSCondition.size(); i++){
 		for(size_t j = 0; j<LOSCondition[i].size(); j++){
 			if(LOSCondition[i][j]){
 				// LOS Condition
@@ -1099,8 +1092,6 @@ void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions
 			sigma_zsA_NLOS,
 			sigma_sf_NLOS
 			);
-	std::cout << "Finished Large Scale parameter.." << std::endl;
-
     	// Begin small scale parameter generation.
     
     	// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
@@ -1183,8 +1174,6 @@ void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions
 	vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum_LOS;
 	vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum;
 
-	std::cout << "START MAIN LOOP for BS: " << bsId << std::endl;
-
 	std::tie(raySum,raySum_LOS) = computeRaySums(LOSCondition,
 			sigma_kf_LOS,
 			numReceiverAntenna,
@@ -1204,15 +1193,6 @@ void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions
 			ZoD_LOS_dir
 			);
 	
-	std::cout << "FINISHED MAIN LOOP for BS: " << bsId << std::endl;
-
-	//output2 << "Init 3 METIS at BS " << bsId << " with rand: " << normal(0,1) << std::endl;
-		
-	//------------------------------------------------------------------
-	// Apply Fourier transform, to get time/frequency domain from time/delay
-	
-	std::cout << "START FOURIER TRANSFORM for BS: " << bsId << std::endl;
-
 	coeffDownTable = std::move(computeCoeffs(
 				LOSCondition,
 				receiverPos,
@@ -1229,7 +1209,6 @@ void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions
 				clusterDelays_LOS
 				));
 	
-	std::cout << "FINISHED FOURIER TRANSFORM for BS: " << bsId << std::endl;
 	
 }
 
@@ -1307,7 +1286,6 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 				sigma_zsA_NLOS,
 				sigma_sf_NLOS
 				);
-		std::cout << "Finished Large Scale parameter.." << std::endl;
 
 		// Begin small scale parameter generation.
 
@@ -1391,8 +1369,6 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 		vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum_LOS;
 		vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum;
 
-		std::cout << "START MAIN LOOP for BS: " << bsId << std::endl;
-
 		std::tie(raySum,raySum_LOS) = computeRaySums(LOSCondition,
 				sigma_kf_LOS,
 				numReceiverAntenna,
@@ -1412,15 +1388,6 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 				ZoD_LOS_dir
 				);
 
-		std::cout << "FINISHED MAIN LOOP for BS: " << bsId << std::endl;
-
-		//output2 << "Init 3 METIS at BS " << bsId << " with rand: " << normal(0,1) << std::endl;
-
-		//------------------------------------------------------------------
-		// Apply Fourier transform, to get time/frequency domain from time/delay
-
-		std::cout << "START FOURIER TRANSFORM for BS: " << bsId << std::endl;
-
 		coeffUpTable[j] = std::move(computeCoeffs(
 					LOSCondition,
 					receiverPos,
@@ -1437,8 +1404,6 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 					clusterDelays_LOS
 					));
 
-		std::cout << "FINISHED FOURIER TRANSFORM for BS: " << bsId << std::endl;
-	
 	}
     
 	
@@ -1538,7 +1503,6 @@ void METISChannel::recomputeD2DCoefficients(const vector<vector<Position>>& msPo
 				sigma_zsA_NLOS,
 				sigma_sf_NLOS
 				);
-		std::cout << "Finished Large Scale parameter.." << std::endl;
 
 		// Begin small scale parameter generation.
 
@@ -1622,8 +1586,6 @@ void METISChannel::recomputeD2DCoefficients(const vector<vector<Position>>& msPo
 		vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum_LOS;
 		vector<vector<vector<vector<vector<vector<complex<double>>>>>>> raySum;
 
-		std::cout << "START MAIN LOOP D2D for BS: " << bsId << std::endl;
-
 		std::tie(raySum,raySum_LOS) = computeRaySums(LOSCondition,
 				sigma_kf_LOS,
 				numReceiverAntenna,
@@ -1642,15 +1604,6 @@ void METISChannel::recomputeD2DCoefficients(const vector<vector<Position>>& msPo
 				AoD_LOS_dir,
 				ZoD_LOS_dir
 				);
-
-		std::cout << "FINISHED MAIN LOOP D2D for BS: " << bsId << std::endl;
-
-		//output2 << "Init 3 METIS at BS " << bsId << " with rand: " << normal(0,1) << std::endl;
-
-		//------------------------------------------------------------------
-		// Apply Fourier transform, to get time/frequency domain from time/delay
-
-		std::cout << "START FOURIER TRANSFORM D2D for BS: " << bsId << std::endl;
 
 		coeffUpD2DTable[j] = std::move(computeCoeffs(
 					LOSCondition,
@@ -1683,7 +1636,6 @@ void METISChannel::recomputeD2DCoefficients(const vector<vector<Position>>& msPo
 					clusterDelays_LOS
 					));
 
-		std::cout << "FINISHED FOURIER TRANSFORM D2D for BS: " << bsId << std::endl;
 	
 	}
     
