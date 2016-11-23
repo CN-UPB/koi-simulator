@@ -47,7 +47,7 @@ class TrafficGen: public cSimpleModule{
 		int msId;
 		int packetLength;
 		bool periodicTraffic;
-		std::ofstream delays;
+		std::ofstream* delays;
 		/**
 		 * Flag signaling that comm table loading should only be conducted once
 		 */

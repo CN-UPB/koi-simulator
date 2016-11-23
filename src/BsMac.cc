@@ -16,6 +16,7 @@
 #include "StreamTransReq_m.h"
 #include "StreamTransSched_m.h"
 #include "KoiData_m.h"
+#include "ResultFileExchange_m.h"
 #include "TransInfo_m.h"
 #include "util.h"
 #include <algorithm>
@@ -68,10 +69,18 @@ void BsMac::initialize()  {
     // At the end of each tti, send transmit request to scheduler for next 
     // tti.
     scheduleAt(simTime() + initOffset-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
+		// Result file streams for this cell need to be opened and pointers send
+		// out to all local mobile stations.
+		scheduleAt(simTime()+epsilon, new cMessage("RESULT_FILES"));
 
     #ifndef NDEBUG
     scheduleAt(simTime()+initOffset,new cMessage("DEBUG"));
     #endif
+}
+
+void BsMac::finish(){
+	delays_file.close();
+	rate_file.close();
 }
 
 /* important: this method does not delete the msg! */
@@ -120,7 +129,6 @@ void BsMac::handleMessage(cMessage *msg)  {
 		delete msg;
 	}
 	else if(msg->getKind()==MessageType::sinrEst){
-		SINR *sinrMessage = (SINR *) msg;
 		sinrEstCount++;
 		if(sinrEstCount==numberOfMobileStations+1){
 			// All local stations have completed their SINR estimates, so the 
@@ -265,6 +273,32 @@ void BsMac::handleMessage(cMessage *msg)  {
 		else if(msg->isName("DEBUG")){
 			// forward debug messages to BS channel
 			send(msg->dup(),"toBsChannel",0);
+			delete msg;
+		}
+		else if(msg->isName("RESULT_FILES")){
+			// When the number of mobile stations and/or cells increases, opening
+			// seperate result files for each MS would hit the maximum number of open
+			// files allowed per process. Thus, all per-MS data will now be 
+			// written to a single file per cell. As a file can only be opened once,
+			// we need to open it centrally here, and then send pointers to the 
+			// stream to all local MS.
+			// Not all too nice, but the ony possibility right now.
+			
+			std::cout << "Generating Results files " << std::endl;
+			ResultFileExchange *delays = new ResultFileExchange("DELAYS_FILE");
+			ResultFileExchange *rates = new ResultFileExchange("RATES_FILE");
+			std::string fname("delays-cell-"+std::to_string(bsId));
+			delays_file = std::move(getResultFile(fname));
+			delays_file << "MS\t" << "Delay" << std::endl;
+			delays->setPtr(&delays_file);
+			fname = "rates-cell-"+std::to_string(bsId);
+			rate_file = std::move(getResultFile(fname));
+			rate_file << "MS\t" << "Rate" << std::endl;
+			rates->setPtr(&rate_file);
+			for(int i = 0; i<numberOfMobileStations; i++){
+				send(delays->dup(),"toMsMac",i);
+				send(rates->dup(),"toMsMac",i);
+			}
 			delete msg;
 		}
 	}

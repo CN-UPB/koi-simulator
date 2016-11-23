@@ -13,10 +13,12 @@
 #include "Position.h"
 #include "util.h"
 #include "NeighbourIdMatching.h"
-#include <vector>
-#include <unordered_map>
-#include <list>
+
+#include <fstream>
 #include <functional>
+#include <list>
+#include <unordered_map>
+#include <vector>
 
 using namespace std;
 using namespace itpp;
@@ -41,10 +43,13 @@ class BsMac : public cSimpleModule  {
         simtime_t tti;
         simtime_t epsilon;
 				unordered_map<unsigned long,std::list<KoiData*>> streamQueues;
+				ofstream delays_file;
+				ofstream rate_file;
 				void writePositions();
 
     protected:
         virtual void initialize();
+				virtual void finish();
         virtual void handleMessage(cMessage *msg);
         
         double getEffectiveSINR(vector<double> sinrValues);

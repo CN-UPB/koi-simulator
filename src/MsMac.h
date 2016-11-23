@@ -26,7 +26,7 @@ class MsMac : public cSimpleModule  {
 			unordered_map<unsigned long,list<KoiData*>> streamQueues;
 			std::function<bool(const KoiData*, const KoiData*)> comparator;
 			Position msPosition;
-			std::ofstream rateFile;
+			std::ofstream* rateFile;
 			int msId;
 			int bsId;
 			int numberOfMobileStations;

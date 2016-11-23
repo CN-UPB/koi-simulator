@@ -6,6 +6,7 @@
 #include "TrafficGen.h"
 #include "KoiData_m.h"
 #include "Traffic_m.h"
+#include "ResultFileExchange_m.h"
 #include "StreamInfo_m.h"
 #include "MessageTypes.h"
 #include "omnetpp.h"
@@ -31,9 +32,6 @@ void TrafficGen::initialize(){
 	this->packetLength = par("packetLength");
 	this->periodicTraffic = par("periodicTraffic");
 	this->tti = par("tti");
-
-	std::string fname("delay_ms-"+std::to_string(bsId)+"-"+std::to_string(msId));
-	delays = std::move(getResultFile(fname));
 
 	string xmlPath = par("commTable");
 	// Only load the table once!
@@ -96,7 +94,7 @@ void TrafficGen::handleMessage(cMessage *msg){
 			
 		}
 	}
-	else if(msg->arrivedOn("fromMac")){
+	else if(msg->getKind()==MessageType::koidata){
 		KoiData *pack = dynamic_cast<KoiData*>(msg);
                 /**
 		std::cout << "Stream " << pack->getStreamId() << ": " 
@@ -107,8 +105,14 @@ void TrafficGen::handleMessage(cMessage *msg){
 			<< std::endl;
                 */
 		// Write total transmission time in ms to file
-		delays << pack->getTotalQueueDelay()*1000 << std::endl;
+		*delays << msId << "\t" << pack->getTotalQueueDelay()*1000 << std::endl;
 		delete pack;
+	}
+	else if(msg->isName("DELAYS_FILE")){
+		// Store pointer to delay results file
+		ResultFileExchange* ex = dynamic_cast<ResultFileExchange*>(msg);
+		delays = ex->getPtr();
+		delete ex;
 	}
 }
 
@@ -138,5 +142,4 @@ void TrafficGen::loadComTable(const std::string& fpath){
 }
 
 TrafficGen::~TrafficGen(){
-	delays.close();
 }

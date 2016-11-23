@@ -10,6 +10,7 @@
 #include "KoiData_m.h"
 #include "QueueSort_m.h"
 #include "TransmitRequest_m.h"
+#include "ResultFileExchange_m.h"
 #include "Schedule_m.h"
 #include "StreamInfo_m.h"
 #include "StreamTransReq_m.h"
@@ -17,6 +18,7 @@
 #include "SINR_m.h"
 #include "TransInfo_m.h"
 #include "util.h"
+
 #include <algorithm>
 #include <stdlib.h>
 #include <cmath>
@@ -226,9 +228,6 @@ void MsMac::initialize()  {
 			std::cout << "Invalid Ms placement algorithm " << (int) par("positioning") << std::endl;
 	}
 
-	std::string fname("rate-ms-"+std::to_string(bsId)+"-"+std::to_string(msId));
-	rateFile = std::move(getResultFile(fname));
-        
 	//every tti send transmit requests to stream scheduler
 	scheduleAt(simTime() + initOffset-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
 
@@ -240,7 +239,6 @@ void MsMac::initialize()  {
 }
 
 void MsMac::finish(){
-	rateFile.close();
 }
 
 void MsMac::handleMessage(cMessage *msg)  {
@@ -285,7 +283,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 					}
 				}
 			}
-		rateFile << rate << std::endl;
+		*rateFile << msId << "\t" << rate << std::endl;
 		}
 		for(auto& rb:infos.first){
 			TransInfo *info = new TransInfo();
@@ -314,6 +312,17 @@ void MsMac::handleMessage(cMessage *msg)  {
 		QueueSort *s = dynamic_cast<QueueSort*>(msg);
 		comparator = s->getSortfn();
 		delete msg;
+	}
+	else if(msg->isName("RATES_FILE")){
+		// Store pointer to the rate results file
+		ResultFileExchange* ex = dynamic_cast<ResultFileExchange*>(msg);
+		rateFile = ex->getPtr();
+		std::cout << "Rates pointer received" << std::endl;
+		delete ex;
+	}
+	else if(msg->isName("DELAYS_FILE")){
+		// Forward pointer to delays results file to the traffic generator
+		send(msg,"toApp");
 	}
 	else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
 		// Send requests for each stream originating from this MS to the 
