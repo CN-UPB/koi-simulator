@@ -203,7 +203,16 @@ double FactoryChannel::fadingRicean(double pl, double gainTx, double gainRx){
 }
 
 double FactoryChannel::fadingExponential(){
-	return distExp(randEng);
+	// Draw 16 values and take the best one
+	double choosen = distExp(randEng);
+	double curr;
+	for(int i = 0; i<15; ++i){
+		curr = distExp(randEng);
+		if(curr>choosen){
+			choosen = curr;
+		}
+	}
+	return choosen;
 }
 
 double FactoryChannel::shadowing(){
