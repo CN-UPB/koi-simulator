@@ -112,39 +112,41 @@ void ExpChannel::recomputeCoefficients(
 			}
 		}
 	}
-	// Compute D2D UP RB coefficients
-	coeffUpD2DTable.resize(numBs,
-			vector<vector<vector<vector<double>>>>(numberOfMobileStations));
-	for(size_t bsIds=0; bsIds<numBs; ++bsIds){
-		numMs = msPositions[bsIds].size();
-		for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
-			coeffUpD2DTable[bsIds][recMsId].resize(numMs,
-					vector<vector<double>>(timeSamples,
-						vector<double>(upRBs)));
-			for(size_t msIds=0; msIds<numMs; ++msIds){
-				for(size_t t=0; t<timeSamples; ++t){
-					for(size_t rb=0; rb<upRBs; ++rb){
-						pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
-						coeffUpD2DTable[bsIds][recMsId][msIds][t][rb] = pg * exponential(expMean);
+	if(d2dActive){
+		// Compute D2D UP RB coefficients
+		coeffUpD2DTable.resize(numBs,
+				vector<vector<vector<vector<double>>>>(numberOfMobileStations));
+		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+			numMs = msPositions[bsIds].size();
+			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
+				coeffUpD2DTable[bsIds][recMsId].resize(numMs,
+						vector<vector<double>>(timeSamples,
+							vector<double>(upRBs)));
+				for(size_t msIds=0; msIds<numMs; ++msIds){
+					for(size_t t=0; t<timeSamples; ++t){
+						for(size_t rb=0; rb<upRBs; ++rb){
+							pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
+							coeffUpD2DTable[bsIds][recMsId][msIds][t][rb] = pg * exponential(expMean);
+						}
 					}
 				}
 			}
 		}
-	}
-	// Compute D2D DOWN RB coefficients
-	coeffDownD2DTable.resize(numBs,
-			vector<vector<vector<vector<double>>>>(numberOfMobileStations));
-	for(size_t bsIds=0; bsIds<numBs; ++bsIds){
-		numMs = msPositions[bsIds].size();
-		for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
-			coeffDownD2DTable[bsIds][recMsId].resize(numMs,
-					vector<vector<double>>(timeSamples,
-						vector<double>(upRBs)));
-			for(size_t msIds=0; msIds<numMs; ++msIds){
-				for(size_t t=0; t<timeSamples; ++t){
-					for(size_t rb=0; rb<downRBs; ++rb){
-						pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
-						coeffDownD2DTable[bsIds][recMsId][msIds][t][rb] = pg * exponential(expMean);
+		// Compute D2D DOWN RB coefficients
+		coeffDownD2DTable.resize(numBs,
+				vector<vector<vector<vector<double>>>>(numberOfMobileStations));
+		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+			numMs = msPositions[bsIds].size();
+			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
+				coeffDownD2DTable[bsIds][recMsId].resize(numMs,
+						vector<vector<double>>(timeSamples,
+							vector<double>(upRBs)));
+				for(size_t msIds=0; msIds<numMs; ++msIds){
+					for(size_t t=0; t<timeSamples; ++t){
+						for(size_t rb=0; rb<downRBs; ++rb){
+							pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
+							coeffDownD2DTable[bsIds][recMsId][msIds][t][rb] = pg * exponential(expMean);
+						}
 					}
 				}
 			}

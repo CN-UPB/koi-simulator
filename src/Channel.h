@@ -57,6 +57,12 @@ class Channel{
 		 */
 		bool considerInterference;
 		/**
+		 * Should D2D values be computed? 
+		 *
+		 * If `false`, D2D coefficients (a.k.a Ms->Ms links) will not be computed.
+		 */
+		bool d2dActive;
+		/**
 		 * Be more verbose.
 		 *
 		 * WARNING! This may potentially produce Gigabytes of additional data!

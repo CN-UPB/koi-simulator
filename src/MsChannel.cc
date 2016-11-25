@@ -28,6 +28,7 @@ void MsChannel::initialize()  {
 	tti = par("tti");
 	msId = par("msId");
 	debug = par("debug");
+	d2dActive = par("d2dActive");
 	downResourceBlocks = par("downResourceBlocks");
 	upResourceBlocks = par("upResourceBlocks");
 	numMSAntenna = par("NumMsAntenna");
@@ -64,14 +65,18 @@ void MsChannel::handleMessage(cMessage *msg)  {
 
 		// Set SINR and rate estimation to the average SINR value over all 
 		// possible transmission recipients in the previous tti.
-		sinrMessage->setDownArraySize(downResourceBlocks);
-		sinrMessage->setRDownArraySize(downResourceBlocks);
 		double sinr = 0.0;
-		for(int i = 0; i < downResourceBlocks; i++){
-			sinr = channel->calcAvgD2DDownSINR(i,msId,1.0);
-			sinrMessage->setDown(i,sinr);
-			sinrMessage->setRDown(i,coding.getRBCapacity(sinr,numMSAntenna,
-						numBSAntenna));
+		if(d2dActive){
+			// Values for DOWN resource blocks are only needed with D2D, otherwise
+			// the MS don't use the DOWN RBs.
+			sinrMessage->setDownArraySize(downResourceBlocks);
+			sinrMessage->setRDownArraySize(downResourceBlocks);
+			for(int i = 0; i < downResourceBlocks; i++){
+				sinr = channel->calcAvgD2DDownSINR(i,msId,1.0);
+				sinrMessage->setDown(i,sinr);
+				sinrMessage->setRDown(i,coding.getRBCapacity(sinr,numMSAntenna,
+							numBSAntenna));
+			}
 		}
 		sinrMessage->setUpArraySize(upResourceBlocks);
 		sinrMessage->setRUpArraySize(upResourceBlocks);
@@ -105,6 +110,7 @@ void MsChannel::handleMessage(cMessage *msg)  {
                 // scheduled anew.
                 packet->setScheduled(false);
 		// Just forward the packet for now, without error checking etc
+		/**
 		vector<double> instSINR;
 		int currentRessourceBlock = packet->getResourceBlock();
 
@@ -127,20 +133,17 @@ void MsChannel::handleMessage(cMessage *msg)  {
 							packet->getTransPower()));
 				break;
 		}
-                /**
 		double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
 		double bler = getBler(packet->getCqi(), effSINR, this);
 		vec bler_(1);
 		bler_.set(0,bler);
 		double per = getPer(bler_);
-                **/
-		/**
-		  if(uniform(0,1) > per){
-		  sendDelayed(bundle, tti - epsilon, "toPhy");
-		  }else{
-		  delete bundle;
-		  }
-		 **/
+		if(uniform(0,1) > per){
+			sendDelayed(bundle, tti - epsilon, "toPhy");
+		}else{
+			delete bundle;
+		}
+		**/
 		// For now, all packets are received successfully
 		sendDelayed(packet, epsilon, "toPhy");
 	}

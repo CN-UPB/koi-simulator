@@ -26,6 +26,7 @@ bool Channel::init(cSimpleModule* module,
 	bsId = module->par("bsId");
 	considerInterference = module->par("considerInterference");
 	downRBs = module->par("downResourceBlocks");
+	d2dActive = module->par("d2dActive");
 	debug = module->par("debug");
 	initModule = module;
 	maxNumberOfNeighbours = module->par("maxNumberOfNeighbours");
@@ -103,7 +104,8 @@ double Channel::calcInterference(forward_list<TransInfo*>& interferers,
 						* coeffDownD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
 				}
 				else if((*it)->getMessageDirection()==MessageDirection::d2dUp
-						|| (*it)->getMessageDirection()==MessageDirection::up){
+						|| ((*it)->getMessageDirection()==MessageDirection::up 
+							&& d2dActive)){
 					interference += (*it)->getPower() 
 						* coeffUpD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
 				}
@@ -165,16 +167,19 @@ double Channel::calcAvgUpSINR(int RB,
             double transPower){
   // Compute SINR for MS->BS communication
   double res = calcUpSINR(RB,msId,transPower);
-  // Add the average over all possible D2D connections to all local MS
-  for(int i=0; i<numberOfMobileStations;++i){
-    if(i!=msId){
-      res += calcD2DSINR(RB,msId,i,MessageDirection::d2dUp,transPower);
-    }
-  }
-  // Return the average over all SINR values
-  // numberOfMobileStations is the number of values from the D2D computations,
-  // +1 from the MS->BS computation.
-  return res/(numberOfMobileStations+1);
+	if(d2dActive){
+		// Add the average over all possible D2D connections to all local MS
+		for(int i=0; i<numberOfMobileStations;++i){
+			if(i!=msId){
+				res += calcD2DSINR(RB,msId,i,MessageDirection::d2dUp,transPower);
+			}
+		}
+		// Compute the average over all SINR values
+		// numberOfMobileStations is the number of values from the D2D computations,
+		// +1 from the MS->BS computation.
+		res = res/(numberOfMobileStations+1);
+	}
+  return res;
 }
 
 double Channel::calcAvgDownSINR(int RB, 
@@ -193,12 +198,14 @@ double Channel::calcAvgD2DDownSINR(int RB,
             double transPower){
   // Calculate average SINR for DOWN resource blocks when used for D2D by MS
   double res = 0.0;
-  // Average over SINR values for all local mobile stations
-  for(int i=0; i<numberOfMobileStations;++i){
-    if(msId!=i){
-      res += calcD2DSINR(RB,msId,i,MessageDirection::d2dDown,transPower);
-    }
-  }
+	if(d2dActive){
+		// Average over SINR values for all local mobile stations
+		for(int i=0; i<numberOfMobileStations;++i){
+			if(msId!=i){
+				res += calcD2DSINR(RB,msId,i,MessageDirection::d2dDown,transPower);
+			}
+		}
+	}
   return res/numberOfMobileStations;
 }
 

@@ -1427,7 +1427,9 @@ void METISChannel::recomputeMETISParams(const vector<vector<Position>>& msPositi
 	}
 	recomputeDownCoefficients(msPos[bsId],bsPos);
 	recomputeUpCoefficients(msPos,bsPos);
-	recomputeD2DCoefficients(msPos);
+	if(d2dActive){
+		recomputeD2DCoefficients(msPos);
+	}
 }
 
 void METISChannel::recomputeD2DCoefficients(const vector<vector<Position>>& msPositions){

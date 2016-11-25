@@ -15,6 +15,7 @@
 #include <fstream>
 #include <iostream>
 #include <mutex>
+#include <stdexcept>
 #include <vector>
 
 using std::vector;
@@ -32,6 +33,7 @@ void TrafficGen::initialize(){
 	this->packetLength = par("packetLength");
 	this->periodicTraffic = par("periodicTraffic");
 	this->tti = par("tti");
+	this->d2dActive = par("d2dActive");
 
 	string xmlPath = par("commTable");
 	// Only load the table once!
@@ -48,6 +50,10 @@ void TrafficGen::initialize(){
 			// schedule initial events randomly in 
 			// [initOffset,initOffset+4*tti]
 			scheduleAt(initOffset-(2*tti),msg);
+			if(stream.d2d && !d2dActive){
+				// D2D needs to be active if we have D2D streams!
+				throw std::runtime_error("The Option d2dActive needs to be true when there are D2D streams!");
+			}
 		}
 		// Send stream notification message, which will inform the 
 		// mobile station's MAC, the base station's MAC and the 

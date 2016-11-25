@@ -58,6 +58,8 @@ simple MsChannel  {
 		double bandwidthPerRB @unit(Hz);
 		// Do Debug output?
 		bool debug = default(false);
+		// Should D2D values be computed?
+		bool d2dActive = default(true);
 		@display("i=block/rxtx");
 	gates:
 		// Gate for incoming simulation traffic packets from the 

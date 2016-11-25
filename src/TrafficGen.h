@@ -53,6 +53,7 @@ class TrafficGen: public cSimpleModule{
 		 */
 		static std::once_flag tFlag;
 		static cXMLElement* commTable;
+		bool d2dActive;
 		static std::vector<StreamDef> parseCommTable(int bsId, int msId);
 		static void loadComTable(const std::string& fpath);
 	

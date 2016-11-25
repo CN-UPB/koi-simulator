@@ -36,6 +36,7 @@ class MsChannel : public cSimpleModule  {
 				itpp::vec eesm_beta_values;
         Channel* channel;
 				bool debug;
+				bool d2dActive;
 
     protected:
         virtual void initialize();

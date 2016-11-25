@@ -187,6 +187,8 @@ simple BsChannel  {
 		double shadowSigma = default(1.0);
 		// Do Debug output?
 		bool debug = default(false);
+		// Should D2D values be computed?
+		bool d2dActive = default(true);
 		@display("i=block/rxtx");
 		
 	gates:

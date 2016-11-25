@@ -81,8 +81,9 @@ std::set<int>::iterator KBestRRStreamScheduler::scheduleKBest(
 				break;
 			}
 		}
-		if(currOrigins.find(*iter)==currOrigins.end()){
-			// Current origin does not have a request and thus will be skipped
+		if(currOrigins.find(*iter)==currOrigins.end() || requests[*iter][dir].empty()){
+			// Current origin does not have a request for the current direction 
+			// and thus will be skipped
 			++iter;
 			continue;
 		}

@@ -40,6 +40,8 @@ simple TrafficGen {
 		bool periodicTraffic = default(true);
 		// The transmission time interval
 		double tti @unit(s);
+		// Should D2D values be computed?
+		bool d2dActive = default(true);
 	gates:
 		// For incoming messages and packets from the <em>mac</em>.
 		input fromMac;
