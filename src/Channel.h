@@ -96,6 +96,8 @@ class Channel{
 		 * Number of MSs within the local cell
 		 */
 		int numberOfMobileStations;
+
+		
 		/**
 		 * Bandwidth in Hz per resource block
 		 */
