@@ -317,7 +317,6 @@ void MsMac::handleMessage(cMessage *msg)  {
 		// Store pointer to the rate results file
 		ResultFileExchange* ex = dynamic_cast<ResultFileExchange*>(msg);
 		rateFile = ex->getPtr();
-		std::cout << "Rates pointer received" << std::endl;
 		delete ex;
 	}
 	else if(msg->isName("DELAYS_FILE")){

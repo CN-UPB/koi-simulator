@@ -284,7 +284,6 @@ void BsMac::handleMessage(cMessage *msg)  {
 			// stream to all local MS.
 			// Not all too nice, but the ony possibility right now.
 			
-			std::cout << "Generating Results files " << std::endl;
 			ResultFileExchange *delays = new ResultFileExchange("DELAYS_FILE");
 			ResultFileExchange *rates = new ResultFileExchange("RATES_FILE");
 			std::string fname("delays-cell-"+std::to_string(bsId));
