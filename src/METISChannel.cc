@@ -978,12 +978,12 @@ vector<vector<vector<vector<double>>>> METISChannel::computeCoeffs(
 					if(up){
 						// Computing values for UP
 						// resource blocks
-						freq_ = freq_c + (f+1)*180000;
+						freq_ = freq_c + (f+1)*rbBandwidth;
 					}
 					else{
 						// Computing values for DOWN
 						// resource blocks
-						freq_ = freq_c - f*180000;
+						freq_ = freq_c - f*rbBandwidth;
 					}
 					res = complex<double>(0.0,0.0);
 					if(LOSCondition[i][idIdx]){
