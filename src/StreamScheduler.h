@@ -17,6 +17,7 @@
 #include "StreamTransReq_m.h"
 #include "MessageTypes.h"
 
+#include <functional> 
 #include <set>
 #include <unordered_map>
 #include <utility>
@@ -27,6 +28,7 @@ class StreamScheduler: public cSimpleModule{
 	private:
 		using ResAssign = std::pair<MessageDirection,int>;
 		std::unordered_map<int,std::unordered_map<int,std::vector<StreamTransReq*>>> requests;
+		std::function<bool(const KoiData*,const KoiData*)> defaultPacketSorter;
 
 	protected:
 		simtime_t initOffset;

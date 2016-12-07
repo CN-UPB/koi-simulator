@@ -8,7 +8,7 @@
 #include "MsMac.h"
 #include "PositionExchange_m.h"
 #include "KoiData_m.h"
-#include "QueueSort_m.h"
+#include "ScheduleInfo_m.h"
 #include "TransmitRequest_m.h"
 #include "ResultFileExchange_m.h"
 #include "Schedule_m.h"
@@ -308,8 +308,8 @@ void MsMac::handleMessage(cMessage *msg)  {
 	else if(msg->getKind()==MessageType::transInfo){
 		send(msg,"toPhy");
 	}
-	else if(msg->getKind()==MessageType::sortOrder){
-		QueueSort *s = dynamic_cast<QueueSort*>(msg);
+	else if(msg->getKind()==MessageType::scheduleInfo){
+		ScheduleInfo *s = dynamic_cast<ScheduleInfo*>(msg);
 		comparator = s->getSortfn();
 		delete msg;
 	}

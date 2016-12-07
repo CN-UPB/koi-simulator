@@ -7,9 +7,10 @@
  * assignment of streams to resource blocks.
  */
 
+#include "MessageTypes.h"
+#include "ScheduleInfo_m.h"
 #include "StreamScheduler.h"
 #include "TransReqList_m.h"
-#include "MessageTypes.h"
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -32,6 +33,11 @@ void StreamScheduler::initialize(){
 	this->epsilon = par("epsilon");
 	this->sinrEstimate.resize(numberOfMs,nullptr);
 	this->estimateBS = nullptr;
+
+	// Set the default packet sort criterion to creation time
+	this->defaultPacketSorter = [](const KoiData *left,const KoiData *right) 
+		-> bool{ return left->getCreationTime()<right->getCreationTime(); };
+
 	// Produce the first schedule right at the init offset
 	// We will need to make certain that all mobile stations have reported 
 	// their streams at the time the first schedule is computed.
@@ -39,6 +45,8 @@ void StreamScheduler::initialize(){
 			new cMessage("",MessageType::scheduleStreams));
 	scheduleAt(simTime()+initOffset,
 			new cMessage("",MessageType::scheduleRBs));
+	scheduleAt(simTime()+epsilon,
+			new cMessage("",MessageType::scheduleInfo));
 }
 
 void StreamScheduler::scheduleDynStreams(){
@@ -192,15 +200,31 @@ void StreamScheduler::handleMessage(cMessage *msg){
           }
         }
 			} break;
-		case MessageType::sortOrder:
-			// Forward the sort order function for packet queues to all local 
-			// MS and the local BS
-			send(msg->dup(),"toBs");
-			for(int i=0; i<gateSize("toMs"); ++i){
-				send(msg->dup(),"toMs",i);
-			}
-			delete msg;
-			break;
+		case MessageType::scheduleInfo:{
+				if(msg->isSelfMessage()){
+					// Self message generated in initialize, at this point any 
+					// comparator from RB Schedulers will have arrived and the comparator
+					// function will be set correctly.
+					ScheduleInfo *inf = new ScheduleInfo();
+					inf->setSortfn(defaultPacketSorter);
+					inf->setUpStatic(upStatic);
+					inf->setDownStatic(downStatic);
+					// Forward the scheduling info to all local 
+					// MS and the local BS
+					send(inf->dup(),"toBs");
+					for(int i=0; i<gateSize("toMs"); ++i){
+						send(inf->dup(),"toMs",i);
+					}
+					delete inf;
+				}
+				else{
+					// If this is not a self message, it must have arrived from the 
+					// RB schedulers with a specific packet sorting criterion.
+					ScheduleInfo *inf = dynamic_cast<ScheduleInfo*>(msg);
+					defaultPacketSorter = inf->getSortfn();
+				}
+				delete msg;
+			} break;
     default:
         std::cerr << "Received invalid Message in "
           << "StreamScheduler handleMessage"

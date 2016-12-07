@@ -23,7 +23,7 @@ enum MessageType: short {
 	sendSchedules,
 	sinrEst,
 	clearTransInfo,
-	sortOrder
+	scheduleInfo
 };
 
 enum MessageDirection: int {
