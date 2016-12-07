@@ -64,7 +64,7 @@ double EDFStreamScheduler::computeSchedulingInterval(
   return lcmSequence(periods);  
 }
 
-void EDFStreamScheduler::scheduleStreams(){
+void EDFStreamScheduler::scheduleDynStreams(){
   if(!this->infos.empty()){
     // First, clear the current assignment
     this->rbAssignments.clear();

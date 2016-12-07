@@ -26,6 +26,10 @@ simple DynKBestRRSched like StreamScheduler{
 		bool debug = default(false);
 		// Length of packets in bits
 		int packetLength @unit(b);
+		// Should UP resource blocks be scheduled statically?
+		bool upStatic = default(false);
+		// Should DOWN resource blocks be scheduled statically?
+		bool downStatic = default(false);
 		@class("DynKBestRRSched");
 	gates:
 		// For schedule exchange with the local BaseStation.

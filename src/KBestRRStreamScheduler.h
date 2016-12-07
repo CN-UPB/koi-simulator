@@ -32,7 +32,6 @@ class KBestRRStreamScheduler: public StreamScheduler{
 		int bsId;
 		std::ofstream upSchedule;
 		std::ofstream downSchedule;
-    virtual void scheduleStreams();
 	
 	protected:
 		std::set<int> allOrigins;
@@ -44,4 +43,5 @@ class KBestRRStreamScheduler: public StreamScheduler{
     virtual void initialize();
 		virtual void finish();
 		virtual void handleMessage(cMessage *msg);
+    virtual void scheduleDynStreams();
 };

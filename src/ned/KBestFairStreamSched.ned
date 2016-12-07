@@ -28,6 +28,10 @@ simple KBestFairStreamSched like StreamScheduler{
 		int numSubcarriers = default(12);
 		// Do Debug output?
 		bool debug = default(false);
+		// Should UP resource blocks be scheduled statically?
+		bool upStatic = default(false);
+		// Should DOWN resource blocks be scheduled statically?
+		bool downStatic = default(false);
 		@class("KBestFairStreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.

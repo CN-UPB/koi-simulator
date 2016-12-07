@@ -73,9 +73,9 @@ class EDFStreamScheduler: public StreamScheduler{
     virtual void getViability(std::vector<EDFStream>& streams,
         std::vector<EDFRb>& blocks);
     virtual bool schedulabilityTest(const EDFRb& rb, const EDFStream& newStream);
-    virtual void scheduleStreams();
     virtual double computeSchedulingInterval(const std::vector<EDFStream>& streams);
 
   protected:
     virtual void initialize();
+    virtual void scheduleDynStreams();
 };

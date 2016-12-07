@@ -28,6 +28,9 @@ simple RoundRobinStreamSched like StreamScheduler{
 		int bsId;
 		// Do Debug output?
 		bool debug = default(false);
+		bool upStatic = default(false);
+		// Should DOWN resource blocks be scheduled statically?
+		bool downStatic = default(false);
 		@class("StreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.

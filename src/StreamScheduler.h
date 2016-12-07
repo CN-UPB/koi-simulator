@@ -27,7 +27,6 @@ class StreamScheduler: public cSimpleModule{
 	private:
 		using ResAssign = std::pair<MessageDirection,int>;
 		std::unordered_map<int,std::unordered_map<int,std::vector<StreamTransReq*>>> requests;
-		virtual void scheduleStreams();
 
 	protected:
 		simtime_t initOffset;
@@ -36,6 +35,8 @@ class StreamScheduler: public cSimpleModule{
 		int numberOfMs;
 		int upRB;
 		int downRB;
+		bool upStatic;
+		bool downStatic;
 		simtime_t streamSchedPeriod;
 		std::set<int> scheduledStations;
 		simtime_t tti;
@@ -47,6 +48,8 @@ class StreamScheduler: public cSimpleModule{
 		virtual void handleMessage(cMessage *msg);
 		virtual void handleSINREstimate(SINR *msg);
 		virtual void printAssignment();
+		virtual void scheduleDynStreams();
+		virtual void scheduleStatStreams();
 	
 	public:
 		~StreamScheduler() = default;

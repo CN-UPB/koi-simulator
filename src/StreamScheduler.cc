@@ -12,6 +12,7 @@
 #include "MessageTypes.h"
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 
 using std::vector;
 using std::unordered_map;
@@ -22,6 +23,8 @@ void StreamScheduler::initialize(){
 	this->initOffset = par("initOffset");
 	this->downRB = par("downResourceBlocks");
 	this->upRB = par("upResourceBlocks");
+	this->upStatic = par("upStatic");
+	this->downStatic = par("downStatic");
 	this->numberOfMs = par("numberOfMobileStations");
 	this->infos = vector<StreamInfo*>();
 	this->streamSchedPeriod = par("streamSchedPeriod");
@@ -38,7 +41,7 @@ void StreamScheduler::initialize(){
 			new cMessage("",MessageType::scheduleRBs));
 }
 
-void StreamScheduler::scheduleStreams(){
+void StreamScheduler::scheduleDynStreams(){
 	if(!this->infos.empty()){
 		// First, clear the current assignment
 		this->rbAssignments.clear();
@@ -84,6 +87,10 @@ void StreamScheduler::scheduleStreams(){
 	}
 }
 
+void StreamScheduler::scheduleStatStreams(){
+	throw std::runtime_error("Static Scheduling not implemented for this Stream Scheduler.");
+}
+
 void StreamScheduler::handleMessage(cMessage *msg){
   switch(msg->getKind()){
     case MessageType::streamInfo:{
@@ -96,7 +103,7 @@ void StreamScheduler::handleMessage(cMessage *msg){
         this->requests[assignment.first][assignment.second].push_back(req);
         } break;
     case MessageType::scheduleStreams:{
-        this->scheduleStreams();
+        this->scheduleDynStreams();
         scheduleAt(simTime()+this->streamSchedPeriod,msg);
         } break;
 		case MessageType::scheduleRBs:

@@ -47,6 +47,10 @@ moduleinterface StreamScheduler {
 		double epsilon @unit(s);
 		// Do Debug output?
 		bool debug;
+		// Should UP resource blocks be scheduled statically?
+		bool upStatic;
+		// Should DOWN resource blocks be scheduled statically?
+		bool downStatic;
 		@display("i=block/dispatch");
 	gates:
 		// For schedule exchange with the local BaseStation.

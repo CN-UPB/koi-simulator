@@ -150,7 +150,7 @@ std::set<int>::iterator KBestRRStreamScheduler::scheduleKBest(
 	return iter;
 }
 
-void KBestRRStreamScheduler::scheduleStreams(){
+void KBestRRStreamScheduler::scheduleDynStreams(){
 	// Clear out the current assignments
 	originAssignments.clear();
 	// Build lists of resource block for UP/DOWN bands
@@ -173,7 +173,7 @@ void KBestRRStreamScheduler::handleMessage(cMessage *msg){
 			if(currOrigins.size()>0){
 				// Only compute a schedule if there actually are any requests which 
 				// would make use of the schedule.
-				this->scheduleStreams();
+				this->scheduleDynStreams();
 			}
 			scheduleAt(simTime()+this->streamSchedPeriod,msg);
 		} break;

@@ -35,6 +35,10 @@ simple KBestRRStreamSched like StreamScheduler{
 		int bsId;
 		// Do Debug output?
 		bool debug = default(false);
+		// Should UP resource blocks be scheduled statically?
+		bool upStatic = default(false);
+		// Should DOWN resource blocks be scheduled statically?
+		bool downStatic = default(false);
 		@class("KBestRRStreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.
