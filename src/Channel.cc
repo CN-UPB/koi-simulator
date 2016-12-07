@@ -10,6 +10,8 @@
 #include "NeighbourIdMatching.h"
 #include "Position.h"
 #include "TransInfo_m.h"
+
+#include <stdexcept>
 #include <forward_list>
 #include <vector>
 
@@ -226,6 +228,14 @@ void Channel::clearTransInfo(){
 		}
 		currList.clear();
 	}
+}
+
+double Channel::calcLongtermUpSINR(int rb, int msId, double transPower){
+	throw std::runtime_error("Long term SINR calculation not implemented.");
+}
+
+double Channel::calcLongtermDownSINR(int rb, int msId, double transPower){
+	throw std::runtime_error("Long term SINR calculation not implemented.");
 }
 
 // Johnson Nyquist Noise

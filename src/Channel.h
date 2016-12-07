@@ -97,7 +97,6 @@ class Channel{
 		 */
 		int numberOfMobileStations;
 
-		
 		/**
 		 * Bandwidth in Hz per resource block
 		 */
@@ -187,6 +186,10 @@ class Channel{
 		virtual double calcAvgD2DDownSINR(int RB, 
 				int msId,
 				double transPower);
+
+		virtual double calcLongtermUpSINR(int rb, int msId, double transPower);
+
+		virtual double calcLongtermDownSINR(int rb, int msId, double transPower);
 
 		virtual void clearTransInfo();
 

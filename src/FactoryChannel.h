@@ -68,6 +68,7 @@ class FactoryChannel: public Channel{
 				std::map<int,Position>& neighbourPositions);
 
 		void updateChannel(const std::vector<std::vector<Position>>& msPos);
-
+		double calcLongtermUpSINR(int rb, int msId, double transPower);
+		double calcLongtermDownSINR(int rb, int msId, double transPower);
 		virtual ~FactoryChannel();
 };

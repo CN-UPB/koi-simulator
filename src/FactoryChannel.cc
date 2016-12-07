@@ -264,6 +264,42 @@ double FactoryChannel::shadowing(){
 	return std::pow(10.0,inDB/10);
 }
 
+double FactoryChannel::calcLongtermUpSINR(int rb, int msId, double transPower){
+	double received = transPower 
+		* pathgain(msPos[bsId][msId],neighbourPositions[bsId]) * shUp[bsId][msId];
+	double interference = 0.0;
+	// Assume that all possible interferers are transmitting
+	for(size_t bs = 0; bs<msPos.size(); ++bs){
+		if(bs!=bsId){
+			// Only add interference for MS in cells other than the local one
+			for(size_t ms = 0; ms<msPos[bs].size(); ++ms){
+				interference += transPower 
+					* pathgain(msPos[bs][ms],neighbourPositions[bsId]) 
+					* shUp[bs][ms];
+			}
+		}
+	}
+	interference += getTermalNoise(300,chnBandwidth);
+	return 10*log10(received/interference);
+}
+
+double FactoryChannel::calcLongtermDownSINR(int rb, int msId, double transPower){
+	double received = transPower 
+		* pathgain(msPos[bsId][msId],neighbourPositions[bsId]) * shDown[msId][bsId];
+	double interference = 0.0;
+	// Assume that all possible interferers are transmitting
+	for(size_t bs = 0; bs<msPos.size(); ++bs){
+		if(bs!=bsId){
+			// Only add interference for BS in neighbouring cells
+			interference += transPower 
+				* pathgain(msPos[bsId][msId],neighbourPositions[bs]) 
+				* shDown[msId][bs];
+		}
+	}
+	interference += getTermalNoise(300,chnBandwidth);
+	return 10*log10(received/interference);
+}
+
 FactoryChannel::~FactoryChannel(){
 	downValues.close();
 	upValues.close();
