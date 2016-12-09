@@ -13,6 +13,7 @@
 #include "includes.h"
 #include "RBScheduler.h"
 #include "SINR_m.h"
+#include "StaticSchedule_m.h"
 #include "StreamInfo_m.h"
 #include "StreamTransReq_m.h"
 #include "MessageTypes.h"
@@ -37,6 +38,7 @@ class StreamScheduler: public cSimpleModule{
 		int numberOfMs;
 		int upRB;
 		int downRB;
+		int staticSchedLength;
 		bool upStatic;
 		bool downStatic;
 		simtime_t streamSchedPeriod;
@@ -53,7 +55,8 @@ class StreamScheduler: public cSimpleModule{
 		virtual void handleSINREstimate(SINR *msg);
 		virtual void printAssignment();
 		virtual void scheduleDynStreams();
-		virtual void scheduleStatStreams();
+		virtual void distributeStaticSchedules();
+		virtual std::unordered_map<int,ScheduleList> scheduleStatStreams();
 	
 	public:
 		~StreamScheduler() = default;

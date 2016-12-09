@@ -35,18 +35,25 @@ void StreamScheduler::initialize(){
 	this->longtermSinrEstimate.resize(numberOfMs,nullptr);
 	this->estimateBS = nullptr;
 	this->longtermEstimateBS = nullptr;
+	this->staticSchedLength = par("staticSchedLength");
 
 	// Set the default packet sort criterion to creation time
 	this->defaultPacketSorter = [](const KoiData *left,const KoiData *right) 
 		-> bool{ return left->getCreationTime()<right->getCreationTime(); };
 
-	// Produce the first schedule right at the init offset
-	// We will need to make certain that all mobile stations have reported 
-	// their streams at the time the first schedule is computed.
-	scheduleAt(simTime()+initOffset,
-			new cMessage("",MessageType::scheduleStreams));
-	scheduleAt(simTime()+initOffset,
-			new cMessage("",MessageType::scheduleRBs));
+	if(!upStatic || !downStatic){
+		// Produce the first schedule right at the init offset
+		// We will need to make certain that all mobile stations have reported 
+		// their streams at the time the first schedule is computed.
+		scheduleAt(simTime()+initOffset,
+				new cMessage("",MessageType::scheduleStreams));
+		scheduleAt(simTime()+initOffset,
+				new cMessage("",MessageType::scheduleRBs));
+	}
+	if(upStatic || downStatic){
+		scheduleAt(simTime()+initOffset-epsilon,
+				new cMessage("",MessageType::genStaticSchedule));
+	}
 	scheduleAt(simTime()+epsilon,
 			new cMessage("",MessageType::scheduleInfo));
 }
@@ -97,8 +104,26 @@ void StreamScheduler::scheduleDynStreams(){
 	}
 }
 
-void StreamScheduler::scheduleStatStreams(){
+std::unordered_map<int,ScheduleList> StreamScheduler::scheduleStatStreams(){
 	throw std::runtime_error("Static Scheduling not implemented for this Stream Scheduler.");
+}
+
+void StreamScheduler::distributeStaticSchedules(){
+	std::unordered_map<int,ScheduleList> schedules(scheduleStatStreams());
+	for(auto& origin:schedules){
+		StaticSchedule* sched = new StaticSchedule();
+		sched->setScheduleLength(staticSchedLength);
+		sched->setOrigin(origin.first);
+		sched->setSchedule(origin.second);
+		if(origin.first == -1){
+			// Send schedule to local BS
+			send(sched,"toBs");
+		}
+		else{
+			// Send to MS
+			send(sched,"toMs",origin.first);
+		}
+	}
 }
 
 void StreamScheduler::handleMessage(cMessage *msg){
@@ -113,8 +138,11 @@ void StreamScheduler::handleMessage(cMessage *msg){
         this->requests[assignment.first][assignment.second].push_back(req);
         } break;
     case MessageType::scheduleStreams:{
-        this->scheduleDynStreams();
+				this->scheduleDynStreams();
         scheduleAt(simTime()+this->streamSchedPeriod,msg);
+        } break;
+    case MessageType::genStaticSchedule:{
+				this->distributeStaticSchedules();
         } break;
 		case MessageType::scheduleRBs:
 				scheduledStations.clear();

@@ -12,6 +12,7 @@
 #include "TransmitRequest_m.h"
 #include "ResultFileExchange_m.h"
 #include "Schedule_m.h"
+#include "StaticSchedule_m.h"
 #include "StreamInfo_m.h"
 #include "StreamTransReq_m.h"
 #include "StreamTransSched_m.h"
@@ -360,6 +361,19 @@ void MsMac::handleMessage(cMessage *msg)  {
 	else if(msg->getKind()==MessageType::longTermSinrEst)  {
 		// Forward long term estimate to scheduler
 		send(msg,"toScheduler");
+	}
+	else if(msg->getKind()==MessageType::staticSchedule){
+		StaticSchedule *sched = dynamic_cast<StaticSchedule*>(msg);
+		ScheduleList schedule = std::move(sched->getSchedule());
+		std::cout << "MS " << bsId << "/" << msId << " received schedule: " << std::endl;
+		for(auto& s:schedule){
+			std::cout << s.first << ":";
+			for(int& i:s.second){
+				std::cout << i << ",";
+			}
+			std::cout << std::endl;
+		}
+		delete sched;
 	}
 	else if(msg->arrivedOn("fromApp"))  {
 		// Packet arrived for sending from traffic generator

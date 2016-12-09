@@ -24,7 +24,9 @@ enum MessageType: short {
 	sinrEst,
 	longTermSinrEst,
 	clearTransInfo,
-	scheduleInfo
+	scheduleInfo,
+	staticSchedule,
+	genStaticSchedule
 };
 
 enum MessageDirection: int {

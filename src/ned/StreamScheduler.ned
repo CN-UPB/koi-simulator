@@ -51,6 +51,8 @@ moduleinterface StreamScheduler {
 		bool upStatic;
 		// Should DOWN resource blocks be scheduled statically?
 		bool downStatic;
+		// Length of the static schedule, in TTI
+		int staticSchedLength;
 		@display("i=block/dispatch");
 	gates:
 		// For schedule exchange with the local BaseStation.
