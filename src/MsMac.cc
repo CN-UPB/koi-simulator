@@ -311,6 +311,11 @@ void MsMac::handleMessage(cMessage *msg)  {
 	else if(msg->getKind()==MessageType::scheduleInfo){
 		ScheduleInfo *s = dynamic_cast<ScheduleInfo*>(msg);
 		comparator = s->getSortfn();
+		if(s->getUpStatic()){
+			SINR *longTermSINR = new SINR();
+			longTermSINR->setKind(MessageType::longTermSinrEst);
+			send(longTermSINR,"toPhy");
+		}
 		delete msg;
 	}
 	else if(msg->isName("RATES_FILE")){
@@ -352,6 +357,10 @@ void MsMac::handleMessage(cMessage *msg)  {
 		// Forward estimates to BS Mac
 		send(msg,"toBsMac");
 	}
+	else if(msg->getKind()==MessageType::longTermSinrEst)  {
+		// Forward long term estimate to scheduler
+		send(msg,"toScheduler");
+	}
 	else if(msg->arrivedOn("fromApp"))  {
 		// Packet arrived for sending from traffic generator
 		switch(msg->getKind()){
@@ -377,6 +386,9 @@ void MsMac::handleMessage(cMessage *msg)  {
 		if(msg->getKind()==MessageType::koidata){
 			send(msg,"toApp");
 		}
+	}
+	else{
+		std::cout << "Received unhandled message: " << msg->getKind() << std::endl;
 	}
 }
 

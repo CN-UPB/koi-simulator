@@ -21,7 +21,7 @@ void MsPhy::handleMessage(cMessage *msg)  {
 			case MessageType::transInfo:
 				send(msg,"toMsChannel");
 				break;
-			case MessageType::koidata:
+			case MessageType::koidata:{
 				KoiData *packet = dynamic_cast<KoiData*>(msg);
 				switch(packet->getMessageDirection()){
 					case MessageDirection::up:
@@ -31,7 +31,11 @@ void MsPhy::handleMessage(cMessage *msg)  {
 					case MessageDirection::d2dUp:
 						send(msg,"toMs",packet->getDest());
 						break;
-				}
+				} 
+			} break;
+			case MessageType::longTermSinrEst:
+				send(msg,"toMsChannel");
+				break;
 		}
 	}
 	else if(msg->arrivedOn("fromChannel"))  {

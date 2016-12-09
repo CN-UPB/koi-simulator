@@ -238,7 +238,15 @@ void BsMac::handleMessage(cMessage *msg)  {
 	else if(msg->getKind()==MessageType::scheduleInfo){
 		ScheduleInfo *s = dynamic_cast<ScheduleInfo*>(msg);
 		comparator = s->getSortfn();
+		if(s->getDownStatic()){
+			SINR *longTermSINR = new SINR();
+			longTermSINR->setKind(MessageType::longTermSinrEst);
+			send(longTermSINR,"toBsChannel");
+		}
 		delete msg;
+	}
+	else if(msg->getKind()==MessageType::longTermSinrEst){
+		send(msg,"toScheduler");
 	}
 	else if(msg->isSelfMessage())  {
 		if(msg->isName("BS_POSITION_INIT"))  {

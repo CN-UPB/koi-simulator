@@ -167,6 +167,26 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		send(bsSINREst,"toPhy");
 		scheduleAt(simTime() + tti, msg);
 	}
+	else if(msg->getKind()==MessageType::longTermSinrEst){
+		SINR *longtermEst = dynamic_cast<SINR*>(msg);
+		longtermEst->setBsId(bsId);
+		// Special value to note that this is the SINR for 
+		// a base station
+		longtermEst->setMsId(-1);
+		// We only need the down SINR estimate, because the 
+		// base station only ever uses DOWN resource blocks.
+		longtermEst->setDownArraySize(downResBlocks);
+		longtermEst->setRDownArraySize(downResBlocks);
+		double sinr;
+		for(int i = 0; i < downResBlocks; i++){
+			sinr = channel->calcLongtermDownSINR(i,0,1.0);
+			longtermEst->setDown(i,sinr);
+			longtermEst->setRDown(i,coding.getRBCapacity(sinr,numBSAntenna,
+						numMSAntenna));
+		}
+		// Route message to BS via MsPhy and MsMac
+		send(longtermEst,"toPhy");
+	}
 	else if(msg->getKind()==MessageType::transInfo){
 		// We should only add the new transInfo to the channel for the BsChannel
 		// with the index 0. Otherwise, as there is only one channel per cell but 

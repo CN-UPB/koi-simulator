@@ -147,7 +147,37 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		// For now, all packets are received successfully
 		sendDelayed(packet, epsilon, "toPhy");
 	}
-	
+	else if(msg->getKind()==MessageType::longTermSinrEst){
+		SINR* longtermEst = dynamic_cast<SINR*>(msg);
+		longtermEst->setBsId(bsId);
+		longtermEst->setMsId(msId);
+
+		// Set SINR and rate estimation to the average SINR value over all 
+		// possible transmission recipients in the previous tti.
+		double sinr = 0.0;
+		if(d2dActive){
+			// Values for DOWN resource blocks are only needed with D2D, otherwise
+			// the MS don't use the DOWN RBs.
+			longtermEst->setDownArraySize(downResourceBlocks);
+			longtermEst->setRDownArraySize(downResourceBlocks);
+			for(int i = 0; i < downResourceBlocks; i++){
+				sinr = channel->calcLongtermDownSINR(i,msId,1.0);
+				longtermEst->setDown(i,sinr);
+				longtermEst->setRDown(i,coding.getRBCapacity(sinr,numMSAntenna,
+							numBSAntenna));
+			}
+		}
+		longtermEst->setUpArraySize(upResourceBlocks);
+		longtermEst->setRUpArraySize(upResourceBlocks);
+		for(int i = 0; i < upResourceBlocks; i++){
+			sinr = channel->calcLongtermUpSINR(i,msId,1.0);
+			longtermEst->setUp(i,sinr);
+			longtermEst->setRUp(i,coding.getRBCapacity(sinr,numMSAntenna,
+						numBSAntenna));
+		}
+		// Route estimate to MsMac via MsPhy
+		send(longtermEst,"toPhy");
+	}
 }
 
 MsChannel::~MsChannel()  {

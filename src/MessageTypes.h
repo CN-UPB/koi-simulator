@@ -22,6 +22,7 @@ enum MessageType: short {
 	scheduleRBs,
 	sendSchedules,
 	sinrEst,
+	longTermSinrEst,
 	clearTransInfo,
 	scheduleInfo
 };

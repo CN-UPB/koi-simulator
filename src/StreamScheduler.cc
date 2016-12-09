@@ -32,7 +32,9 @@ void StreamScheduler::initialize(){
 	this->tti = par("tti");
 	this->epsilon = par("epsilon");
 	this->sinrEstimate.resize(numberOfMs,nullptr);
+	this->longtermSinrEstimate.resize(numberOfMs,nullptr);
 	this->estimateBS = nullptr;
+	this->longtermEstimateBS = nullptr;
 
 	// Set the default packet sort criterion to creation time
 	this->defaultPacketSorter = [](const KoiData *left,const KoiData *right) 
@@ -164,6 +166,7 @@ void StreamScheduler::handleMessage(cMessage *msg){
 				}
 				delete sched;
         } break;
+		case MessageType::longTermSinrEst:
     case MessageType::sinrEst:{
         SINR *sinrEst = dynamic_cast<SINR*>(msg);
         this->handleSINREstimate(sinrEst);        
@@ -250,16 +253,32 @@ void StreamScheduler::printAssignment(){
 void StreamScheduler::handleSINREstimate(SINR *msg){
   if(msg->getMsId()==-1){
     // SINR estimate for the local BS
-    if(estimateBS!=nullptr){
-      delete estimateBS;
-    }
-    estimateBS = msg;
+		if(msg->getKind()==MessageType::longTermSinrEst){
+			if(longtermEstimateBS!=nullptr){
+				delete longtermEstimateBS;
+			}
+			longtermEstimateBS = msg;
+		}
+		else{
+			if(estimateBS!=nullptr){
+				delete estimateBS;
+			}
+			estimateBS = msg;
+		}
   }
   else{
     // SINR estimate for a local mobile station
-    if(sinrEstimate[msg->getMsId()]!=nullptr){
-      delete sinrEstimate[msg->getMsId()];
-    }
-    sinrEstimate[msg->getMsId()] = msg;
+		if(msg->getKind()==MessageType::longTermSinrEst){
+			if(longtermSinrEstimate[msg->getMsId()]!=nullptr){
+				delete longtermSinrEstimate[msg->getMsId()];
+			}
+			longtermSinrEstimate[msg->getMsId()] = msg;
+		}
+		else{
+			if(sinrEstimate[msg->getMsId()]!=nullptr){
+				delete sinrEstimate[msg->getMsId()];
+			}
+			sinrEstimate[msg->getMsId()] = msg;
+		}
   }
 }

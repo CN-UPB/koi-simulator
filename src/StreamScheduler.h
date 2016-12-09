@@ -45,6 +45,8 @@ class StreamScheduler: public cSimpleModule{
 		std::vector<StreamInfo*> infos;		
 		std::vector<SINR*> sinrEstimate;
 		SINR *estimateBS;
+		std::vector<SINR*> longtermSinrEstimate;
+		SINR *longtermEstimateBS;
 		std::unordered_map<unsigned long,std::unordered_map<int,ResAssign>> rbAssignments;
 		virtual void initialize();
 		virtual void handleMessage(cMessage *msg);
