@@ -102,3 +102,58 @@ std::set<int>::iterator DynKBestRRSched::scheduleKBest(
 	}
 	return iter;
 }
+
+std::set<int>::iterator DynKBestRRSched::scheduleKBestStatic(
+		std::set<int>::iterator iter,
+		std::vector<int> blocks,MessageDirection dir,int k,
+		std::unordered_map<int,std::vector<int>>& schedule){
+	while(blocks.size()>=1){
+		if(iter==allOrigins.end()){
+			// We're at the end of the set of senders, start at the beginning
+			iter = allOrigins.begin();
+		}
+		if(*iter==-1 && dir==MessageDirection::up){
+			// Current origin is the base station and we are assigning resource blocks
+			// in the UP frequencies, which the BS does not need.
+			++iter;
+			continue;
+		}
+		SINR *estimate;
+		int id = *iter;
+		if(id==-1){
+			estimate = longtermEstimateBS;
+		}
+		else{
+			estimate = longtermSinrEstimate[id];
+		}
+		auto blockComp = [&](int& first, int& second) -> bool {
+			if(dir==MessageDirection::up){
+				return estimate->getUp(first) > estimate->getUp(second);
+			}
+			else{
+				return estimate->getDown(first) > estimate->getDown(second);
+			}
+		};
+		// Sort the list of resource blocks in decreasing order, so that 
+		// the first k elements are also the first k best resource blocks with the 
+		// highest SINR.
+		std::sort(blocks.begin(),blocks.end(),blockComp);
+		auto bIter = blocks.begin();
+		double sum = 0.0;
+		while(bIter!= blocks.end() && sum<packetLength){
+			if(dir==MessageDirection::up){
+				sum += estimate->getRUp(*bIter);
+			}
+			else{
+				sum += estimate->getRDown(*bIter);
+			}
+			++bIter;
+		}
+		// Assign the k best resource blocks to station id and remove them from 
+		// the list of available resource blocks.
+		std::move(blocks.begin(),bIter,std::back_inserter(schedule[id]));
+		blocks.erase(blocks.begin(),bIter);
+		++iter;
+	}
+	return iter;
+}
