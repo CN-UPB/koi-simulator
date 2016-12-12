@@ -272,11 +272,20 @@ double FactoryChannel::calcLongtermUpSINR(int rb, int msId, double transPower){
 	for(size_t bs = 0; bs<msPos.size(); ++bs){
 		if(bs!=bsId){
 			// Only add interference for MS in cells other than the local one
+			// Only add interference from the worst MS per neighbouring cell
+			double worst = 0.0;
+			double curr;
+			double pg;
+			double sh;
 			for(size_t ms = 0; ms<msPos[bs].size(); ++ms){
-				interference += transPower 
-					* pathgain(msPos[bs][ms],neighbourPositions[bsId]) 
-					* shUp[bs][ms];
+				pg = pathgain(msPos[bs][ms],neighbourPositions[bsId]);
+				sh = shUp[bs][ms];
+				curr = transPower * pg * sh;
+				if(curr>worst){
+					worst = curr;
+				}
 			}
+			interference += worst;
 		}
 	}
 	interference += getTermalNoise(300,chnBandwidth);
