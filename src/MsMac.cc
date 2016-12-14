@@ -336,7 +336,6 @@ void MsMac::scheduleStatic(cMessage* msg){
 	else{
 		nextTTI = std::abs(next.first-curr.first)%staticSchedLength;
 	}
-	std::cout << "Scheduling static at next tti " << nextTTI << " at time " << simTime() << std::endl;
 	scheduleAt(simTime()+(nextTTI*tti),msg);
 }
 
@@ -431,14 +430,6 @@ void MsMac::handleMessage(cMessage *msg)  {
 		staticIter = staticSchedule.begin();
 		staticSchedLength = s->getScheduleLength();
 		scheduleAt(initOffset+epsilon,new cMessage("SCHEDULE_STATIC"));
-		std::cout << "MS " << bsId << "/" << msId << " received schedule: " << std::endl;
-		for(auto& s:staticSchedule){
-			std::cout << s.first << ":";
-			for(int& i:s.second){
-				std::cout << i << ",";
-			}
-			std::cout << std::endl;
-		}
 		delete s;
 	}
 	else if(msg->isName("RATES_FILE")){
