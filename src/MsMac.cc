@@ -267,8 +267,8 @@ void MsMac::scheduleStatic(cMessage* msg){
 				for(auto streamIter = streamQueues.begin(); 
 						streamIter!=streamQueues.end(); ++streamIter){
 					list<KoiData*>& currList = streamIter->second;
-					if(bestStream==nullptr 
-							|| (!currList.empty() && comparator(currList.front(),bestStream->front()))){
+					if(!currList.empty() && (bestStream==nullptr 
+							|| comparator(currList.front(),bestStream->front()))){
 						bestStream = &currList;
 					}
 				}
@@ -334,7 +334,7 @@ void MsMac::scheduleStatic(cMessage* msg){
 		nextTTI = staticSchedLength;
 	}
 	else{
-		nextTTI = (next.first-curr.first)%staticSchedLength;
+		nextTTI = std::abs(next.first-curr.first)%staticSchedLength;
 	}
 	std::cout << "Scheduling static at next tti " << nextTTI << " at time " << simTime() << std::endl;
 	scheduleAt(simTime()+(nextTTI*tti),msg);
