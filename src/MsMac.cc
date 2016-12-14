@@ -202,6 +202,8 @@ void MsMac::initialize()  {
 	tti = par("tti");
 	packetLength = par("packetLength");
 	transmissionPower = par("transmissionPower");
+	estimate = nullptr;
+	longTermEst = nullptr;
 
 	switch((int)par("positioning")){
 		case MsMac::Placement::params:
@@ -229,9 +231,6 @@ void MsMac::initialize()  {
 			std::cout << "Invalid Ms placement algorithm " << (int) par("positioning") << std::endl;
 	}
 
-	//every tti send transmit requests to stream scheduler
-	scheduleAt(simTime() + initOffset-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
-
 	// Send MS Position once at the very beginning for cluster generation
 	PositionExchange *posEx = new PositionExchange("MS_POS_UPDATE");
 	posEx->setId(msId);
@@ -240,6 +239,105 @@ void MsMac::initialize()  {
 }
 
 void MsMac::finish(){
+}
+
+void MsMac::scheduleStatic(cMessage* msg){
+	TTISchedule& curr(*staticIter);
+	++staticIter;
+	if(staticIter==staticSchedule.end()){
+		staticIter = staticSchedule.begin();
+	}
+	TTISchedule& next(*staticIter);
+
+	std::pair<set<int>,set<int>> infos = std::make_pair(set<int>(),set<int>());
+	int rate = 0;
+	int rbRate = 0;
+	simtime_t delay = 0.0;
+	list<KoiData*>* bestStream;
+	bool assigned = true;
+	for(int rb:curr.second){
+		if(estimate->getUp(rb)>=longTermEst->getUp(rb)){
+			// Only use this RB if the estimated SINR is above the long term SINR,
+			// which allows the initially predicted MCS to be used.
+			rbRate = longTermEst->getRUp(rb);
+			while(rbRate>0 && assigned){
+				// find the best packet
+				bestStream = nullptr;
+				assigned = false;
+				for(auto streamIter = streamQueues.begin(); 
+						streamIter!=streamQueues.end(); ++streamIter){
+					list<KoiData*>& currList = streamIter->second;
+					if(bestStream==nullptr 
+							|| (!currList.empty() && comparator(currList.front(),bestStream->front()))){
+						bestStream = &currList;
+					}
+				}
+				if(bestStream!=nullptr){
+					KoiData* packet(bestStream->front());
+					bestStream->pop_front();
+					packet->setResourceBlock(rb);
+					// Send out the best packet of the best stream
+					if(rbRate>packet->getBitLength()){
+						rate += packet->getBitLength();
+						rbRate -= packet->getBitLength();
+					}
+					else{
+						packet->setBitLength(packet->getBitLength()-rbRate);
+						KoiData *leftover = new KoiData(*packet);
+						leftover->setBitLength(rbRate);
+						bestStream->push_front(leftover);
+						rate += packet->getBitLength();
+						rbRate = 0;
+					}
+					packet->setTransPower(transmissionPower);
+					delay = packet->getTotalQueueDelay() + (simTime() - packet->getLatestQueueEntry());
+					packet->setTotalQueueDelay(delay);
+					sendDelayed(packet, epsilon, "toPhy");
+					if(packet->getMessageDirection()==MessageDirection::up
+							|| packet->getMessageDirection()==MessageDirection::d2dUp){
+						infos.first.insert(packet->getResourceBlock());
+					}
+					else{
+						infos.second.insert(packet->getResourceBlock());
+					}
+					assigned = true;
+				}
+			}
+		}
+	}
+	// Store rate for later evaluation
+	*rateFile << msId << "\t" << rate << std::endl;
+	// Send out transmission info
+	for(auto& rb:infos.first){
+		TransInfo *info = new TransInfo();
+		info->setBsId(bsId);
+		info->setPower(transmissionPower);
+		info->setRb(rb);
+		info->setMsId(msId);
+		info->setMessageDirection(MessageDirection::up);
+		send(info,"toBsMac");
+	}
+	for(auto& rb:infos.second){
+		TransInfo *info = new TransInfo();
+		info->setBsId(bsId);
+		info->setPower(transmissionPower);
+		info->setRb(rb);
+		info->setMsId(msId);
+		info->setMessageDirection(MessageDirection::d2dDown);
+		send(info,"toBsMac");
+	}
+	// Schedule the next transmission opportunity
+	int nextTTI = 0;
+	if(curr.first==next.first){
+		// There is only one TTI in which this MS may transmit, so the next 
+		// opportunity is in exactly staticSchedLength many tti
+		nextTTI = staticSchedLength;
+	}
+	else{
+		nextTTI = (next.first-curr.first)%staticSchedLength;
+	}
+	std::cout << "Scheduling static at next tti " << nextTTI << " at time " << simTime() << std::endl;
+	scheduleAt(simTime()+(nextTTI*tti),msg);
 }
 
 void MsMac::handleMessage(cMessage *msg)  {
@@ -306,6 +404,9 @@ void MsMac::handleMessage(cMessage *msg)  {
 		}
 		delete schedule;
 	}
+	else if(msg->isName("SCHEDULE_STATIC")){
+		scheduleStatic(msg);
+	}
 	else if(msg->getKind()==MessageType::transInfo){
 		send(msg,"toPhy");
 	}
@@ -317,7 +418,28 @@ void MsMac::handleMessage(cMessage *msg)  {
 			longTermSINR->setKind(MessageType::longTermSinrEst);
 			send(longTermSINR,"toPhy");
 		}
+		else{
+			// If the UP direction is not static, generate transmit requests at 
+			// at the end of each TTI for the next TTI.
+			scheduleAt(initOffset-epsilon, new cMessage("GEN_TRANSMIT_REQUEST"));
+		}
 		delete msg;
+	}
+	else if(msg->getKind()==MessageType::staticSchedule){
+		StaticSchedule* s = dynamic_cast<StaticSchedule*>(msg);
+		staticSchedule = s->getSchedule();
+		staticIter = staticSchedule.begin();
+		staticSchedLength = s->getScheduleLength();
+		scheduleAt(initOffset+epsilon,new cMessage("SCHEDULE_STATIC"));
+		std::cout << "MS " << bsId << "/" << msId << " received schedule: " << std::endl;
+		for(auto& s:staticSchedule){
+			std::cout << s.first << ":";
+			for(int& i:s.second){
+				std::cout << i << ",";
+			}
+			std::cout << std::endl;
+		}
+		delete s;
 	}
 	else if(msg->isName("RATES_FILE")){
 		// Store pointer to the rate results file
@@ -355,25 +477,24 @@ void MsMac::handleMessage(cMessage *msg)  {
 		scheduleAt(simTime() + tti, msg);
 	}
 	else if(msg->getKind()==MessageType::sinrEst)  {
+		// Store estimate locally
+		SINR* est = dynamic_cast<SINR*>(msg);
+		if(estimate!=nullptr){
+			delete estimate;
+		}
+		estimate = est;
 		// Forward estimates to BS Mac
-		send(msg,"toBsMac");
+		send(est->dup(),"toBsMac");
 	}
 	else if(msg->getKind()==MessageType::longTermSinrEst)  {
-		// Forward long term estimate to scheduler
-		send(msg,"toScheduler");
-	}
-	else if(msg->getKind()==MessageType::staticSchedule){
-		StaticSchedule *sched = dynamic_cast<StaticSchedule*>(msg);
-		ScheduleList schedule = std::move(sched->getSchedule());
-		std::cout << "MS " << bsId << "/" << msId << " received schedule: " << std::endl;
-		for(auto& s:schedule){
-			std::cout << s.first << ":";
-			for(int& i:s.second){
-				std::cout << i << ",";
-			}
-			std::cout << std::endl;
+		// Store long term SINR estimate
+		SINR* est = dynamic_cast<SINR*>(msg);
+		if(longTermEst!=nullptr){
+			delete longTermEst;
 		}
-		delete sched;
+		longTermEst = est;
+		// Forward long term estimate to scheduler
+		send(est->dup(),"toScheduler");
 	}
 	else if(msg->arrivedOn("fromApp"))  {
 		// Packet arrived for sending from traffic generator
