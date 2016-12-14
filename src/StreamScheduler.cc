@@ -13,8 +13,11 @@
 #include "TransReqList_m.h"
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <stdexcept>
+#include <string>
 
+using std::string;
 using std::vector;
 using std::unordered_map;
 
@@ -36,6 +39,26 @@ void StreamScheduler::initialize(){
 	this->estimateBS = nullptr;
 	this->longtermEstimateBS = nullptr;
 	this->staticSchedLength = par("staticSchedLength");
+
+	// Parse assigned resource blocks into a vector
+	string asUp = par("assignedUpRB");
+	string asDown = par("assignedUpRB");
+	if(!asUp.empty()){
+		this->assignedUpRB = cStringTokenizer(asUp.c_str(),",").asIntVector();
+	}
+	else{
+		// If no rb have been statically assigned, build a list with all RBs
+		assignedUpRB.resize(upRB);
+		std::iota(assignedUpRB.begin(),assignedUpRB.end(),0);
+	}
+	if(!asDown.empty()){
+		this->assignedDownRB = cStringTokenizer(asDown.c_str(),",").asIntVector();
+	}
+	else{
+		// If no rb have been statically assigned, build a list with all RBs
+		assignedDownRB.resize(downRB);
+		std::iota(assignedDownRB.begin(),assignedDownRB.end(),0);
+	}
 
 	// Set the default packet sort criterion to creation time
 	this->defaultPacketSorter = [](const KoiData *left,const KoiData *right) 
@@ -64,8 +87,9 @@ void StreamScheduler::scheduleDynStreams(){
 		this->rbAssignments.clear();
 		// This simple algorithm assigns streams to resource blocks 
 		// by a round robin.
-		int rbUp = 0;
-		int rbDown = 0;
+		auto upIter(assignedUpRB.begin());
+		auto downIter(assignedDownRB.begin());
+		int tmp;
 		for(auto info:this->infos){
 			if(info->getD2d()){
 				// If the stream is a D2D link, the scheduler 
@@ -78,24 +102,36 @@ void StreamScheduler::scheduleDynStreams(){
 				// as D2D streams only have one direction, 
 				// directly from the sending MS to the receiving
 				// MS.
-				if(rbUp/(double)upRB<=rbDown/(double)downRB){
+				if(std::distance(assignedUpRB.begin(),upIter)
+						<=std::distance(assignedDownRB.begin(),downIter)){
+					tmp = *(upIter++);
 					this->rbAssignments[info->getStreamId()][MessageDirection::d2d] 
-						= std::make_pair<MessageDirection,int>(MessageDirection::up,rbUp%upRB);
-					rbUp++;
+						= std::make_pair<MessageDirection,int>(MessageDirection::up,std::move(tmp));
+					if(upIter==assignedUpRB.end()){
+						upIter = assignedUpRB.begin();
+					}
 				}
 				else{
+					tmp = *(downIter++);
 					this->rbAssignments[info->getStreamId()][MessageDirection::d2d] 
-						= std::make_pair<MessageDirection,int>(MessageDirection::down,rbDown%downRB);
-					rbDown++;
+						= std::make_pair<MessageDirection,int>(MessageDirection::down,std::move(tmp));
+					if(downIter==assignedDownRB.end()){
+						downIter = assignedDownRB.begin();
+					}
 				}
-			}
-			else{
+			} else{
+				tmp = *(upIter++);
 				this->rbAssignments[info->getStreamId()][MessageDirection::up] 
-					= std::make_pair<MessageDirection,int>(MessageDirection::up,rbUp%upRB);
+					= std::make_pair<MessageDirection,int>(MessageDirection::up,std::move(tmp));
+				tmp = *(downIter++);
 				this->rbAssignments[info->getStreamId()][MessageDirection::down] 
-					= std::make_pair<MessageDirection,int>(MessageDirection::down,rbDown%downRB);
-				rbUp++;
-				rbDown++;
+					= std::make_pair<MessageDirection,int>(MessageDirection::down,std::move(tmp));
+				if(upIter==assignedUpRB.end()){
+					upIter = assignedUpRB.begin();
+				}
+				if(downIter==assignedDownRB.end()){
+					downIter = assignedDownRB.begin();
+				}
 			}
 			delete info;
 		}

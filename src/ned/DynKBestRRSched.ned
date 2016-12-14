@@ -32,6 +32,10 @@ simple DynKBestRRSched like StreamScheduler{
 		bool downStatic = default(false);
 		// Length of the static schedule, in TTI
 		int staticSchedLength = default(1);
+		// UP Resource blocks assigned to the local cell
+		string assignedUpRB = default("");
+		// DOWN Resource blocks assigned to the local cell
+		string assignedDownRB = default("");
 		@class("DynKBestRRSched");
 	gates:
 		// For schedule exchange with the local BaseStation.

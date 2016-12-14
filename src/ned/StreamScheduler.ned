@@ -53,6 +53,10 @@ moduleinterface StreamScheduler {
 		bool downStatic;
 		// Length of the static schedule, in TTI
 		int staticSchedLength;
+		// UP Resource blocks assigned to the local cell
+		string assignedUpRB;
+		// DOWN Resource blocks assigned to the local cell
+		string assignedDownRB;
 		@display("i=block/dispatch");
 	gates:
 		// For schedule exchange with the local BaseStation.

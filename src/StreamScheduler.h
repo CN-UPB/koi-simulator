@@ -38,6 +38,8 @@ class StreamScheduler: public cSimpleModule{
 		int numberOfMs;
 		int upRB;
 		int downRB;
+		std::vector<int> assignedUpRB;
+		std::vector<int> assignedDownRB;
 		int staticSchedLength;
 		bool upStatic;
 		bool downStatic;

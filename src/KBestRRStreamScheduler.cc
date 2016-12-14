@@ -198,15 +198,12 @@ void KBestRRStreamScheduler::scheduleDynStreams(){
 	// Clear out the current assignments
 	originAssignments.clear();
 	if(!upStatic){
-		vector<int> upBlocks(upRB);
-		// Fill lists with resource block numbers
-		std::iota(upBlocks.begin(),upBlocks.end(),0);
+		vector<int> upBlocks(assignedUpRB);
 		// Schedule UP blocks
 		originUpIter = scheduleKBest(originUpIter,upBlocks,MessageDirection::up,upK);
 	}
 	if(!downStatic){
-		vector<int> downBlocks(downRB);
-		std::iota(downBlocks.begin(),downBlocks.end(),0);
+		vector<int> downBlocks(assignedDownRB);
 		// Schedule DOWN blocks
 		originDownIter = scheduleKBest(originDownIter,downBlocks,
 				MessageDirection::down,downK);
@@ -221,9 +218,7 @@ std::unordered_map<int,ScheduleList> KBestRRStreamScheduler::scheduleStatStreams
 	for(int i=0; i<staticSchedLength; ++i){
 		if(upStatic){
 			ttiSchedule.clear();
-			vector<int> upBlocks(upRB);
-			// Fill lists with resource block numbers
-			std::iota(upBlocks.begin(),upBlocks.end(),0);
+			vector<int> upBlocks(assignedUpRB);
 			// Schedule UP blocks
 			orIter = scheduleKBestStatic(orIter,upBlocks,MessageDirection::up,upK,
 					ttiSchedule);

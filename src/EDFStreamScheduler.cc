@@ -84,10 +84,10 @@ void EDFStreamScheduler::scheduleDynStreams(){
     }
     // Generate EDFRb instances for all UP and DOWN resource blocks
     vector<EDFRb> blocks;
-    for(int i=0; i<upRB; i++){
+    for(int i:assignedUpRB){
       blocks.emplace_back(MessageDirection::up,i);
     }
-    for(int i=0; i<downRB; i++){
+    for(int i:assignedDownRB){
       blocks.emplace_back(MessageDirection::down,i);
     }
 

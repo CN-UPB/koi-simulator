@@ -165,11 +165,8 @@ void KBestFairStreamScheduler::scheduleDynStreams(){
 	// Clear out the current assignments
 	originAssignments.clear();
 	// Build lists of resource block for UP/DOWN bands
-	vector<int> upBlocks(upRB);
-	vector<int> downBlocks(downRB);
-	// Fill lists with resource block numbers
-	std::iota(upBlocks.begin(),upBlocks.end(),0);
-	std::iota(downBlocks.begin(),downBlocks.end(),0);
+	vector<int> upBlocks(assignedUpRB);
+	vector<int> downBlocks(assignedDownRB);
 	// Sort allOrigins ascending by number of packets send last tti
 	MessageDirection dir = MessageDirection::up;
 	auto compSendPackUp = [&](int& first, int& second) -> bool {
