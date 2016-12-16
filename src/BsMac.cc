@@ -124,8 +124,10 @@ void BsMac::handleMessage(cMessage *msg)  {
 		delete msg;
 	}
 	else if(msg->isName("POINTER_EXCHANGE2")){
+		send(msg->dup(),"toMsMac",0);
 		for(int i = 1; i < numberOfMobileStations; ++i)  {
 			send(msg->dup(), "toBsChannel", i);
+			send(msg->dup(),"toMsMac",i);
 		}
 		delete msg;
 	}

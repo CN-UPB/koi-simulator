@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "Channel.h"
 #include "includes.h"
 #include "KoiData_m.h"
 #include "Position.h"
@@ -34,7 +35,7 @@ class MsMac : public cSimpleModule  {
 			std::function<bool(const KoiData*, const KoiData*)> comparator;
 			ScheduleList staticSchedule;
 			ScheduleList::iterator staticIter;
-			SINR *estimate;
+			Channel *chn;
 			SINR *longTermEst;
 			int staticSchedLength;
 			Position msPosition;

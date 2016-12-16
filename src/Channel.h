@@ -170,6 +170,14 @@ class Channel{
 				int msId,
 				double transPower);
 
+		virtual double senseUpSINR(int RB, 
+				int msId,
+				double transPower);
+
+		virtual double senseDownSINR(int RB, 
+				int msId,
+				double transPower);
+
 		virtual double calcD2DSINR(int RB, 
 				int sendMsID,
 				int receiveMsId,

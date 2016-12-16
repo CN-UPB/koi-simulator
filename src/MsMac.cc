@@ -6,6 +6,7 @@
  */
 
 #include "MsMac.h"
+#include "PointerExchange_m.h"
 #include "PositionExchange_m.h"
 #include "KoiData_m.h"
 #include "ScheduleInfo_m.h"
@@ -202,8 +203,8 @@ void MsMac::initialize()  {
 	tti = par("tti");
 	packetLength = par("packetLength");
 	transmissionPower = par("transmissionPower");
-	estimate = nullptr;
 	longTermEst = nullptr;
+	chn = nullptr;
 
 	switch((int)par("positioning")){
 		case MsMac::Placement::params:
@@ -256,50 +257,52 @@ void MsMac::scheduleStatic(cMessage* msg){
 	list<KoiData*>* bestStream;
 	bool assigned = true;
 	for(int rb:curr.second){
-		// Only use this RB if the estimated SINR is above the long term SINR,
-		// which allows the initially predicted MCS to be used.
-		rbRate = longTermEst->getRUp(rb);
-		while(rbRate>0 && assigned){
-			// find the best packet
-			bestStream = nullptr;
-			assigned = false;
-			for(auto streamIter = streamQueues.begin(); 
-					streamIter!=streamQueues.end(); ++streamIter){
-				list<KoiData*>& currList = streamIter->second;
-				if(!currList.empty() && (bestStream==nullptr 
-							|| comparator(currList.front(),bestStream->front()))){
-					bestStream = &currList;
+		if(chn->senseUpSINR(rb,msId,transmissionPower)>=longTermEst->getUp(rb)){
+			// Only use this RB if the estimated SINR is above the long term SINR,
+			// which allows the initially predicted MCS to be used.
+			rbRate = longTermEst->getRUp(rb);
+			while(rbRate>0 && assigned){
+				// find the best packet
+				bestStream = nullptr;
+				assigned = false;
+				for(auto streamIter = streamQueues.begin(); 
+						streamIter!=streamQueues.end(); ++streamIter){
+					list<KoiData*>& currList = streamIter->second;
+					if(!currList.empty() && (bestStream==nullptr 
+								|| comparator(currList.front(),bestStream->front()))){
+						bestStream = &currList;
+					}
 				}
-			}
-			if(bestStream!=nullptr){
-				KoiData* packet(bestStream->front());
-				bestStream->pop_front();
-				packet->setResourceBlock(rb);
-				// Send out the best packet of the best stream
-				if(rbRate>packet->getBitLength()){
-					rate += packet->getBitLength();
-					rbRate -= packet->getBitLength();
+				if(bestStream!=nullptr){
+					KoiData* packet(bestStream->front());
+					bestStream->pop_front();
+					packet->setResourceBlock(rb);
+					// Send out the best packet of the best stream
+					if(rbRate>packet->getBitLength()){
+						rate += packet->getBitLength();
+						rbRate -= packet->getBitLength();
+					}
+					else{
+						packet->setBitLength(packet->getBitLength()-rbRate);
+						KoiData *leftover = new KoiData(*packet);
+						leftover->setBitLength(rbRate);
+						bestStream->push_front(leftover);
+						rate += packet->getBitLength();
+						rbRate = 0;
+					}
+					packet->setTransPower(transmissionPower);
+					delay = packet->getTotalQueueDelay() + (simTime() - packet->getLatestQueueEntry());
+					packet->setTotalQueueDelay(delay);
+					sendDelayed(packet, epsilon, "toPhy");
+					if(packet->getMessageDirection()==MessageDirection::up
+							|| packet->getMessageDirection()==MessageDirection::d2dUp){
+						infos.first.insert(packet->getResourceBlock());
+					}
+					else{
+						infos.second.insert(packet->getResourceBlock());
+					}
+					assigned = true;
 				}
-				else{
-					packet->setBitLength(packet->getBitLength()-rbRate);
-					KoiData *leftover = new KoiData(*packet);
-					leftover->setBitLength(rbRate);
-					bestStream->push_front(leftover);
-					rate += packet->getBitLength();
-					rbRate = 0;
-				}
-				packet->setTransPower(transmissionPower);
-				delay = packet->getTotalQueueDelay() + (simTime() - packet->getLatestQueueEntry());
-				packet->setTotalQueueDelay(delay);
-				sendDelayed(packet, epsilon, "toPhy");
-				if(packet->getMessageDirection()==MessageDirection::up
-						|| packet->getMessageDirection()==MessageDirection::d2dUp){
-					infos.first.insert(packet->getResourceBlock());
-				}
-				else{
-					infos.second.insert(packet->getResourceBlock());
-				}
-				assigned = true;
 			}
 		}
 	}
@@ -401,6 +404,11 @@ void MsMac::handleMessage(cMessage *msg)  {
 		}
 		delete schedule;
 	}
+	else if(msg->isName("POINTER_EXCHANGE2")){
+		PointerExchange *PtrMessage = dynamic_cast<PointerExchange*>(msg);
+		chn = PtrMessage->getPtr();
+		delete msg;
+	}
 	else if(msg->isName("SCHEDULE_STATIC")){
 		scheduleStatic(msg);
 	}
@@ -466,12 +474,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 		scheduleAt(simTime() + tti, msg);
 	}
 	else if(msg->getKind()==MessageType::sinrEst)  {
-		// Store estimate locally
 		SINR* est = dynamic_cast<SINR*>(msg);
-		if(estimate!=nullptr){
-			delete estimate;
-		}
-		estimate = est;
 		// Forward estimates to BS Mac
 		send(est->dup(),"toBsMac");
 	}
