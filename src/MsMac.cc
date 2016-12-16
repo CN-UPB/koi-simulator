@@ -256,52 +256,50 @@ void MsMac::scheduleStatic(cMessage* msg){
 	list<KoiData*>* bestStream;
 	bool assigned = true;
 	for(int rb:curr.second){
-		if(estimate->getUp(rb)>=longTermEst->getUp(rb)){
-			// Only use this RB if the estimated SINR is above the long term SINR,
-			// which allows the initially predicted MCS to be used.
-			rbRate = longTermEst->getRUp(rb);
-			while(rbRate>0 && assigned){
-				// find the best packet
-				bestStream = nullptr;
-				assigned = false;
-				for(auto streamIter = streamQueues.begin(); 
-						streamIter!=streamQueues.end(); ++streamIter){
-					list<KoiData*>& currList = streamIter->second;
-					if(!currList.empty() && (bestStream==nullptr 
+		// Only use this RB if the estimated SINR is above the long term SINR,
+		// which allows the initially predicted MCS to be used.
+		rbRate = longTermEst->getRUp(rb);
+		while(rbRate>0 && assigned){
+			// find the best packet
+			bestStream = nullptr;
+			assigned = false;
+			for(auto streamIter = streamQueues.begin(); 
+					streamIter!=streamQueues.end(); ++streamIter){
+				list<KoiData*>& currList = streamIter->second;
+				if(!currList.empty() && (bestStream==nullptr 
 							|| comparator(currList.front(),bestStream->front()))){
-						bestStream = &currList;
-					}
+					bestStream = &currList;
 				}
-				if(bestStream!=nullptr){
-					KoiData* packet(bestStream->front());
-					bestStream->pop_front();
-					packet->setResourceBlock(rb);
-					// Send out the best packet of the best stream
-					if(rbRate>packet->getBitLength()){
-						rate += packet->getBitLength();
-						rbRate -= packet->getBitLength();
-					}
-					else{
-						packet->setBitLength(packet->getBitLength()-rbRate);
-						KoiData *leftover = new KoiData(*packet);
-						leftover->setBitLength(rbRate);
-						bestStream->push_front(leftover);
-						rate += packet->getBitLength();
-						rbRate = 0;
-					}
-					packet->setTransPower(transmissionPower);
-					delay = packet->getTotalQueueDelay() + (simTime() - packet->getLatestQueueEntry());
-					packet->setTotalQueueDelay(delay);
-					sendDelayed(packet, epsilon, "toPhy");
-					if(packet->getMessageDirection()==MessageDirection::up
-							|| packet->getMessageDirection()==MessageDirection::d2dUp){
-						infos.first.insert(packet->getResourceBlock());
-					}
-					else{
-						infos.second.insert(packet->getResourceBlock());
-					}
-					assigned = true;
+			}
+			if(bestStream!=nullptr){
+				KoiData* packet(bestStream->front());
+				bestStream->pop_front();
+				packet->setResourceBlock(rb);
+				// Send out the best packet of the best stream
+				if(rbRate>packet->getBitLength()){
+					rate += packet->getBitLength();
+					rbRate -= packet->getBitLength();
 				}
+				else{
+					packet->setBitLength(packet->getBitLength()-rbRate);
+					KoiData *leftover = new KoiData(*packet);
+					leftover->setBitLength(rbRate);
+					bestStream->push_front(leftover);
+					rate += packet->getBitLength();
+					rbRate = 0;
+				}
+				packet->setTransPower(transmissionPower);
+				delay = packet->getTotalQueueDelay() + (simTime() - packet->getLatestQueueEntry());
+				packet->setTotalQueueDelay(delay);
+				sendDelayed(packet, epsilon, "toPhy");
+				if(packet->getMessageDirection()==MessageDirection::up
+						|| packet->getMessageDirection()==MessageDirection::d2dUp){
+					infos.first.insert(packet->getResourceBlock());
+				}
+				else{
+					infos.second.insert(packet->getResourceBlock());
+				}
+				assigned = true;
 			}
 		}
 	}
