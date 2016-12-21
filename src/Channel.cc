@@ -10,6 +10,8 @@
 #include "NeighbourIdMatching.h"
 #include "Position.h"
 #include "TransInfo_m.h"
+
+#include <stdexcept>
 #include <forward_list>
 #include <vector>
 
@@ -140,6 +142,26 @@ double Channel::calcDownSINR(int RB,
 	return 10 * log10( received / interference );
 }
 
+double Channel::senseUpSINR(int RB, 
+		int msId,
+		double transPower){
+	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
+	double received = 0;
+	received = transPower * coeffUpTable[bsId][0][msId][SINRcounter][RB];
+	// Convert to db scale
+	return 10 * log10( received / getTermalNoise(300,chnBandwidth) );
+}
+
+double Channel::senseDownSINR(int RB, 
+		int msId,
+		double transPower){
+	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
+	double received = 0;
+	received = transPower * coeffDownTable[msId][bsId][SINRcounter][RB];
+	// Convert to db scale
+	return 10 * log10( received / getTermalNoise(300,chnBandwidth) );
+}
+
 double Channel::calcD2DSINR(int RB, 
 		int sendMsID,
 		int receiveMsId,
@@ -226,6 +248,14 @@ void Channel::clearTransInfo(){
 		}
 		currList.clear();
 	}
+}
+
+double Channel::calcLongtermUpSINR(int rb, int msId, double transPower){
+	throw std::runtime_error("Long term SINR calculation not implemented.");
+}
+
+double Channel::calcLongtermDownSINR(int rb, int msId, double transPower){
+	throw std::runtime_error("Long term SINR calculation not implemented.");
 }
 
 // Johnson Nyquist Noise

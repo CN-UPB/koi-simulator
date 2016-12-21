@@ -34,12 +34,30 @@ class FactoryChannel: public Channel{
 		boost::random::mt19937 randEng;
 		boost::random::exponential_distribution<double> distExp;
 		boost::random::normal_distribution<double> distNorm;
+		/**
+		 * Shadowing table UP, [BS]x[MS]
+		 */
+		std::vector<std::vector<double>> shUp;
+		/**
+		 * Shadowing table DOWN, [MS]x[BS]
+		 */
+		std::vector<std::vector<double>> shDown;
+		/**
+		 * Shadowing table D2D DOWN, [CELL]x[MS]x[MS]
+		 */
+		std::vector<std::vector<std::vector<double>>> shD2DDown;
+		/**
+		 * Shadowing table D2D UP, [CELL]x[MS]x[MS]
+		 */
+		std::vector<std::vector<std::vector<double>>> shD2DUp;
 
 		double pathgain(Position sender, Position receiver);
 		double fadingRicean(double pl, double gainTx, double gainRx);
 		double fadingExponential();
 		double shadowing();
 		void recomputeCoefficients(
+				const std::vector<std::vector<Position>>& msPositions);
+		void generateShadowing(
 				const std::vector<std::vector<Position>>& msPositions);
 	
 	public:
@@ -50,6 +68,7 @@ class FactoryChannel: public Channel{
 				std::map<int,Position>& neighbourPositions);
 
 		void updateChannel(const std::vector<std::vector<Position>>& msPos);
-
+		double calcLongtermUpSINR(int rb, int msId, double transPower);
+		double calcLongtermDownSINR(int rb, int msId, double transPower);
 		virtual ~FactoryChannel();
 };

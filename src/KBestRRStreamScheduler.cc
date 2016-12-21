@@ -150,21 +150,87 @@ std::set<int>::iterator KBestRRStreamScheduler::scheduleKBest(
 	return iter;
 }
 
-void KBestRRStreamScheduler::scheduleStreams(){
+std::set<int>::iterator KBestRRStreamScheduler::scheduleKBestStatic(
+		std::set<int>::iterator iter,
+		std::vector<int> blocks,MessageDirection dir,int k,
+		std::unordered_map<int,std::vector<int>>& schedule){
+	while(blocks.size()>=k){
+		if(iter==allOrigins.end()){
+			// We're at the end of the set of senders, start at the beginning
+			iter = allOrigins.begin();
+		}
+		if(*iter==-1 && dir==MessageDirection::up){
+			// Current origin is the base station and we are assigning resource blocks
+			// in the UP frequencies, which the BS does not need.
+			++iter;
+			continue;
+		}
+		SINR *estimate;
+		int id = *iter;
+		if(id==-1){
+			estimate = longtermEstimateBS;
+		}
+		else{
+			estimate = longtermSinrEstimate[id];
+		}
+		auto blockComp = [&](int& first, int& second) -> bool {
+			if(dir==MessageDirection::up){
+				return estimate->getUp(first) > estimate->getUp(second);
+			}
+			else{
+				return estimate->getDown(first) > estimate->getDown(second);
+			}
+		};
+		// Sort the list of resource blocks in decreasing order, so that 
+		// the first k elements are also the first k best resource blocks with the 
+		// highest SINR.
+		std::sort(blocks.begin(),blocks.end(),blockComp);
+		// Assign the k best resource blocks to station id and remove them from 
+		// the list of available resource blocks.
+		std::move(blocks.begin(),blocks.begin()+k,std::back_inserter(schedule[id]));
+		blocks.erase(blocks.begin(),blocks.begin()+k);
+		++iter;
+	}
+	return iter;
+}
+
+void KBestRRStreamScheduler::scheduleDynStreams(){
 	// Clear out the current assignments
 	originAssignments.clear();
-	// Build lists of resource block for UP/DOWN bands
-	vector<int> upBlocks(upRB);
-	vector<int> downBlocks(downRB);
-	// Fill lists with resource block numbers
-	std::iota(upBlocks.begin(),upBlocks.end(),0);
-	std::iota(downBlocks.begin(),downBlocks.end(),0);
-	// Schedule UP blocks
-	originUpIter = scheduleKBest(originUpIter,upBlocks,MessageDirection::up,upK);
-	// Schedule DOWN blocks
-	originDownIter = scheduleKBest(originDownIter,downBlocks,
-			MessageDirection::down,downK);
+	if(!upStatic){
+		vector<int> upBlocks(assignedUpRB);
+		// Schedule UP blocks
+		originUpIter = scheduleKBest(originUpIter,upBlocks,MessageDirection::up,upK);
+	}
+	if(!downStatic){
+		vector<int> downBlocks(assignedDownRB);
+		// Schedule DOWN blocks
+		originDownIter = scheduleKBest(originDownIter,downBlocks,
+				MessageDirection::down,downK);
+	}
 	currOrigins.clear();
+}
+
+std::unordered_map<int,ScheduleList> KBestRRStreamScheduler::scheduleStatStreams(){
+	std::unordered_map<int,ScheduleList> schedules;
+	std::unordered_map<int,std::vector<int>> ttiSchedule;
+	std::set<int>::iterator orIter(allOrigins.begin());
+	for(int i=0; i<staticSchedLength; ++i){
+		if(upStatic){
+			ttiSchedule.clear();
+			vector<int> upBlocks(assignedUpRB);
+			// Schedule UP blocks
+			orIter = scheduleKBestStatic(orIter,upBlocks,MessageDirection::up,upK,
+					ttiSchedule);
+			for(auto& s:ttiSchedule){
+				schedules[s.first].push_back(std::make_pair(i,std::move(s.second)));
+			}
+		}
+	}
+	if(downStatic){
+		throw std::runtime_error("Static Scheduling for DOWN not yet implemented.");
+	}
+	return schedules;
 }
 
 void KBestRRStreamScheduler::handleMessage(cMessage *msg){
@@ -173,7 +239,7 @@ void KBestRRStreamScheduler::handleMessage(cMessage *msg){
 			if(currOrigins.size()>0){
 				// Only compute a schedule if there actually are any requests which 
 				// would make use of the schedule.
-				this->scheduleStreams();
+				this->scheduleDynStreams();
 			}
 			scheduleAt(simTime()+this->streamSchedPeriod,msg);
 		} break;

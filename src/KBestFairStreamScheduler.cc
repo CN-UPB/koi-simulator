@@ -161,15 +161,12 @@ void KBestFairStreamScheduler::scheduleKBest(
 	}
 }
 
-void KBestFairStreamScheduler::scheduleStreams(){
+void KBestFairStreamScheduler::scheduleDynStreams(){
 	// Clear out the current assignments
 	originAssignments.clear();
 	// Build lists of resource block for UP/DOWN bands
-	vector<int> upBlocks(upRB);
-	vector<int> downBlocks(downRB);
-	// Fill lists with resource block numbers
-	std::iota(upBlocks.begin(),upBlocks.end(),0);
-	std::iota(downBlocks.begin(),downBlocks.end(),0);
+	vector<int> upBlocks(assignedUpRB);
+	vector<int> downBlocks(assignedDownRB);
 	// Sort allOrigins ascending by number of packets send last tti
 	MessageDirection dir = MessageDirection::up;
 	auto compSendPackUp = [&](int& first, int& second) -> bool {
@@ -200,7 +197,7 @@ void KBestFairStreamScheduler::handleMessage(cMessage *msg){
 			if(currOrigins.size()>0){
 				// Only compute a schedule if there actually are any requests which 
 				// would make use of the schedule.
-				this->scheduleStreams();
+				this->scheduleDynStreams();
 			}
 			scheduleAt(simTime()+this->streamSchedPeriod,msg);
 		} break;

@@ -7,12 +7,17 @@
  * assignment of streams to resource blocks.
  */
 
+#include "MessageTypes.h"
+#include "ScheduleInfo_m.h"
 #include "StreamScheduler.h"
 #include "TransReqList_m.h"
-#include "MessageTypes.h"
 #include <iostream>
 #include <memory>
+#include <numeric>
+#include <stdexcept>
+#include <string>
 
+using std::string;
 using std::vector;
 using std::unordered_map;
 
@@ -22,30 +27,69 @@ void StreamScheduler::initialize(){
 	this->initOffset = par("initOffset");
 	this->downRB = par("downResourceBlocks");
 	this->upRB = par("upResourceBlocks");
+	this->upStatic = par("upStatic");
+	this->downStatic = par("downStatic");
 	this->numberOfMs = par("numberOfMobileStations");
 	this->infos = vector<StreamInfo*>();
 	this->streamSchedPeriod = par("streamSchedPeriod");
 	this->tti = par("tti");
 	this->epsilon = par("epsilon");
 	this->sinrEstimate.resize(numberOfMs,nullptr);
+	this->longtermSinrEstimate.resize(numberOfMs,nullptr);
 	this->estimateBS = nullptr;
-	// Produce the first schedule right at the init offset
-	// We will need to make certain that all mobile stations have reported 
-	// their streams at the time the first schedule is computed.
-	scheduleAt(simTime()+initOffset,
-			new cMessage("",MessageType::scheduleStreams));
-	scheduleAt(simTime()+initOffset,
-			new cMessage("",MessageType::scheduleRBs));
+	this->longtermEstimateBS = nullptr;
+	this->staticSchedLength = par("staticSchedLength");
+
+	// Parse assigned resource blocks into a vector
+	string asUp = par("assignedUpRB");
+	string asDown = par("assignedUpRB");
+	if(!asUp.empty()){
+		this->assignedUpRB = cStringTokenizer(asUp.c_str(),",").asIntVector();
+	}
+	else{
+		// If no rb have been statically assigned, build a list with all RBs
+		assignedUpRB.resize(upRB);
+		std::iota(assignedUpRB.begin(),assignedUpRB.end(),0);
+	}
+	if(!asDown.empty()){
+		this->assignedDownRB = cStringTokenizer(asDown.c_str(),",").asIntVector();
+	}
+	else{
+		// If no rb have been statically assigned, build a list with all RBs
+		assignedDownRB.resize(downRB);
+		std::iota(assignedDownRB.begin(),assignedDownRB.end(),0);
+	}
+
+	// Set the default packet sort criterion to creation time
+	this->defaultPacketSorter = [](const KoiData *left,const KoiData *right) 
+		-> bool{ return left->getCreationTime()<right->getCreationTime(); };
+
+	if(!upStatic || !downStatic){
+		// Produce the first schedule right at the init offset
+		// We will need to make certain that all mobile stations have reported 
+		// their streams at the time the first schedule is computed.
+		scheduleAt(simTime()+initOffset,
+				new cMessage("",MessageType::scheduleStreams));
+		scheduleAt(simTime()+initOffset,
+				new cMessage("",MessageType::scheduleRBs));
+	}
+	if(upStatic || downStatic){
+		scheduleAt(simTime()+initOffset-epsilon,
+				new cMessage("",MessageType::genStaticSchedule));
+	}
+	scheduleAt(simTime()+epsilon,
+			new cMessage("",MessageType::scheduleInfo));
 }
 
-void StreamScheduler::scheduleStreams(){
+void StreamScheduler::scheduleDynStreams(){
 	if(!this->infos.empty()){
 		// First, clear the current assignment
 		this->rbAssignments.clear();
 		// This simple algorithm assigns streams to resource blocks 
 		// by a round robin.
-		int rbUp = 0;
-		int rbDown = 0;
+		auto upIter(assignedUpRB.begin());
+		auto downIter(assignedDownRB.begin());
+		int tmp;
 		for(auto info:this->infos){
 			if(info->getD2d()){
 				// If the stream is a D2D link, the scheduler 
@@ -58,29 +102,63 @@ void StreamScheduler::scheduleStreams(){
 				// as D2D streams only have one direction, 
 				// directly from the sending MS to the receiving
 				// MS.
-				if(rbUp/(double)upRB<=rbDown/(double)downRB){
+				if(std::distance(assignedUpRB.begin(),upIter)
+						<=std::distance(assignedDownRB.begin(),downIter)){
+					tmp = *(upIter++);
 					this->rbAssignments[info->getStreamId()][MessageDirection::d2d] 
-						= std::make_pair<MessageDirection,int>(MessageDirection::up,rbUp%upRB);
-					rbUp++;
+						= std::make_pair<MessageDirection,int>(MessageDirection::up,std::move(tmp));
+					if(upIter==assignedUpRB.end()){
+						upIter = assignedUpRB.begin();
+					}
 				}
 				else{
+					tmp = *(downIter++);
 					this->rbAssignments[info->getStreamId()][MessageDirection::d2d] 
-						= std::make_pair<MessageDirection,int>(MessageDirection::down,rbDown%downRB);
-					rbDown++;
+						= std::make_pair<MessageDirection,int>(MessageDirection::down,std::move(tmp));
+					if(downIter==assignedDownRB.end()){
+						downIter = assignedDownRB.begin();
+					}
 				}
-			}
-			else{
+			} else{
+				tmp = *(upIter++);
 				this->rbAssignments[info->getStreamId()][MessageDirection::up] 
-					= std::make_pair<MessageDirection,int>(MessageDirection::up,rbUp%upRB);
+					= std::make_pair<MessageDirection,int>(MessageDirection::up,std::move(tmp));
+				tmp = *(downIter++);
 				this->rbAssignments[info->getStreamId()][MessageDirection::down] 
-					= std::make_pair<MessageDirection,int>(MessageDirection::down,rbDown%downRB);
-				rbUp++;
-				rbDown++;
+					= std::make_pair<MessageDirection,int>(MessageDirection::down,std::move(tmp));
+				if(upIter==assignedUpRB.end()){
+					upIter = assignedUpRB.begin();
+				}
+				if(downIter==assignedDownRB.end()){
+					downIter = assignedDownRB.begin();
+				}
 			}
 			delete info;
 		}
 		// Remove all stream infos
 		this->infos.clear();
+	}
+}
+
+std::unordered_map<int,ScheduleList> StreamScheduler::scheduleStatStreams(){
+	throw std::runtime_error("Static Scheduling not implemented for this Stream Scheduler.");
+}
+
+void StreamScheduler::distributeStaticSchedules(){
+	std::unordered_map<int,ScheduleList> schedules(scheduleStatStreams());
+	for(auto& origin:schedules){
+		StaticSchedule* sched = new StaticSchedule();
+		sched->setScheduleLength(staticSchedLength);
+		sched->setOrigin(origin.first);
+		sched->setSchedule(origin.second);
+		if(origin.first == -1){
+			// Send schedule to local BS
+			send(sched,"toBs");
+		}
+		else{
+			// Send to MS
+			send(sched,"toMs",origin.first);
+		}
 	}
 }
 
@@ -96,8 +174,11 @@ void StreamScheduler::handleMessage(cMessage *msg){
         this->requests[assignment.first][assignment.second].push_back(req);
         } break;
     case MessageType::scheduleStreams:{
-        this->scheduleStreams();
+				this->scheduleDynStreams();
         scheduleAt(simTime()+this->streamSchedPeriod,msg);
+        } break;
+    case MessageType::genStaticSchedule:{
+				this->distributeStaticSchedules();
         } break;
 		case MessageType::scheduleRBs:
 				scheduledStations.clear();
@@ -149,6 +230,7 @@ void StreamScheduler::handleMessage(cMessage *msg){
 				}
 				delete sched;
         } break;
+		case MessageType::longTermSinrEst:
     case MessageType::sinrEst:{
         SINR *sinrEst = dynamic_cast<SINR*>(msg);
         this->handleSINREstimate(sinrEst);        
@@ -185,15 +267,31 @@ void StreamScheduler::handleMessage(cMessage *msg){
           }
         }
 			} break;
-		case MessageType::sortOrder:
-			// Forward the sort order function for packet queues to all local 
-			// MS and the local BS
-			send(msg->dup(),"toBs");
-			for(int i=0; i<gateSize("toMs"); ++i){
-				send(msg->dup(),"toMs",i);
-			}
-			delete msg;
-			break;
+		case MessageType::scheduleInfo:{
+				if(msg->isSelfMessage()){
+					// Self message generated in initialize, at this point any 
+					// comparator from RB Schedulers will have arrived and the comparator
+					// function will be set correctly.
+					ScheduleInfo *inf = new ScheduleInfo();
+					inf->setSortfn(defaultPacketSorter);
+					inf->setUpStatic(upStatic);
+					inf->setDownStatic(downStatic);
+					// Forward the scheduling info to all local 
+					// MS and the local BS
+					send(inf->dup(),"toBs");
+					for(int i=0; i<gateSize("toMs"); ++i){
+						send(inf->dup(),"toMs",i);
+					}
+					delete inf;
+				}
+				else{
+					// If this is not a self message, it must have arrived from the 
+					// RB schedulers with a specific packet sorting criterion.
+					ScheduleInfo *inf = dynamic_cast<ScheduleInfo*>(msg);
+					defaultPacketSorter = inf->getSortfn();
+				}
+				delete msg;
+			} break;
     default:
         std::cerr << "Received invalid Message in "
           << "StreamScheduler handleMessage"
@@ -219,16 +317,32 @@ void StreamScheduler::printAssignment(){
 void StreamScheduler::handleSINREstimate(SINR *msg){
   if(msg->getMsId()==-1){
     // SINR estimate for the local BS
-    if(estimateBS!=nullptr){
-      delete estimateBS;
-    }
-    estimateBS = msg;
+		if(msg->getKind()==MessageType::longTermSinrEst){
+			if(longtermEstimateBS!=nullptr){
+				delete longtermEstimateBS;
+			}
+			longtermEstimateBS = msg;
+		}
+		else{
+			if(estimateBS!=nullptr){
+				delete estimateBS;
+			}
+			estimateBS = msg;
+		}
   }
   else{
     // SINR estimate for a local mobile station
-    if(sinrEstimate[msg->getMsId()]!=nullptr){
-      delete sinrEstimate[msg->getMsId()];
-    }
-    sinrEstimate[msg->getMsId()] = msg;
+		if(msg->getKind()==MessageType::longTermSinrEst){
+			if(longtermSinrEstimate[msg->getMsId()]!=nullptr){
+				delete longtermSinrEstimate[msg->getMsId()];
+			}
+			longtermSinrEstimate[msg->getMsId()] = msg;
+		}
+		else{
+			if(sinrEstimate[msg->getMsId()]!=nullptr){
+				delete sinrEstimate[msg->getMsId()];
+			}
+			sinrEstimate[msg->getMsId()] = msg;
+		}
   }
 }

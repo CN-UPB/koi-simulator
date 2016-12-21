@@ -1,12 +1,4 @@
-// Round Robin scheduling for the StreamScheduler
-//
-// This implementation of the StreamScheduler interface assigns streams 
-// to resource block through round robin. After receiving all StreamInfo 
-// messages, the scheduler iterates jointly over them and the list 
-// of available resource blocks. If the list of resource blocks is exhausted 
-// before all streams are assigned, the assigment starts again with the front 
-// of the resource block list.
-simple RoundRobinStreamSched like StreamScheduler{
+simple DynKBestRRSched like StreamScheduler{
 	parameters:
 		// Offset from the simulation start reserved for initialization messages.
 		// No traffic is generated/send before it.
@@ -25,9 +17,16 @@ simple RoundRobinStreamSched like StreamScheduler{
 		// A small offset used control message order in cases where ordering 
 		// cannot be guaranteed by generation order.
 		double epsilon @unit(s);
+		// Number of best RB assigned to senders each TTI for UP transmissions
+		int upK;
+		// Number of best RB assigned to senders each TTI for DOWN transmissions
+		int downK;
 		int bsId;
 		// Do Debug output?
 		bool debug = default(false);
+		// Length of packets in bits
+		int packetLength @unit(b);
+		// Should UP resource blocks be scheduled statically?
 		bool upStatic = default(false);
 		// Should DOWN resource blocks be scheduled statically?
 		bool downStatic = default(false);
@@ -37,7 +36,7 @@ simple RoundRobinStreamSched like StreamScheduler{
 		string assignedUpRB = default("");
 		// DOWN Resource blocks assigned to the local cell
 		string assignedDownRB = default("");
-		@class("StreamScheduler");
+		@class("DynKBestRRSched");
 	gates:
 		// For schedule exchange with the local BaseStation.
 		input fromBs;

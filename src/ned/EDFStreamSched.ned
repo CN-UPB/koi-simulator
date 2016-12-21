@@ -29,6 +29,16 @@ simple EDFStreamSched like StreamScheduler{
 		int bsId;
 		// Do Debug output?
 		bool debug = default(false);
+		// Should UP resource blocks be scheduled statically?
+		bool upStatic = default(false);
+		// Should DOWN resource blocks be scheduled statically?
+		bool downStatic = default(false);
+		// Length of the static schedule, in TTI
+		int staticSchedLength = default(1);
+		// UP Resource blocks assigned to the local cell
+		string assignedUpRB = default("");
+		// DOWN Resource blocks assigned to the local cell
+		string assignedDownRB = default("");
 		@class("EDFStreamScheduler");
 	gates:
 		// For schedule exchange with the local BaseStation.

@@ -38,10 +38,10 @@ class KBestFairStreamScheduler: public StreamScheduler{
 		std::ofstream upSchedule;
 		std::ofstream downSchedule;
 		void scheduleKBest(std::vector<int>& blocks,MessageDirection dir,int k);
-    virtual void scheduleStreams();
 	
 	protected:
     virtual void initialize();
 		virtual void finish();
 		virtual void handleMessage(cMessage *msg);
+    virtual void scheduleDynStreams();
 };

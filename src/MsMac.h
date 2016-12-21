@@ -7,24 +7,37 @@
 
 #pragma once
 
+#include "Channel.h"
 #include "includes.h"
 #include "KoiData_m.h"
 #include "Position.h"
+#include "SINR_m.h"
 #include "util.h"
+
 #include <itpp/itbase.h>
+
 #include <algorithm>
 #include <fstream>
 #include <functional>
 #include <list>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 using namespace itpp;
 using namespace std;
+using TTISchedule = std::pair<int,std::vector<int>>;
+using ScheduleList = std::vector<TTISchedule>;
 
 class MsMac : public cSimpleModule  {
     private:
 			unordered_map<unsigned long,list<KoiData*>> streamQueues;
 			std::function<bool(const KoiData*, const KoiData*)> comparator;
+			ScheduleList staticSchedule;
+			ScheduleList::iterator staticIter;
+			Channel *chn;
+			SINR *longTermEst;
+			int staticSchedLength;
 			Position msPosition;
 			std::ofstream* rateFile;
 			int msId;
@@ -44,6 +57,7 @@ class MsMac : public cSimpleModule  {
 			Position initMsPositionLinear();
 			Position initMsPositionRand();
 			Position initMsPositionLine();
+			void scheduleStatic(cMessage* msg);
 			/**
 			 * @enum Placement
 			 * All possible methods to determine initial Mobile Station placement
@@ -72,6 +86,7 @@ class MsMac : public cSimpleModule  {
 			 *
 			 * The grater the MS ID, the greater the distance.
 			 */
+				
 
     protected:
         virtual void initialize();

@@ -96,6 +96,7 @@ class Channel{
 		 * Number of MSs within the local cell
 		 */
 		int numberOfMobileStations;
+
 		/**
 		 * Bandwidth in Hz per resource block
 		 */
@@ -169,6 +170,14 @@ class Channel{
 				int msId,
 				double transPower);
 
+		virtual double senseUpSINR(int RB, 
+				int msId,
+				double transPower);
+
+		virtual double senseDownSINR(int RB, 
+				int msId,
+				double transPower);
+
 		virtual double calcD2DSINR(int RB, 
 				int sendMsID,
 				int receiveMsId,
@@ -185,6 +194,10 @@ class Channel{
 		virtual double calcAvgD2DDownSINR(int RB, 
 				int msId,
 				double transPower);
+
+		virtual double calcLongtermUpSINR(int rb, int msId, double transPower);
+
+		virtual double calcLongtermDownSINR(int rb, int msId, double transPower);
 
 		virtual void clearTransInfo();
 

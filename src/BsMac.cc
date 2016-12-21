@@ -11,7 +11,7 @@
 #include "SINR_m.h"
 #include "PositionExchange_m.h"
 #include "BsMsPositions_m.h"
-#include "QueueSort_m.h"
+#include "ScheduleInfo_m.h"
 #include "StreamInfo_m.h"
 #include "StreamTransReq_m.h"
 #include "StreamTransSched_m.h"
@@ -19,6 +19,7 @@
 #include "ResultFileExchange_m.h"
 #include "TransInfo_m.h"
 #include "util.h"
+
 #include <algorithm>
 #include <fstream>
 #include <set>
@@ -123,8 +124,10 @@ void BsMac::handleMessage(cMessage *msg)  {
 		delete msg;
 	}
 	else if(msg->isName("POINTER_EXCHANGE2")){
+		send(msg->dup(),"toMsMac",0);
 		for(int i = 1; i < numberOfMobileStations; ++i)  {
 			send(msg->dup(), "toBsChannel", i);
+			send(msg->dup(),"toMsMac",i);
 		}
 		delete msg;
 	}
@@ -234,10 +237,18 @@ void BsMac::handleMessage(cMessage *msg)  {
 
 		delete msg;
 	}
-	else if(msg->getKind()==MessageType::sortOrder){
-		QueueSort *s = dynamic_cast<QueueSort*>(msg);
+	else if(msg->getKind()==MessageType::scheduleInfo){
+		ScheduleInfo *s = dynamic_cast<ScheduleInfo*>(msg);
 		comparator = s->getSortfn();
+		if(s->getDownStatic()){
+			SINR *longTermSINR = new SINR();
+			longTermSINR->setKind(MessageType::longTermSinrEst);
+			send(longTermSINR,"toBsChannel");
+		}
 		delete msg;
+	}
+	else if(msg->getKind()==MessageType::longTermSinrEst){
+		send(msg,"toScheduler");
 	}
 	else if(msg->isSelfMessage())  {
 		if(msg->isName("BS_POSITION_INIT"))  {

@@ -27,21 +27,26 @@ class KBestRRStreamScheduler: public StreamScheduler{
 	private:
 		std::set<int>::iterator originUpIter;
 		std::set<int>::iterator originDownIter;
-		std::set<int> allOrigins;
-		std::set<int> currOrigins;
-		std::unordered_map<int,std::unordered_map<int,std::vector<StreamTransReq*>>> requests;
-		std::unordered_map<int,std::unordered_map<int,std::vector<int>>> originAssignments;
 		int upK;
 		int downK;
 		int bsId;
 		std::ofstream upSchedule;
 		std::ofstream downSchedule;
-		std::set<int>::iterator scheduleKBest(std::set<int>::iterator iter,
-				std::vector<int>& blocks,MessageDirection dir,int k);
-    virtual void scheduleStreams();
 	
 	protected:
+		std::set<int> allOrigins;
+		std::set<int> currOrigins;
+		std::unordered_map<int,std::unordered_map<int,std::vector<StreamTransReq*>>> requests;
+		std::unordered_map<int,std::unordered_map<int,std::vector<int>>> originAssignments;
+		virtual std::set<int>::iterator scheduleKBest(std::set<int>::iterator iter,
+				std::vector<int>& blocks,MessageDirection dir,int k);
+		virtual std::set<int>::iterator scheduleKBestStatic(
+				std::set<int>::iterator iter,
+				std::vector<int> blocks,MessageDirection dir,int k,
+				std::unordered_map<int,std::vector<int>>& schedule);
     virtual void initialize();
 		virtual void finish();
 		virtual void handleMessage(cMessage *msg);
+    virtual void scheduleDynStreams();
+		virtual std::unordered_map<int,ScheduleList> scheduleStatStreams();
 };

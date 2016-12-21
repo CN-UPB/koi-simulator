@@ -13,10 +13,12 @@
 #include "includes.h"
 #include "RBScheduler.h"
 #include "SINR_m.h"
+#include "StaticSchedule_m.h"
 #include "StreamInfo_m.h"
 #include "StreamTransReq_m.h"
 #include "MessageTypes.h"
 
+#include <functional> 
 #include <set>
 #include <unordered_map>
 #include <utility>
@@ -27,7 +29,7 @@ class StreamScheduler: public cSimpleModule{
 	private:
 		using ResAssign = std::pair<MessageDirection,int>;
 		std::unordered_map<int,std::unordered_map<int,std::vector<StreamTransReq*>>> requests;
-		virtual void scheduleStreams();
+		std::function<bool(const KoiData*,const KoiData*)> defaultPacketSorter;
 
 	protected:
 		simtime_t initOffset;
@@ -36,17 +38,27 @@ class StreamScheduler: public cSimpleModule{
 		int numberOfMs;
 		int upRB;
 		int downRB;
+		std::vector<int> assignedUpRB;
+		std::vector<int> assignedDownRB;
+		int staticSchedLength;
+		bool upStatic;
+		bool downStatic;
 		simtime_t streamSchedPeriod;
 		std::set<int> scheduledStations;
 		simtime_t tti;
 		std::vector<StreamInfo*> infos;		
 		std::vector<SINR*> sinrEstimate;
 		SINR *estimateBS;
+		std::vector<SINR*> longtermSinrEstimate;
+		SINR *longtermEstimateBS;
 		std::unordered_map<unsigned long,std::unordered_map<int,ResAssign>> rbAssignments;
 		virtual void initialize();
 		virtual void handleMessage(cMessage *msg);
 		virtual void handleSINREstimate(SINR *msg);
 		virtual void printAssignment();
+		virtual void scheduleDynStreams();
+		virtual void distributeStaticSchedules();
+		virtual std::unordered_map<int,ScheduleList> scheduleStatStreams();
 	
 	public:
 		~StreamScheduler() = default;

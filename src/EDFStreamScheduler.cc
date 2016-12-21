@@ -64,7 +64,7 @@ double EDFStreamScheduler::computeSchedulingInterval(
   return lcmSequence(periods);  
 }
 
-void EDFStreamScheduler::scheduleStreams(){
+void EDFStreamScheduler::scheduleDynStreams(){
   if(!this->infos.empty()){
     // First, clear the current assignment
     this->rbAssignments.clear();
@@ -84,10 +84,10 @@ void EDFStreamScheduler::scheduleStreams(){
     }
     // Generate EDFRb instances for all UP and DOWN resource blocks
     vector<EDFRb> blocks;
-    for(int i=0; i<upRB; i++){
+    for(int i:assignedUpRB){
       blocks.emplace_back(MessageDirection::up,i);
     }
-    for(int i=0; i<downRB; i++){
+    for(int i:assignedDownRB){
       blocks.emplace_back(MessageDirection::down,i);
     }
 
