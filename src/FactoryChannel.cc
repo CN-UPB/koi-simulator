@@ -83,7 +83,7 @@ void FactoryChannel::generateShadowing(
 	if(d2dActive){
 		// Compute D2D UP shadowing
 		shD2DUp.resize(numBs,
-				vector<vector<double>>(numberOfMobileStations));
+				VectorNd<double,2>(numberOfMobileStations));
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
 			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
@@ -95,7 +95,7 @@ void FactoryChannel::generateShadowing(
 		}
 		// Compute D2D DOWN shadowing
 		shD2DDown.resize(numBs,
-				vector<vector<double>>(numberOfMobileStations));
+				VectorNd<double,2>(numberOfMobileStations));
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
 			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
@@ -122,8 +122,8 @@ void FactoryChannel::recomputeCoefficients(
 	}
 	// Compute DOWN RB coefficients
 	coeffDownTable.resize(numberOfMobileStations,
-			vector<vector<vector<double>>>(numBs,
-				vector<vector<double>>(timeSamples,
+			VectorNd<double,3>(numBs,
+				VectorNd<double,2>(timeSamples,
 					vector<double>(upRBs))));
 	double pg = 0.0;
 	double pl = 0.0;
@@ -151,12 +151,12 @@ void FactoryChannel::recomputeCoefficients(
 	}
 	// Compute UP RB coefficients
 	coeffUpTable.resize(numBs,
-			vector<vector<vector<vector<double>>>>(1));
+			VectorNd<double,4>(1));
 	size_t numMs;
 	for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 		numMs = msPositions[bsIds].size();
 		coeffUpTable[bsIds][0].resize(numMs,
-				vector<vector<double>>(timeSamples,
+				VectorNd<double,2>(timeSamples,
 					vector<double>(upRBs)));
 		for(size_t msIds=0; msIds<numMs; ++msIds){
 			pg = pathgain(msPositions[bsIds][msIds],neighbourPositions[bsId]);
@@ -182,12 +182,12 @@ void FactoryChannel::recomputeCoefficients(
 	if(d2dActive){
 		// Compute D2D UP RB coefficients
 		coeffUpD2DTable.resize(numBs,
-				vector<vector<vector<vector<double>>>>(numberOfMobileStations));
+				VectorNd<double,4>(numberOfMobileStations));
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
 			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
 				coeffUpD2DTable[bsIds][recMsId].resize(numMs,
-						vector<vector<double>>(timeSamples,
+						VectorNd<double,2>(timeSamples,
 							vector<double>(upRBs)));
 				for(size_t msIds=0; msIds<numMs; ++msIds){
 					pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
@@ -203,12 +203,12 @@ void FactoryChannel::recomputeCoefficients(
 		}
 		// Compute D2D DOWN RB coefficients
 		coeffDownD2DTable.resize(numBs,
-				vector<vector<vector<vector<double>>>>(numberOfMobileStations));
+				VectorNd<double,4>(numberOfMobileStations));
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
 			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
 				coeffDownD2DTable[bsIds][recMsId].resize(numMs,
-						vector<vector<double>>(timeSamples,
+						VectorNd<double,2>(timeSamples,
 							vector<double>(upRBs)));
 				for(size_t msIds=0; msIds<numMs; ++msIds){
 					pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);

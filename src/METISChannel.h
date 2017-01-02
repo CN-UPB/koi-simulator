@@ -10,16 +10,18 @@
 #pragma once
 
 #include "includes.h"
-#include <unordered_map>
 #include <cmath>
 #include "Position.h"
 #include "Channel.h"
+#include "VecNd.h"
+
 #include <algorithm>
-#include <complex>
-#include <vector>
-#include <tuple>
 #include <array>
+#include <complex>
 #include <ostream>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
 
 using std::vector;
 using std::array;
@@ -59,11 +61,11 @@ class METISChannel : public Channel{
 		
 		//! Maps the cluster number to scaling factors for azimuth angles
 		double C_AS(int numCluster, bool LOS, int i,
-				vector<vector<double>> sigma_kf_LOS);
+				VectorNd<double,2> sigma_kf_LOS);
 		
 		//! Maps the cluster number to scaling factors for zenith angles
 		double C_ZS(int numCluster, bool LOS,
-				vector<vector<double>> sigma_kf_LOS);
+				VectorNd<double,2> sigma_kf_LOS);
 		
 		//! Calculates the probability of a link being a LOS link.
 		bool LineOfSight(double dist2D);
@@ -77,19 +79,19 @@ class METISChannel : public Channel{
 		//! Recalculate the METIS large scale params for the given Rx/Tx
 		void recomputeLargeScaleParameters(const vector<Position>& senders,
 				const vector<Position>& receivers, 
-				vector<vector<double>>& sigma_ds_LOS,
-				vector<vector<double>>& sigma_asD_LOS,
-				vector<vector<double>>& sigma_asA_LOS,
-				vector<vector<double>>& sigma_zsD_LOS,
-				vector<vector<double>>& sigma_zsA_LOS,
-				vector<vector<double>>& sigma_sf_LOS,
-				vector<vector<double>>& sigma_kf_LOS,
-				vector<vector<double>>& sigma_ds_NLOS,
-				vector<vector<double>>& sigma_asD_NLOS,
-				vector<vector<double>>& sigma_asA_NLOS,
-				vector<vector<double>>& sigma_zsD_NLOS,
-				vector<vector<double>>& sigma_zsA_NLOS,
-				vector<vector<double>>& sigma_sf_NLOS);
+				VectorNd<double,2>& sigma_ds_LOS,
+				VectorNd<double,2>& sigma_asD_LOS,
+				VectorNd<double,2>& sigma_asA_LOS,
+				VectorNd<double,2>& sigma_zsD_LOS,
+				VectorNd<double,2>& sigma_zsA_LOS,
+				VectorNd<double,2>& sigma_sf_LOS,
+				VectorNd<double,2>& sigma_kf_LOS,
+				VectorNd<double,2>& sigma_ds_NLOS,
+				VectorNd<double,2>& sigma_asD_NLOS,
+				VectorNd<double,2>& sigma_asA_NLOS,
+				VectorNd<double,2>& sigma_zsD_NLOS,
+				VectorNd<double,2>& sigma_zsA_NLOS,
+				VectorNd<double,2>& sigma_sf_NLOS);
 
 		//! Recalculate all position dependent values, e.g. SINR
 		void recomputeMETISParams(const vector<vector<Position>>& msPositions);
@@ -97,12 +99,12 @@ class METISChannel : public Channel{
 		//! Generate the spatial correlation between the MS for LOS links.
 		void generateAutoCorrelation_LOS(const vector<Position>& senders,
 				const vector<Position>& receivers,
-				vector<vector<vector<double>>>& correlation);
+				VectorNd<double,3>& correlation);
 
 		//! Generate the spatial correlation between the MS for NLOS links.
 		void generateAutoCorrelation_NLOS(const vector<Position>& senders,
 				const vector<Position>& receivers,
-				vector<vector<vector<double>>>& correlation);
+				VectorNd<double,3>& correlation);
 
 		/**
 		 * @brief Compute line of sight for each sender/receiver pair
@@ -118,7 +120,7 @@ class METISChannel : public Channel{
 		 * 		where [i][j] is `TRUE` iff there is a line of 
 		 * 		sight between receiver `i` and sender `j`
 		 */
-		vector<vector<bool>> genLosCond(const vector<Position>& sendPos,
+		VectorNd<bool,2> genLosCond(const vector<Position>& sendPos,
 				const vector<Position>& receivePos);
 
 		/**
@@ -145,34 +147,34 @@ class METISChannel : public Channel{
 		 * 		for the LOS case and second one containing those 
 		 * 		for the NLOS case.
 		 */
-		std::tuple<vector<vector<vector<double>>>,vector<vector<vector<double>>>>
-		recomputeClusterDelays(const vector<vector<bool>>& LOSCondition,
-				const vector<vector<double>>& sigmaDS_LOS,
-				const vector<vector<double>>& sigmaDS_NLOS,
-				const vector<vector<double>>& sigmaKF_LOS);
+		std::tuple<VectorNd<double,3>,VectorNd<double,3>>
+		recomputeClusterDelays(const VectorNd<bool,2>& LOSCondition,
+				const VectorNd<double,2>& sigmaDS_LOS,
+				const VectorNd<double,2>& sigmaDS_NLOS,
+				const VectorNd<double,2>& sigmaKF_LOS);
         
 		/**
 		 * @brief Recompute per-cluster powers
 		 *
 		 */
-		vector<vector<vector<double>>> genClusterPowers(const vector<vector<bool>>& LOSCondition,
-				const vector<vector<vector<double>>>& clusterDelays,
-				const vector<vector<double>>& sigmaDS_LOS,
-				const vector<vector<double>>& sigmaDS_NLOS,
-				const vector<vector<double>>& sigmaKF_LOS
+		VectorNd<double,3> genClusterPowers(const VectorNd<bool,2>& LOSCondition,
+				const VectorNd<double,3>& clusterDelays,
+				const VectorNd<double,2>& sigmaDS_LOS,
+				const VectorNd<double,2>& sigmaDS_NLOS,
+				const VectorNd<double,2>& sigmaKF_LOS
 				);
 
 		/**
 		 * @brief Recompute per-ray powers
 		 */
-		vector<vector<vector<double>>> recomputeRayPowers(const vector<vector<bool>>& LOSCondition,
-				vector<vector<vector<double>>>& clusterPowers
+		VectorNd<double,3> recomputeRayPowers(const VectorNd<bool,2>& LOSCondition,
+				VectorNd<double,3>& clusterPowers
 				);
 
 		/**
 		 * @brief Recompute angle directions
 		 */
-		tuple<vector<vector<double>>,vector<vector<double>>,vector<vector<double>>,vector<vector<double>>> 
+		tuple<VectorNd<double,2>,VectorNd<double,2>,VectorNd<double,2>,VectorNd<double,2>> 
 		recomputeAngleDirection(
 				const vector<Position>& receivers,
 				const vector<Position>& senders,
@@ -187,13 +189,13 @@ class METISChannel : public Channel{
 		 * of departure, depending on which angle spread and angle 
 		 * direction values are provided.
 		 */
-		vector<vector<vector<vector<double>>>>
-		recomputeAzimuthAngles(const vector<vector<bool>>& LOSCondition,
-				const vector<vector<double>>& sigma_as_LOS,
-				const vector<vector<double>>& sigma_as_NLOS,
-				const vector<vector<double>>& sigma_kf,
-				const vector<vector<vector<double>>>& clusterPowers,
-				const vector<vector<double>>& angleDir,
+		VectorNd<double,4>
+		recomputeAzimuthAngles(const VectorNd<bool,2>& LOSCondition,
+				const VectorNd<double,2>& sigma_as_LOS,
+				const VectorNd<double,2>& sigma_as_NLOS,
+				const VectorNd<double,2>& sigma_kf,
+				const VectorNd<double,3>& clusterPowers,
+				const VectorNd<double,2>& angleDir,
 				const bool arrival
 				);
 
@@ -204,27 +206,26 @@ class METISChannel : public Channel{
 		 * of departure, depending on which angle spread and angle 
 		 * direction values are provided.
 		 */
-		vector<vector<vector<vector<double>>>> recomputeZenithAngles(
-				const vector<vector<bool>>& LOSCondition,
-				const vector<vector<double>>& sigma_zs_LOS,
-				const vector<vector<double>>& sigma_zs_NLOS,
-				const vector<vector<double>>& sigma_kf,
-				const vector<vector<vector<double>>>& clusterPowers,
-				const vector<vector<double>>& angleDir,
+		VectorNd<double,4> recomputeZenithAngles(
+				const VectorNd<bool,2>& LOSCondition,
+				const VectorNd<double,2>& sigma_zs_LOS,
+				const VectorNd<double,2>& sigma_zs_NLOS,
+				const VectorNd<double,2>& sigma_kf,
+				const VectorNd<double,3>& clusterPowers,
+				const VectorNd<double,2>& angleDir,
 				const bool arrival
 				);
 
 		/**
 		 * @brief Generate random phases
 		 */
-		tuple<vector<vector<vector<vector<vector<double>>>>>,vector<vector<double>>>
-		genRandomPhases( const vector<vector<bool>>& LOSCondition);
+		tuple<VectorNd<double,5>,VectorNd<double,2>>
+		genRandomPhases(const VectorNd<bool,2>& LOSCondition);
 
 		/**
 		 * @brief Generate cross polarization values
 		 */
-		vector<vector<vector<vector<double>>>> genCrossPolarization(
-				vector<vector<bool>>& LOSCondition);
+		VectorNd<double,4> genCrossPolarization(VectorNd<bool,2>& LOSCondition);
 
 		/**
 		 * @brief Compute ray sum for a full cluster
@@ -243,38 +244,37 @@ class METISChannel : public Channel{
 				size_t senderAntennaIndex,
 				const vector<vector<double>>& randomPhase,
 				vector<int> *subcluster,
-				vector<vector<vector<std::complex<double>>>>& raySum
+				VectorNd<std::complex<double>,3>& raySum
 				);
 
 		/**
 		 * @brief Compute ray sums for given receivers/senders
 		 */
-		tuple<vector<vector<vector<vector<vector<vector<std::complex<double>>>>>>>,
-			vector<vector<vector<vector<vector<vector<std::complex<double>>>>>>>>
-				computeRaySums(vector<vector<bool>>& LOSCondition,
-						const vector<vector<double>>& sigma_kf,
+		tuple<VectorNd<std::complex<double>,6>, VectorNd<std::complex<double>,6>>
+				computeRaySums(VectorNd<bool,2>& LOSCondition,
+						const VectorNd<double,2>& sigma_kf,
 						int numReceiverAntenna,
 						int numSenderAntenna,
-						const vector<vector<vector<double>>>& clusterPowers,
-						const vector<vector<vector<vector<double>>>>& azimuth_ASA,
-						const vector<vector<vector<vector<double>>>>& azimuth_ASD,
-						const vector<vector<vector<vector<double>>>>& elevation_ASA,
-						const vector<vector<vector<vector<double>>>>& elevation_ASD,
-						const vector<vector<array<double,3>>>& receiverAntennaPos,
-						const vector<vector<array<double,3>>>& senderAntennaPos,
-						const vector<vector<vector<vector<vector<double>>>>>& randomPhase,
-						const vector<vector<double>>& randomPhase_LOS,
-						const vector<vector<double>>& AoA_LOS_dir,
-						const vector<vector<double>>& ZoA_LOS_dir,
-						const vector<vector<double>>& AoD_LOS_dir,
-						const vector<vector<double>>& ZoD_LOS_dir
+						const VectorNd<double,3>& clusterPowers,
+						const VectorNd<double,4>& azimuth_ASA,
+						const VectorNd<double,4>& azimuth_ASD,
+						const VectorNd<double,4>& elevation_ASA,
+						const VectorNd<double,4>& elevation_ASD,
+						const VectorNd<array<double,3>,2>& receiverAntennaPos,
+						const VectorNd<array<double,3>,2>& senderAntennaPos,
+						const VectorNd<double,5>& randomPhase,
+						const VectorNd<double,2>& randomPhase_LOS,
+						const VectorNd<double,2>& AoA_LOS_dir,
+						const VectorNd<double,2>& ZoA_LOS_dir,
+						const VectorNd<double,2>& AoD_LOS_dir,
+						const VectorNd<double,2>& ZoD_LOS_dir
 						);
 
 		/**
 		 * @brief Compute coefficients for given receivers/senders
 		 */
-		vector<vector<vector<vector<double>>>> computeCoeffs(
-				const vector<vector<bool>>& LOSCondition,
+		VectorNd<double,4> computeCoeffs(
+				const VectorNd<bool,2>& LOSCondition,
 				const vector<Position>& receiverPos,
 				const vector<Position>& senderPos,
 				double heightReceivers,
@@ -283,10 +283,10 @@ class METISChannel : public Channel{
 				int numRBs,
 				int numReceiverAntenna,
 				int numSenderAntenna,
-				const vector<vector<vector<vector<vector<vector<std::complex<double>>>>>>>& raySum,
-				const vector<vector<vector<vector<vector<vector<std::complex<double>>>>>>>& raySum_LOS,
-				const vector<vector<vector<double>>>& clusterDelays,
-				const vector<vector<vector<double>>>& clusterDelays_LOS
+				const VectorNd<std::complex<double>,6>& raySum,
+				const VectorNd<std::complex<double>,6>& raySum_LOS,
+				const VectorNd<double,3>& clusterDelays,
+				const VectorNd<double,3>& clusterDelays_LOS
 				);
 
 		/**

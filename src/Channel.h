@@ -12,6 +12,7 @@
 #include "NeighbourIdMatching.h"
 #include "Position.h"
 #include "TransInfo_m.h"
+#include "VecNd.h"
 #include <forward_list>
 #include <utility>
 #include <vector>
@@ -33,25 +34,25 @@ class Channel{
 		 *
 		 * [receivingMsId][sendingBsId][counter][RB]
 		 */
-		vector<vector<vector<vector<double>>>> coeffDownTable;
+		VectorNd<double,4> coeffDownTable;
 		/**
 		 * @brief Table to save uplink coefficients
 		 *
 		 * [sendingMsCellID][0][sendingMsId][counter][RB]
 		 */
-		vector<vector<vector<vector<vector<double>>>>> coeffUpTable;
+		VectorNd<double,5> coeffUpTable;
 		/**
 		 * @brief Table to save D2D DOWN Rb coefficients
 		 *
 		 * [sendingMsCellID][receivingMsId][sendingMsId][counter][RB]
 		 */
-		vector<vector<vector<vector<vector<double>>>>> coeffDownD2DTable;
+		VectorNd<double,5> coeffDownD2DTable;
 		/**
 		 * @brief Table to save D2D UP Rb coefficients
 		 *
 		 * [sendingMsCellID][receivingMsId][sendingMsId][counter][RB]
 		 */
-		vector<vector<vector<vector<vector<double>>>>> coeffUpD2DTable;
+		VectorNd<double,5> coeffUpD2DTable;
 		/**
 		 * Should interference be considered or not
 		 */

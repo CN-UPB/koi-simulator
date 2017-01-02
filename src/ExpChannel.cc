@@ -7,8 +7,10 @@
 #include "includes.h"
 #include "Position.h"
 #include "util.h"
-#include <fstream>
+#include "VecNd.h"
+
 #include <cmath>
+#include <fstream>
 #include <vector>
 
 using std::vector;
@@ -54,9 +56,8 @@ void ExpChannel::recomputeCoefficients(
 	}
 	// Compute DOWN RB coefficients
 	coeffDownTable.resize(numberOfMobileStations,
-			vector<vector<vector<double>>>(numBs,
-				vector<vector<double>>(timeSamples,
-					vector<double>(upRBs))));
+			VectorNd<double,3>(numBs,
+				VectorNd<double,2>(timeSamples,vector<double>(upRBs))));
 	double pg = 0.0;
 	double exp = 0.0;
 	for(size_t msIds=0; msIds<numberOfMobileStations; ++msIds){
@@ -83,7 +84,7 @@ void ExpChannel::recomputeCoefficients(
 	}
 	// Compute UP RB coefficients
 	coeffUpTable.resize(numBs,
-			vector<vector<vector<vector<double>>>>(1));
+			VectorNd<double,4>(1));
 	size_t numMs;
 	for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 		numMs = msPositions[bsIds].size();
@@ -115,7 +116,7 @@ void ExpChannel::recomputeCoefficients(
 	if(d2dActive){
 		// Compute D2D UP RB coefficients
 		coeffUpD2DTable.resize(numBs,
-				vector<vector<vector<vector<double>>>>(numberOfMobileStations));
+				VectorNd<double,4>(numberOfMobileStations));
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
 			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
@@ -134,7 +135,7 @@ void ExpChannel::recomputeCoefficients(
 		}
 		// Compute D2D DOWN RB coefficients
 		coeffDownD2DTable.resize(numBs,
-				vector<vector<vector<vector<double>>>>(numberOfMobileStations));
+				VectorNd<double,4>(numberOfMobileStations));
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
 			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
