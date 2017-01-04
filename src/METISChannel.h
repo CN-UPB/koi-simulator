@@ -244,13 +244,13 @@ class METISChannel : public Channel{
 				size_t senderAntennaIndex,
 				const vector<vector<double>>& randomPhase,
 				vector<int> *subcluster,
-				VectorNd<std::complex<double>,3>& raySum
+				VectorNd<std::complex<double>,2>& raySum
 				);
 
 		/**
 		 * @brief Compute ray sums for given receivers/senders
 		 */
-		tuple<VectorNd<std::complex<double>,6>, VectorNd<std::complex<double>,6>>
+		tuple<VectorNd<std::complex<double>,5>, VectorNd<std::complex<double>,5>>
 				computeRaySums(VectorNd<bool,2>& LOSCondition,
 						const VectorNd<double,2>& sigma_kf,
 						int numReceiverAntenna,
@@ -273,7 +273,7 @@ class METISChannel : public Channel{
 		/**
 		 * @brief Compute coefficients for given receivers/senders
 		 */
-		VectorNd<double,4> computeCoeffs(
+		VectorNd<double,3> computeCoeffs(
 				const VectorNd<bool,2>& LOSCondition,
 				const vector<Position>& receiverPos,
 				const vector<Position>& senderPos,
@@ -283,8 +283,8 @@ class METISChannel : public Channel{
 				int numRBs,
 				int numReceiverAntenna,
 				int numSenderAntenna,
-				const VectorNd<std::complex<double>,6>& raySum,
-				const VectorNd<std::complex<double>,6>& raySum_LOS,
+				const VectorNd<std::complex<double>,5>& raySum,
+				const VectorNd<std::complex<double>,5>& raySum_LOS,
 				const VectorNd<double,3>& clusterDelays,
 				const VectorNd<double,3>& clusterDelays_LOS
 				);

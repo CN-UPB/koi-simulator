@@ -34,25 +34,25 @@ class Channel{
 		 *
 		 * [receivingMsId][sendingBsId][counter][RB]
 		 */
-		VectorNd<double,4> coeffDownTable;
+		VectorNd<double,3> coeffDownTable;
 		/**
 		 * @brief Table to save uplink coefficients
 		 *
 		 * [sendingMsCellID][0][sendingMsId][counter][RB]
 		 */
-		VectorNd<double,5> coeffUpTable;
+		VectorNd<double,4> coeffUpTable;
 		/**
 		 * @brief Table to save D2D DOWN Rb coefficients
 		 *
 		 * [sendingMsCellID][receivingMsId][sendingMsId][counter][RB]
 		 */
-		VectorNd<double,5> coeffDownD2DTable;
+		VectorNd<double,4> coeffDownD2DTable;
 		/**
 		 * @brief Table to save D2D UP Rb coefficients
 		 *
 		 * [sendingMsCellID][receivingMsId][sendingMsId][counter][RB]
 		 */
-		VectorNd<double,5> coeffUpD2DTable;
+		VectorNd<double,4> coeffUpD2DTable;
 		/**
 		 * Should interference be considered or not
 		 */
@@ -103,10 +103,6 @@ class Channel{
 		 */
 		double rbBandwidth;
 		/**
-		 * If position resend intervall > 1, it counts the current TTI
-		 */
-		int SINRcounter;
-		/**
 		 * Size of playground in the X dimension
 		 */
 		double sizeX;
@@ -118,12 +114,6 @@ class Channel{
 		 * The speed of light in m/s
 		 */
 		const static double speedOfLight;
-		/**
-		 * Number of TTIs until Position is updated 
-		 *
-		 * (Number of Time Samples for Channel Model)
-		 */
-		int timeSamples;
 		/**
 		 * Interference information from local and neighbouring senders
 		 */
@@ -143,7 +133,6 @@ class Channel{
 		virtual double calcInterference(std::forward_list<TransInfo*>& interferers,
 				int rb,
 				int receiverId,
-				int SINRCounter,
 				MessageDirection dir);
 		/**
 		 * @brief Computes the Termal Noise

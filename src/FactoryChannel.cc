@@ -122,9 +122,8 @@ void FactoryChannel::recomputeCoefficients(
 	}
 	// Compute DOWN RB coefficients
 	coeffDownTable.resize(numberOfMobileStations,
-			VectorNd<double,3>(numBs,
-				VectorNd<double,2>(timeSamples,
-					vector<double>(upRBs))));
+			VectorNd<double,2>(numBs,
+					vector<double>(upRBs)));
 	double pg = 0.0;
 	double pl = 0.0;
 	double fading = 0.0;
@@ -132,49 +131,43 @@ void FactoryChannel::recomputeCoefficients(
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 			pg = pathgain(neighbourPositions[bsIds],msPositions[bsId][msIds]);
 			pl = 1.0/pg;
-			for(size_t t=0; t<timeSamples; ++t){
-				for(size_t rb=0; rb<downRBs; ++rb){
-					fading = fadingExponential();
-					coeffDownTable[msIds][bsIds][t][rb] = pg * fading * shDown[msIds][bsIds];
-					if(simTime()>initOffset && t==3 && debug){
-						downValues << tti << "\t" << bsIds << "\t"
-							<< msIds << "\t"
-							<< rb << "\t"
-							<< pg << "\t"
-							<< fading << "\t"
-							<< coeffDownTable[msIds][bsIds][3][rb]
-							<< std::endl;
-					}
+			for(size_t rb=0; rb<downRBs; ++rb){
+				fading = fadingExponential();
+				coeffDownTable[msIds][bsIds][rb] = pg * fading * shDown[msIds][bsIds];
+				if(simTime()>initOffset && debug){
+					downValues << tti << "\t" << bsIds << "\t"
+						<< msIds << "\t"
+						<< rb << "\t"
+						<< pg << "\t"
+						<< fading << "\t"
+						<< coeffDownTable[msIds][bsIds][rb]
+						<< std::endl;
 				}
 			}
 		}
 	}
 	// Compute UP RB coefficients
 	coeffUpTable.resize(numBs,
-			VectorNd<double,4>(1));
+			VectorNd<double,3>(1));
 	size_t numMs;
 	for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 		numMs = msPositions[bsIds].size();
-		coeffUpTable[bsIds][0].resize(numMs,
-				VectorNd<double,2>(timeSamples,
-					vector<double>(upRBs)));
+		coeffUpTable[bsIds][0].resize(numMs,vector<double>(upRBs));
 		for(size_t msIds=0; msIds<numMs; ++msIds){
 			pg = pathgain(msPositions[bsIds][msIds],neighbourPositions[bsId]);
 			pl = 1.0/pg;
-			for(size_t t=0; t<timeSamples; ++t){
-				for(size_t rb=0; rb<upRBs; ++rb){
-					fading = fadingExponential();
-					coeffUpTable[bsIds][0][msIds][t][rb] = pg * fading * shUp[bsIds][msIds];
-					if(simTime()>initOffset && t==3 && debug){
-						upValues << tti << "\t" << bsIds << "\t"
-							<< msIds << "\t"
-							<< bsId << "\t"
-							<< rb << "\t"
-							<< pg << "\t"
-							<< fading << "\t"
-							<< coeffUpTable[bsIds][0][msIds][3][rb]
-							<< std::endl;
-					}
+			for(size_t rb=0; rb<upRBs; ++rb){
+				fading = fadingExponential();
+				coeffUpTable[bsIds][0][msIds][rb] = pg * fading * shUp[bsIds][msIds];
+				if(simTime()>initOffset && debug){
+					upValues << tti << "\t" << bsIds << "\t"
+						<< msIds << "\t"
+						<< bsId << "\t"
+						<< rb << "\t"
+						<< pg << "\t"
+						<< fading << "\t"
+						<< coeffUpTable[bsIds][0][msIds][rb]
+						<< std::endl;
 				}
 			}
 		}
@@ -182,42 +175,34 @@ void FactoryChannel::recomputeCoefficients(
 	if(d2dActive){
 		// Compute D2D UP RB coefficients
 		coeffUpD2DTable.resize(numBs,
-				VectorNd<double,4>(numberOfMobileStations));
+				VectorNd<double,3>(numberOfMobileStations));
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
 			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
-				coeffUpD2DTable[bsIds][recMsId].resize(numMs,
-						VectorNd<double,2>(timeSamples,
-							vector<double>(upRBs)));
+				coeffUpD2DTable[bsIds][recMsId].resize(numMs,vector<double>(upRBs));
 				for(size_t msIds=0; msIds<numMs; ++msIds){
 					pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
 					pl = 1.0/pg;
-					for(size_t t=0; t<timeSamples; ++t){
-						for(size_t rb=0; rb<upRBs; ++rb){
-							fading = fadingExponential();
-							coeffUpD2DTable[bsIds][recMsId][msIds][t][rb] = pg * fading * shD2DUp[bsIds][recMsId][msIds];
-						}
+					for(size_t rb=0; rb<upRBs; ++rb){
+						fading = fadingExponential();
+						coeffUpD2DTable[bsIds][recMsId][msIds][rb] = pg * fading * shD2DUp[bsIds][recMsId][msIds];
 					}
 				}
 			}
 		}
 		// Compute D2D DOWN RB coefficients
 		coeffDownD2DTable.resize(numBs,
-				VectorNd<double,4>(numberOfMobileStations));
+				VectorNd<double,3>(numberOfMobileStations));
 		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
 			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
-				coeffDownD2DTable[bsIds][recMsId].resize(numMs,
-						VectorNd<double,2>(timeSamples,
-							vector<double>(upRBs)));
+				coeffDownD2DTable[bsIds][recMsId].resize(numMs,vector<double>(upRBs));
 				for(size_t msIds=0; msIds<numMs; ++msIds){
 					pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
 					pl = 1.0/pg;
-					for(size_t t=0; t<timeSamples; ++t){
-						for(size_t rb=0; rb<downRBs; ++rb){
-							fading = fadingExponential();
-							coeffDownD2DTable[bsIds][recMsId][msIds][t][rb] = pg * fading * shD2DDown[bsIds][recMsId][msIds];
-						}
+					for(size_t rb=0; rb<downRBs; ++rb){
+						fading = fadingExponential();
+						coeffDownD2DTable[bsIds][recMsId][msIds][rb] = pg * fading * shD2DDown[bsIds][recMsId][msIds];
 					}
 				}
 			}

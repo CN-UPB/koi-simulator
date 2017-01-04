@@ -444,7 +444,7 @@ METISChannel::recomputeAngleDirection(
 	vec sphLOSAngle;
 		
 	// Cycle through all mobile stations
-    	for(size_t i = 0; i < numReceivers; i++){
+	for(size_t i = 0; i < numReceivers; i++){
 		for(size_t j = 0; j < numSenders; j++){
 				// Angles of Arrival
 				x_dir = receivers[i].x - senders[j].x;
@@ -471,7 +471,8 @@ METISChannel::recomputeAngleDirection(
 				ZoDDir[i][j] = sphLOSAngle.get(1);
 		}
 	}
-	return std::make_tuple(AoADir,ZoADir,AoDDir,ZoDDir);
+	return std::make_tuple(std::move(AoADir),std::move(ZoADir),std::move(AoDDir),
+			std::move(ZoDDir));
 }
 
 VectorNd<double,4> METISChannel::recomputeAzimuthAngles(
@@ -675,7 +676,7 @@ void METISChannel::computeRaySumCluster(
 		size_t senderAntennaIndex,
 		const VectorNd<double,2>& randomPhase,
 		vector<int> *subcluster,
-		VectorNd<complex<double>,3>& raySum
+		VectorNd<complex<double>,2>& raySum
 		){
 	double AoA[3];
 	double AoD[3];
@@ -706,6 +707,9 @@ void METISChannel::computeRaySumCluster(
 		receiverGain = getMSGain(azimuthASA[rayIdx]*pi/180, zenithASA[rayIdx]*pi/180);
 		senderGain = getBSGain(azimuthASD[rayIdx]*pi/180, zenithASD[rayIdx]*pi/180);
 		pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase[rayIdx][0]));
+		// Add the current ray's value
+		doppler = 1.0;
+		raySum[receiverAntennaIndex][senderAntennaIndex] += pol * doppler * exp_arrival * exp_departure;
 
 		// Calculate Doppler component of final formula
 		// Formula: 
@@ -717,20 +721,26 @@ void METISChannel::computeRaySumCluster(
 		// AoMD = Azimuth Angle of MS Movement Direction
 		// t = time vector
 
+		/**
 		// Cycle through the time axis (Formula 4.15)
 		for(int t = 0; t < timeSamples; t++){
 			// We do not have MS movement for the moment, so no doppler effect either
 			//doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(azimuth_ASA[i][0][n][m]*pi/180 - AoMD) * timeVector[i][t] ) );
 			doppler = 1.0;
 			raySum[t][receiverAntennaIndex][senderAntennaIndex] += pol * doppler * exp_arrival * exp_departure;
-		} // End time axis							
+		} // End time axis
+		*/
 	} // End cycle Rays
+	/**
 	for(int t = 0; t < timeSamples; t++){
 		raySum[t][receiverAntennaIndex][senderAntennaIndex] = prefactor * raySum[t][receiverAntennaIndex][senderAntennaIndex];
-	} 							
+	}
+	*/
+	// Multiply the ray sum with the prefactor
+	raySum[receiverAntennaIndex][senderAntennaIndex] = prefactor * raySum[receiverAntennaIndex][senderAntennaIndex];
 }
 
-tuple<VectorNd<complex<double>,6>,VectorNd<complex<double>,6>>
+tuple<VectorNd<complex<double>,5>,VectorNd<complex<double>,5>>
 METISChannel::computeRaySums(VectorNd<bool,2>& LOSCondition,
 		const VectorNd<double,2>& sigma_kf,
 		int numReceiverAntenna,
@@ -751,20 +761,18 @@ METISChannel::computeRaySums(VectorNd<bool,2>& LOSCondition,
 		){
 	size_t numReceivers = LOSCondition.size();
 	size_t numSenders = LOSCondition[0].size();
-	VectorNd<complex<double>,6> raySum(
-			numReceivers,VectorNd<complex<double>,5>(
-				numSenders,VectorNd<complex<double>,4>(
-					N_cluster_NLOS + 4,VectorNd<complex<double>,3>(
-						timeSamples,VectorNd<complex<double>,2>(
-							numReceiverAntenna,vector<complex<double>>(
-								numSenderAntenna))))));
-	VectorNd<complex<double>,6> raySum_LOS(
-			numReceivers,VectorNd<complex<double>,5>(
-				numSenders,VectorNd<complex<double>,4>(
-					N_cluster_LOS + 4,VectorNd<complex<double>,3>(
-						timeSamples,VectorNd<complex<double>,2>(
-							numReceiverAntenna,vector<complex<double>>(
-								numSenderAntenna))))));
+	VectorNd<complex<double>,5> raySum(
+			numReceivers,VectorNd<complex<double>,4>(
+				numSenders,VectorNd<complex<double>,3>(
+					N_cluster_NLOS + 4,VectorNd<complex<double>,2>(
+						numReceiverAntenna,vector<complex<double>>(
+							numSenderAntenna)))));
+	VectorNd<complex<double>,5> raySum_LOS(
+			numReceivers,VectorNd<complex<double>,4>(
+				numSenders,VectorNd<complex<double>,3>(
+					N_cluster_LOS + 4,VectorNd<complex<double>,2>(
+						numReceiverAntenna,vector<complex<double>>(
+							numSenderAntenna)))));
 	// Wavenumber k_0
 	double k_0 = (2 * pi) / (speedOfLight / freq_c);
 	
@@ -859,12 +867,17 @@ METISChannel::computeRaySums(VectorNd<bool,2>& LOSCondition,
 									BSgain = getBSGain(AoD_LOS_dir[i][j], ZoD_LOS_dir[i][j]);
 									pol = MSgain * BSgain * exp(complex<double>(0, randomPhase_LOS[i][j]));
 
+									doppler = 1.0;
+									raySum_LOS[i][j][0][u][s] += (sqrt(K / (K + 1))) * pol * doppler * exp_arrival * exp_departure;
+
+									/**
 									// Cycle through the time axis (Formula 4.15)
 									for(int t = 0; t < timeSamples; t++){
 										//doppler = exp( complex<double>(0,k_0 * MSVelMag[i] * cos(AoA_LOS_dir[i][idIdx] - AoMD) * timeVector[i][t] ) );
 										doppler = 1.0;
 										raySum_LOS[i][j][0][t][u][s] += (sqrt(K / (K + 1))) * pol * doppler * exp_arrival * exp_departure;
 									} // End time axis
+									*/
 								}
 							}
 							id_subclust++;
@@ -930,7 +943,7 @@ METISChannel::computeRaySums(VectorNd<bool,2>& LOSCondition,
 	return std::make_tuple(std::move(raySum),std::move(raySum_LOS));
 }
 
-VectorNd<double,4> METISChannel::computeCoeffs(
+VectorNd<double,3> METISChannel::computeCoeffs(
 		const VectorNd<bool,2>& LOSCondition,
 		const vector<Position>& receiverPos,
 		const vector<Position>& senderPos,
@@ -940,23 +953,22 @@ VectorNd<double,4> METISChannel::computeCoeffs(
 		int numRBs,
 		int numReceiverAntenna,
 		int numSenderAntenna,
-		const VectorNd<complex<double>,6>& raySum,
-		const VectorNd<complex<double>,6>& raySum_LOS,
+		const VectorNd<complex<double>,5>& raySum,
+		const VectorNd<complex<double>,5>& raySum_LOS,
 		const VectorNd<double,3>& clusterDelays,
 		const VectorNd<double,3>& clusterDelays_LOS
 		){
 	size_t numReceivers = receiverPos.size();
 	size_t numSenders = senderPos.size();
-	VectorNd<double,4> coeffs(numReceivers,
-			VectorNd<double,3>(numSenders,
-				VectorNd<double,2>(timeSamples,vector<double>(numRBs))));
+	VectorNd<double,3> coeffs(numReceivers,
+			VectorNd<double,2>(numSenders,vector<double>(numRBs)));
 	double pathloss, dist3D, dist2D;
 	int n_clusters;
 	
 	double delay_SC_1 = 5 * pow(10,-9); // delay for sub-cluster 1 (7-60)
 	double delay_SC_2 = 10 * pow(10,-9); // delay for sub-cluster 2 (7-60)
 	const vector<double> *delays;
-	const VectorNd<complex<double>,4> *sum;
+	const VectorNd<complex<double>,3> *sum;
 	
 	for(size_t i = 0; i < numReceivers; i++){ //TODO: Correct the implementation for each Tx-Rx antenna
 		//Fourier Transform for interferers:
@@ -965,52 +977,49 @@ VectorNd<double,4> METISChannel::computeCoeffs(
 			dist3D = sqrt(pow(dist2D,2) + pow((heightSenders - heightReceivers),2));
 			complex<double> res = complex<double>(0.0,0.0);
 			pathloss = CalcPathloss(dist2D, dist3D, LOSCondition[i][idIdx]);
-			for(int t = 0; t < timeSamples; t++){
-				for(int f = 0; f < numRBs; f++){
-					double freq_;
-					if(up){
-						// Computing values for UP
-						// resource blocks
-						freq_ = freq_c + (f+1)*rbBandwidth;
-					}
-					else{
-						// Computing values for DOWN
-						// resource blocks
-						freq_ = freq_c - f*rbBandwidth;
-					}
-					res = complex<double>(0.0,0.0);
-					if(LOSCondition[i][idIdx]){
-						n_clusters = N_cluster_LOS;
-						delays = &clusterDelays_LOS[i][idIdx];
-						sum = &raySum_LOS[i][idIdx];
-					}
-					else{
-						n_clusters = N_cluster_NLOS;
-						delays = &clusterDelays[i][idIdx];
-						sum = &raySum[i][idIdx];
-					}
-					for(int u = 0; u < numReceiverAntenna; u++){
-						for(int s = 0; s < numSenderAntenna; s++){
-							for(int n = 0; n < n_clusters; n++){
-								if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
-									res = res + (*sum)[n][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (*delays)[n]) );
-									res = res + (*sum)[n+1][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n] + delay_SC_1)) );
-									res = res + (*sum)[n+2][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n] + delay_SC_2)) );
-									res = res + (*sum)[n+3][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (*delays)[n+1]) );
-									res = res + (*sum)[n+4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n+1] + delay_SC_1)) );
-									res = res + (*sum)[n+5][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n+1] + delay_SC_2)) );
-									n++;
-								}else{
-									res = res + (*sum)[n + 4][t][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (*delays)[n]) );
-								}
+			for(int f = 0; f < numRBs; f++){
+				double freq_;
+				if(up){
+					// Computing values for UP
+					// resource blocks
+					freq_ = freq_c + (f+1)*rbBandwidth;
+				}
+				else{
+					// Computing values for DOWN
+					// resource blocks
+					freq_ = freq_c - f*rbBandwidth;
+				}
+				res = complex<double>(0.0,0.0);
+				if(LOSCondition[i][idIdx]){
+					n_clusters = N_cluster_LOS;
+					delays = &clusterDelays_LOS[i][idIdx];
+					sum = &raySum_LOS[i][idIdx];
+				}
+				else{
+					n_clusters = N_cluster_NLOS;
+					delays = &clusterDelays[i][idIdx];
+					sum = &raySum[i][idIdx];
+				}
+				for(int u = 0; u < numReceiverAntenna; u++){
+					for(int s = 0; s < numSenderAntenna; s++){
+						for(int n = 0; n < n_clusters; n++){
+							if(n < 2){ // add additional sub-cluster delays at this stage (7-60 in METIS 1.2)
+								res = res + (*sum)[n][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (*delays)[n]) );
+								res = res + (*sum)[n+1][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n] + delay_SC_1)) );
+								res = res + (*sum)[n+2][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n] + delay_SC_2)) );
+								res = res + (*sum)[n+3][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (*delays)[n+1]) );
+								res = res + (*sum)[n+4][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n+1] + delay_SC_1)) );
+								res = res + (*sum)[n+5][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * ((*delays)[n+1] + delay_SC_2)) );
+								n++;
+							}else{
+								res = res + (*sum)[n + 4][u][s] * exp( complex<double>(0.0, -2.0 * pi * freq_ * (*delays)[n]) );
 							}
 						}
 					}
-					double tempRes = pow(res.real(),2) + pow(res.imag(),2);
-					coeffs[i][idIdx][t][f] = pathloss * tempRes;
 				}
+				double tempRes = pow(res.real(),2) + pow(res.imag(),2);
+				coeffs[i][idIdx][f] = pathloss * tempRes;
 			}
-
 		}
 	}
 	return coeffs;
@@ -1162,8 +1171,8 @@ void METISChannel::recomputeDownCoefficients(const vector<Position>& msPositions
 	VectorNd<double,4> Xn_m(genCrossPolarization(LOSCondition));
 
 	// initialize arrays for interferer ray sums
-	VectorNd<complex<double>,6> raySum_LOS;
-	VectorNd<complex<double>,6> raySum;
+	VectorNd<complex<double>,5> raySum_LOS;
+	VectorNd<complex<double>,5> raySum;
 
 	std::tie(raySum,raySum_LOS) = computeRaySums(LOSCondition,
 			sigma_kf_LOS,
@@ -1213,8 +1222,8 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 	// given cell.
 	vector<Position> receiverPos{bsPositions[bsId]};
 	VectorNd<array<double,3>,2> receiverAntennaPos{bsAntennaPositions[bsId]};
-	coeffUpTable = VectorNd<double,5>(bsPositions.size(),
-			VectorNd<double,4>(1));
+	coeffUpTable = VectorNd<double,4>(bsPositions.size(),
+			VectorNd<double,3>(1));
 	for(size_t j=0; j<msPositions.size(); j++){
 		// Copy MS Positions
 		vector<Position> senderPos(msPositions[j]);
@@ -1357,8 +1366,8 @@ void METISChannel::recomputeUpCoefficients(const vector<vector<Position>>& msPos
 
 
 		// initialize arrays for interferer ray sums
-		VectorNd<complex<double>,6> raySum_LOS;
-		VectorNd<complex<double>,6> raySum;
+		VectorNd<complex<double>,5> raySum_LOS;
+		VectorNd<complex<double>,5> raySum;
 
 		std::tie(raySum,raySum_LOS) = computeRaySums(LOSCondition,
 				sigma_kf_LOS,
@@ -1430,10 +1439,10 @@ void METISChannel::recomputeD2DCoefficients(const vector<vector<Position>>& msPo
 	vector<Position> receiverPos{msPositions[bsId]};
 	VectorNd<array<double,3>,2> receiverAntennaPos(computeAntennaPos(
 				receiverPos,numReceiverAntenna,heightUE));
-	coeffUpD2DTable = VectorNd<double,5>(msPositions.size(),
-			VectorNd<double,4>(numberOfMobileStations));
-	coeffDownD2DTable = VectorNd<double,5>(msPositions.size(),
-			VectorNd<double,4>(numberOfMobileStations));
+	coeffUpD2DTable = VectorNd<double,4>(msPositions.size(),
+			VectorNd<double,3>(numberOfMobileStations));
+	coeffDownD2DTable = VectorNd<double,4>(msPositions.size(),
+			VectorNd<double,3>(numberOfMobileStations));
 	for(size_t j=0; j<msPositions.size(); j++){
 		// Copy MS Positions
 		vector<Position> senderPos(msPositions[j]);
@@ -1576,8 +1585,8 @@ void METISChannel::recomputeD2DCoefficients(const vector<vector<Position>>& msPo
 
 
 		// initialize arrays for interferer ray sums
-		VectorNd<complex<double>,6> raySum_LOS;
-		VectorNd<complex<double>,6> raySum;
+		VectorNd<complex<double>,5> raySum_LOS;
+		VectorNd<complex<double>,5> raySum;
 
 		std::tie(raySum,raySum_LOS) = computeRaySums(LOSCondition,
 				sigma_kf_LOS,
