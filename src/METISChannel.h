@@ -27,6 +27,35 @@ using std::vector;
 using std::array;
 using std::tuple;
 
+class Ray{
+	private:
+		double azimuthASA;
+		std::complex<double> expArrival;
+		std::complex<double> expDeparture;
+		std::complex<double> pol;
+	
+	public:
+		Ray(const double azimuthASA, const std::complex<double> expArrival,
+				const std::complex<double> expDeparture, const std::complex<double> pol)
+				:azimuthASA(azimuthASA),expArrival(expArrival),
+				expDeparture(expDeparture),pol(pol){}
+
+		static Ray initialize(
+				double azimuthASA,
+				double azimuthASD,
+				double zenithASA,
+				double zenithASD,
+				double k_0,
+				const array<double,3>& senderAntennaPos,
+				const array<double,3>& receiverAntennaPos,
+				const vector<double>& randomPhase,
+				vector<int> *subcluster
+				);
+		virtual std::complex<double> value(double t, double moveAngle,
+				double velocity, double k_0);
+
+};
+
 class METISChannel : public Channel{
 	private:
 		// METIS Channel Parameters
