@@ -29,15 +29,15 @@ using std::tuple;
 
 class Ray{
 	private:
-		double azimuthASA;
+		double dirAoA;
 		std::complex<double> expArrival;
 		std::complex<double> expDeparture;
 		std::complex<double> pol;
 	
 	public:
-		Ray(const double azimuthASA, const std::complex<double> expArrival,
+		Ray(const double dirAoA, const std::complex<double> expArrival,
 				const std::complex<double> expDeparture, const std::complex<double> pol)
-				:azimuthASA(azimuthASA),expArrival(expArrival),
+				:dirAoA(dirAoA),expArrival(expArrival),
 				expDeparture(expDeparture),pol(pol){}
 
 		static Ray initialize(
@@ -48,12 +48,28 @@ class Ray{
 				double k_0,
 				const array<double,3>& senderAntennaPos,
 				const array<double,3>& receiverAntennaPos,
-				const vector<double>& randomPhase,
-				vector<int> *subcluster
+				const vector<double>& randomPhase
 				);
 		virtual std::complex<double> value(double t, double moveAngle,
 				double velocity, double k_0);
 
+};
+
+class LOSRay: public Ray{
+	public:
+		LOSRay(const double dirAoA, const std::complex<double> expArrival,
+				const std::complex<double> expDeparture, const std::complex<double> pol)
+				:Ray(dirAoA,expArrival,expDeparture,pol){}
+		static LOSRay initialize(
+				double dirAoA,
+				double dirAoD,
+				double dirZoA,
+				double dirZoD,
+				double k_0,
+				const array<double,3>& senderAntennaPos,
+				const array<double,3>& receiverAntennaPos,
+				double randomPhase
+				);
 };
 
 class METISChannel : public Channel{

@@ -49,8 +49,7 @@ Ray Ray::initialize(
 		double k_0,
 		const array<double,3>& senderAntennaPos,
 		const array<double,3>& receiverAntennaPos,
-		const vector<double>& randomPhase,
-		vector<int> *subcluster
+		const vector<double>& randomPhase
 		){
 	double AoA[3];
 	double AoD[3];
@@ -73,13 +72,45 @@ Ray Ray::initialize(
 	receiverGain = getMSGain(azimuthASA*pi/180, zenithASA*pi/180);
 	senderGain = getBSGain(azimuthASD*pi/180, zenithASD*pi/180);
 	complex<double> pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase[0]));
-	return Ray(azimuthASA,expArrival,expDeparture,pol);
+	return Ray(azimuthASA*pi/180,expArrival,expDeparture,pol);
 }
 
 std::complex<double> Ray::value(double t, double moveAngle,
 		double velocity, double k_0){
-	std::complex<double> doppler = exp( complex<double>(0,k_0 * velocity * cos(azimuthASA*pi/180 - moveAngle) * t ) );
+	std::complex<double> doppler = exp( complex<double>(0,k_0 * velocity * cos(dirAoA - moveAngle) * t ) );
 	return pol * doppler * expArrival * expDeparture;
+}
+
+LOSRay LOSRay::initialize(
+		double dirAoA,
+		double dirAoD,
+		double dirZoA,
+		double dirZoD,
+		double k_0,
+		const array<double,3>& senderAntennaPos,
+		const array<double,3>& receiverAntennaPos,
+		double randomPhase
+		){
+	double AoA[3];
+	double AoD[3];
+	double receiverGain;
+	double senderGain;
+	AoA[0] = sin(dirZoA) * cos(dirAoA);
+	AoA[1] = sin(dirZoA) * sin(dirAoA);
+	AoA[2] = cos(dirZoA);
+
+	AoD[0] = sin(dirZoD) * cos(dirAoD);
+	AoD[1] = sin(dirZoD) * sin(dirAoD);
+	AoD[2] = cos(dirZoD);
+
+	complex<double> expArrival = exp( complex<double>(0.0,k_0 * (AoA[0] * receiverAntennaPos[0] + AoA[1] * receiverAntennaPos[1] + AoA[2] * receiverAntennaPos[2])) );
+	complex<double> expDeparture = exp( complex<double>(0.0,k_0 * (AoD[0] * senderAntennaPos[0] + AoD[1] * senderAntennaPos[1] + AoD[2] * senderAntennaPos[2])) );
+
+	receiverGain = getMSGain(dirAoA, dirZoA);
+	senderGain = getBSGain(dirAoD, dirZoD);
+	complex<double> pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase));
+	
+	return LOSRay(dirAoA,expArrival,expDeparture,pol);
 }
 
 /*
