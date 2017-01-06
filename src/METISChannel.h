@@ -30,15 +30,12 @@ using std::tuple;
 class Ray{
 	private:
 		double dirAoA;
-		std::complex<double> expArrival;
-		std::complex<double> expDeparture;
-		std::complex<double> pol;
+		const std::complex<double> precompVal;
 	
 	public:
-		Ray(const double dirAoA, const std::complex<double> expArrival,
-				const std::complex<double> expDeparture, const std::complex<double> pol)
-				:dirAoA(dirAoA),expArrival(expArrival),
-				expDeparture(expDeparture),pol(pol){}
+		Ray(const double dirAoA, const std::complex<double> precompVal)
+				:dirAoA(dirAoA),precompVal(precompVal){}
+		Ray(){}
 
 		static Ray initialize(
 				double azimuthASA,
@@ -57,9 +54,9 @@ class Ray{
 
 class LOSRay: public Ray{
 	public:
-		LOSRay(const double dirAoA, const std::complex<double> expArrival,
-				const std::complex<double> expDeparture, const std::complex<double> pol)
-				:Ray(dirAoA,expArrival,expDeparture,pol){}
+		LOSRay(const double dirAoA, const std::complex<double> precompVal)
+				:Ray(dirAoA,precompVal){}
+		LOSRay(){}
 		static LOSRay initialize(
 				double dirAoA,
 				double dirAoD,

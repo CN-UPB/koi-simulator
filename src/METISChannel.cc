@@ -72,13 +72,13 @@ Ray Ray::initialize(
 	receiverGain = getMSGain(azimuthASA*pi/180, zenithASA*pi/180);
 	senderGain = getBSGain(azimuthASD*pi/180, zenithASD*pi/180);
 	complex<double> pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase[0]));
-	return Ray(azimuthASA*pi/180,expArrival,expDeparture,pol);
+	return Ray(azimuthASA*pi/180,expArrival*expDeparture*pol);
 }
 
 std::complex<double> Ray::value(double t, double moveAngle,
 		double velocity, double k_0){
 	std::complex<double> doppler = exp( complex<double>(0,k_0 * velocity * cos(dirAoA - moveAngle) * t ) );
-	return pol * doppler * expArrival * expDeparture;
+	return doppler*precompVal;
 }
 
 LOSRay LOSRay::initialize(
@@ -110,7 +110,7 @@ LOSRay LOSRay::initialize(
 	senderGain = getBSGain(dirAoD, dirZoD);
 	complex<double> pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase));
 	
-	return LOSRay(dirAoA,expArrival,expDeparture,pol);
+	return LOSRay(dirAoA,expArrival*expDeparture*pol);
 }
 
 /*
