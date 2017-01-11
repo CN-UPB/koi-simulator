@@ -930,6 +930,163 @@ void METISChannel::computeRaySumCluster(
 	raySum[receiverAntennaIndex][senderAntennaIndex] = prefactor * raySum[receiverAntennaIndex][senderAntennaIndex];
 }
 
+/**
+ * Return val: [receiverStationId][sendingStationId][recAntennaId][sendAntennaId][clusterId]
+ */
+VectorNd<RayCluster,5>
+METISChannel::precomputeRayValues(VectorNd<bool,2>& LOSCondition,
+		const VectorNd<double,2>& sigma_kf,
+		int numReceiverAntenna,
+		int numSenderAntenna,
+		const VectorNd<double,3>& clusterPowers,
+		const VectorNd<double,4>& azimuth_ASA,
+		const VectorNd<double,4>& azimuth_ASD,
+		const VectorNd<double,4>& elevation_ASA,
+		const VectorNd<double,4>& elevation_ASD,
+		const VectorNd<array<double,3>,2>& receiverAntennaPos,
+		const VectorNd<array<double,3>,2>& senderAntennaPos,
+		const VectorNd<double,5>& randomPhase,
+		const VectorNd<double,2>& randomPhase_LOS,
+		const VectorNd<double,2>& AoA_LOS_dir,
+		const VectorNd<double,2>& ZoA_LOS_dir,
+		const VectorNd<double,2>& AoD_LOS_dir,
+		const VectorNd<double,2>& ZoD_LOS_dir
+		){
+	size_t numReceivers = LOSCondition.size();
+	size_t numSenders = LOSCondition[0].size();
+	VectorNd<RayCluster,5> rayValues(
+			numReceivers,VectorNd<RayCluster,4>(
+				numSenders,VectorNd<RayCluster,3>()));
+	// Wavenumber k_0
+	double k_0 = (2 * pi) / (speedOfLight / freq_c);
+	
+	// Create all local variables:
+	double sq_P_over_M;
+	vector<vector<int>> subclusters{{0,1,2,3,4,5,6,7,18,19},
+		{8,9,10,11,16,17},{12,13,14,15}};
+	
+	int n_clusters;
+	int clusterIdx;
+	// Cycle through all MS 
+	for(size_t i = 0; i < numReceivers; i++){
+		// Cycle through all base stations
+		
+		for(size_t j=0; j<numSenders; j++){
+			double K = sigma_kf[i][j]; 
+			if(!LOSCondition[i][j]){
+				n_clusters = N_cluster_NLOS;
+			}
+			else{
+				n_clusters = N_cluster_LOS;
+			}
+			rayValues[i][j].resize(numReceiverAntenna,VectorNd<RayCluster,2>(
+						numSenderAntenna,vector<RayCluster>(
+							n_clusters + 4)));
+			// Cycle through all Receiver antennas (MS)
+			for(int u = 0; u < numReceiverAntenna; u++){
+				// Cycle through all Transmitter antennas (BS)
+				for(int s = 0; s < numSenderAntenna; s++){
+					// Cycle through all Paths/Clusters
+					clusterIdx = 0;
+					double P_n[3]; // Oversized, but 2 doubles really doesnt matter
+					for(int n = 0; n < 2; n++){
+						P_n[0] = 10.0/20.0 * clusterPowers[i][j][n];
+						P_n[1] =  6.0/20.0 * clusterPowers[i][j][n];
+						P_n[2] =  4.0/20.0 * clusterPowers[i][j][n];
+						int id_subclust = 0;
+						for(vector<int> &clust:subclusters){
+							sq_P_over_M = sqrt(P_n[id_subclust] / clust.size());
+							if(!LOSCondition[i][j]){
+								rayValues[i][j][u][s][clusterIdx] = RayCluster::initialize(
+										clust.size(),
+										sq_P_over_M,
+										k_0,
+										elevation_ASA[i][j][n],
+										elevation_ASD[i][j][n],
+										azimuth_ASA[i][j][n],
+										azimuth_ASD[i][j][n],
+										senderAntennaPos[j][s],
+										receiverAntennaPos[i][u],
+										randomPhase[i][j][n],
+										&clust
+										);
+							}
+							else{
+								rayValues[i][j][u][s][clusterIdx] = RayCluster::initialize(
+										K,
+										clust.size(),
+										sq_P_over_M,
+										k_0,
+										elevation_ASA[i][j][n],
+										elevation_ASD[i][j][n],
+										azimuth_ASA[i][j][n],
+										azimuth_ASD[i][j][n],
+										senderAntennaPos[j][s],
+										receiverAntennaPos[i][u],
+										randomPhase[i][j][n],
+										randomPhase_LOS[i][j],
+										&clust,
+										AoA_LOS_dir[i][j],
+										AoD_LOS_dir[i][j],
+										ZoA_LOS_dir[i][j],
+										ZoD_LOS_dir[i][j]
+										);
+							}
+							clusterIdx++;
+							id_subclust++;
+						}
+					}
+					double P;
+					for(int n = 2; n < n_clusters; n++){
+						P = clusterPowers[i][j][n];
+						if(!LOSCondition[i][j]){
+							sq_P_over_M = sqrt(P / numOfRays_NLOS);
+							rayValues[i][j][u][s][clusterIdx] = RayCluster::initialize(
+									numOfRays_NLOS,
+									sq_P_over_M,
+									k_0,
+									elevation_ASA[i][j][n],
+									elevation_ASD[i][j][n],
+									azimuth_ASA[i][j][n],
+									azimuth_ASD[i][j][n],
+									senderAntennaPos[j][s],
+									receiverAntennaPos[i][u],
+									randomPhase[i][j][n],
+									nullptr
+									);
+						}
+						else{
+							sq_P_over_M = sqrt(P / numOfRays_LOS);
+							rayValues[i][j][u][s][clusterIdx] = RayCluster::initialize(
+									K,
+									numOfRays_LOS,
+									sq_P_over_M,
+									k_0,
+									elevation_ASA[i][j][n],
+									elevation_ASD[i][j][n],
+									azimuth_ASA[i][j][n],
+									azimuth_ASD[i][j][n],
+									senderAntennaPos[j][s],
+									receiverAntennaPos[i][u],
+									randomPhase[i][j][n],
+									randomPhase_LOS[i][j],
+									nullptr,
+									AoA_LOS_dir[i][j],
+									AoD_LOS_dir[i][j],
+									ZoA_LOS_dir[i][j],
+									ZoD_LOS_dir[i][j]
+									);
+						}
+						clusterIdx++;
+					} // End cycle Clusters
+				} // End Sender antenna
+			} // End Receiver antenna
+		} //End loop for all Senders
+	} // End Links/Receivers
+
+	return rayValues;
+}
+
 tuple<VectorNd<complex<double>,5>,VectorNd<complex<double>,5>>
 METISChannel::computeRaySums(VectorNd<bool,2>& LOSCondition,
 		const VectorNd<double,2>& sigma_kf,

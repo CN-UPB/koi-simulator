@@ -70,7 +70,7 @@ class LOSRay: public Ray{
 
 class RayCluster{
 	private:
-		const bool los;
+		bool los;
 		double k;
 		vector<Ray> rays;
 		double sq_P_over_M;
@@ -153,6 +153,10 @@ class METISChannel : public Channel{
 		double XPR_Std_LOS;
 		double XPR_Mean_NLOS;
 		double XPR_Std_NLOS;
+		VectorNd<RayCluster,5> precompDownTable;
+		VectorNd<RayCluster,6> precompUpTable;
+		VectorNd<RayCluster,6> precompD2DDownTable;
+		VectorNd<RayCluster,6> precompD2DUpTable;
 		
 		/**
 		 * @brief Calculate Antenna positions for the given transmitters
@@ -351,6 +355,29 @@ class METISChannel : public Channel{
 				const vector<vector<double>>& randomPhase,
 				vector<int> *subcluster,
 				VectorNd<std::complex<double>,2>& raySum
+				);
+
+		/**
+		 * Precompute values for ray clusters
+		 */
+		VectorNd<RayCluster,5> precomputeRayValues(
+				VectorNd<bool,2>& LOSCondition,
+				const VectorNd<double,2>& sigma_kf,
+				int numReceiverAntenna,
+				int numSenderAntenna,
+				const VectorNd<double,3>& clusterPowers,
+				const VectorNd<double,4>& azimuth_ASA,
+				const VectorNd<double,4>& azimuth_ASD,
+				const VectorNd<double,4>& elevation_ASA,
+				const VectorNd<double,4>& elevation_ASD,
+				const VectorNd<array<double,3>,2>& receiverAntennaPos,
+				const VectorNd<array<double,3>,2>& senderAntennaPos,
+				const VectorNd<double,5>& randomPhase,
+				const VectorNd<double,2>& randomPhase_LOS,
+				const VectorNd<double,2>& AoA_LOS_dir,
+				const VectorNd<double,2>& ZoA_LOS_dir,
+				const VectorNd<double,2>& AoD_LOS_dir,
+				const VectorNd<double,2>& ZoD_LOS_dir
 				);
 
 		/**

@@ -32,25 +32,25 @@ class Channel{
 		/**
 		 * @brief Table to save downlink coefficients
 		 *
-		 * [receivingMsId][sendingBsId][counter][RB]
+		 * [receivingMsId][sendingBsId][RB]
 		 */
 		VectorNd<double,3> coeffDownTable;
 		/**
 		 * @brief Table to save uplink coefficients
 		 *
-		 * [sendingMsCellID][0][sendingMsId][counter][RB]
+		 * [sendingMsCellID][0][sendingMsId][RB]
 		 */
 		VectorNd<double,4> coeffUpTable;
 		/**
 		 * @brief Table to save D2D DOWN Rb coefficients
 		 *
-		 * [sendingMsCellID][receivingMsId][sendingMsId][counter][RB]
+		 * [sendingMsCellID][receivingMsId][sendingMsId][RB]
 		 */
 		VectorNd<double,4> coeffDownD2DTable;
 		/**
 		 * @brief Table to save D2D UP Rb coefficients
 		 *
-		 * [sendingMsCellID][receivingMsId][sendingMsId][counter][RB]
+		 * [sendingMsCellID][receivingMsId][sendingMsId][RB]
 		 */
 		VectorNd<double,4> coeffUpD2DTable;
 		/**
