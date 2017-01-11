@@ -113,6 +113,123 @@ LOSRay LOSRay::initialize(
 	return LOSRay(dirAoA,expArrival*expDeparture*pol);
 }
 
+vector<Ray> RayCluster::genNLOSRays(
+		size_t numRays,
+		double wavenumber,
+		const vector<double>& zenithASA,
+		const vector<double>& zenithASD,
+		const vector<double>& azimuthASA,
+		const vector<double>& azimuthASD,
+		const array<double,3>& senderAntennaPos,
+		const array<double,3>& receiverAntennaPos,
+		const VectorNd<double,2>& randomPhase,
+		vector<int> *subcluster
+		){
+	vector<Ray> res(numRays);
+	size_t rayIdx;
+	for(size_t m = 0; m < numRays; m++){
+		rayIdx = (subcluster!=nullptr) ? (*subcluster)[m] : m;
+		res[rayIdx] = Ray::initialize(
+				azimuthASA[rayIdx],
+				azimuthASD[rayIdx],
+				zenithASA[rayIdx],
+				zenithASD[rayIdx],
+				wavenumber,
+				senderAntennaPos,
+				receiverAntennaPos,
+				randomPhase[rayIdx]
+				);
+	}
+	return res;
+}
+
+RayCluster RayCluster::initialize(
+		size_t numRays,
+		double prefactor,
+		double wavenumber,
+		const vector<double>& zenithASA,
+		const vector<double>& zenithASD,
+		const vector<double>& azimuthASA,
+		const vector<double>& azimuthASD,
+		const array<double,3>& senderAntennaPos,
+		const array<double,3>& receiverAntennaPos,
+		const VectorNd<double,2>& randomPhase,
+		vector<int> *subcluster
+		){
+	// Precompute NLOS ray components
+	vector<Ray> rays(genNLOSRays(
+				numRays,
+				wavenumber,
+				zenithASA,
+				zenithASD,
+				azimuthASA,
+				azimuthASD,
+				senderAntennaPos,
+				receiverAntennaPos,
+				randomPhase,
+				subcluster
+				));
+	return RayCluster(std::move(rays),prefactor);
+}
+
+RayCluster RayCluster::initialize(
+		double k,
+		size_t numRays,
+		double prefactor,
+		double wavenumber,
+		const vector<double>& zenithASA,
+		const vector<double>& zenithASD,
+		const vector<double>& azimuthASA,
+		const vector<double>& azimuthASD,
+		const array<double,3>& senderAntennaPos,
+		const array<double,3>& receiverAntennaPos,
+		const VectorNd<double,2>& randomPhase,
+		double randomPhaseLOS,
+		vector<int> *subcluster,
+		double dirAoA,
+		double dirAoD,
+		double dirZoA,
+		double dirZoD
+		){
+	// Precompute NLOS ray components
+	vector<Ray> rays(genNLOSRays(
+				numRays,
+				wavenumber,
+				zenithASA,
+				zenithASD,
+				azimuthASA,
+				azimuthASD,
+				senderAntennaPos,
+				receiverAntennaPos,
+				randomPhase,
+				subcluster
+				));
+	// Precompute LOS ray
+	LOSRay losRay(LOSRay::initialize(
+				dirAoA,dirAoD,dirZoA,dirZoD,
+				wavenumber,
+				senderAntennaPos,receiverAntennaPos,
+				randomPhaseLOS));
+	return RayCluster(std::move(rays),prefactor,std::move(losRay),k);
+}
+
+complex<double> RayCluster::clusterValue(double t, double moveAngle,
+		double velocity, double k_0){
+	complex<double> val(0.0,0.0);
+	// Add up all NLOS rays in the cluster
+	for(Ray& r:rays){
+		val += r.value(t,moveAngle,velocity,k_0);
+	}
+	// Multiply with prefactor
+	val *= sq_P_over_M;
+	if(los){
+		// Cmmunicating stations have Line of Sight, add a LOS ray
+		val *= std::sqrt(1.0/(k+1.0));
+		val += std::sqrt(k/(k+1.0))*losRay.value(t,moveAngle,velocity,k_0);
+	}
+	return val;
+}
+
 /*
  * Cartesian: (x,y,z)
  * Spherical (Theta,Phi,r) [azimuth,elevation,r] (MatLab 'Convention')
