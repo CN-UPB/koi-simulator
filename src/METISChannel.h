@@ -33,8 +33,7 @@ class METISChannel : public Channel{
 		// METIS Channel Parameters
 		VectorNd<double,3> delayDownTable;
 		VectorNd<double,4> delayUpTable;
-		VectorNd<double,4> delayD2DDownTable;
-		VectorNd<double,4> delayD2DUpTable;
+		VectorNd<double,4> delayD2DTable;
 		double freq_c;						/*!< center/carrier frequence */
 		double heightUE;					/*!< Height of the user equipments */
 		double heightBS;					/*!< Height of the base stations */
@@ -55,8 +54,7 @@ class METISChannel : public Channel{
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
 		VectorNd<RayCluster,5> precompDownTable;
 		VectorNd<RayCluster,6> precompUpTable;
-		VectorNd<RayCluster,6> precompD2DDownTable;
-		VectorNd<RayCluster,6> precompD2DUpTable;
+		VectorNd<RayCluster,6> precompD2DTable;
 		/**
 		 * MS velocity in m/s
 		 */
@@ -112,8 +110,14 @@ class METISChannel : public Channel{
 				VectorNd<double,2>& sigma_zsA_NLOS,
 				VectorNd<double,2>& sigma_sf_NLOS);
 
-		//! Recalculate all position dependent values, e.g. SINR
-		void recomputeMETISParams(const vector<vector<Position>>& msPositions);
+		/**
+		 * @brief Precompute all METIS values for clusters/delays
+		 *
+		 * Cluster ray sum components as well as delays can be precomputed 
+		 * at the start of each simulation, instead of being recomputed for each 
+		 * TTI.
+		 */
+		void precomputeMETISValues(const vector<vector<Position>>& msPositions);
 
 		//! Generate the spatial correlation between the MS for LOS links.
 		void generateAutoCorrelation_LOS(const vector<Position>& senders,
@@ -141,36 +145,6 @@ class METISChannel : public Channel{
 		 */
 		VectorNd<bool,2> genLosCond(const vector<Position>& sendPos,
 				const vector<Position>& receivePos);
-
-		/**
-		 * @brief Recompute per-cluster delays
-		 *
-		 * For each receiver/sender pair, the METIS model generates 
-		 * several rays with normal distributed path delay. See
-		 * section 7.3.12 of the METIS D1.2 document.
-		 *
-		 * @param LOSCondition A [#receivers]x[#senders] vector 
-		 * 			containing LOS conditions 
-		 * 			(see genLosCond())
-		 * @param sigmaDS_LOS The delay spread variance for line of sight 
-		 * 			(see recomputeLargeScaleParameters() 
-		 * 			and 3GPP Doc 25996)
-		 * @param sigmaDS_NLOS The delay spread variance for non line 
-		 * 			of sight (see recomputeLargeScaleParameters()
-		 * 			and 3GPP Doc 25996)
-		 * @param sigmaKF_LOS The variance of the Ricean K-factor for 
-		 * 			line of sight (see recomputeLargeScaleParameters() 
-		 * 			and 3GPP Doc 25996)
-		 * @return A pair of [#receivers]x[#senders]x[#ray clusters] vectors 
-		 * 		where the first component contains the spreads 
-		 * 		for the LOS case and second one containing those 
-		 * 		for the NLOS case.
-		 */
-		std::tuple<VectorNd<double,3>,VectorNd<double,3>>
-		recomputeClusterDelays(const VectorNd<bool,2>& LOSCondition,
-				const VectorNd<double,2>& sigmaDS_LOS,
-				const VectorNd<double,2>& sigmaDS_NLOS,
-				const VectorNd<double,2>& sigmaKF_LOS);
         
 		/**
 		 * @brief Recompute per-cluster powers
@@ -247,26 +221,6 @@ class METISChannel : public Channel{
 		VectorNd<double,4> genCrossPolarization(VectorNd<bool,2>& LOSCondition);
 
 		/**
-		 * @brief Compute ray sum for a full cluster
-		 */
-		void computeRaySumCluster(
-				size_t numRays,
-				double prefactor,
-				double k_0,
-				const vector<double>& zenithASA,
-				const vector<double>& zenithASD,
-				const vector<double>& azimuthASA,
-				const vector<double>& azimuthASD,
-				const array<double,3>& senderAntennaPos,
-				const array<double,3>& receiverAntennaPos,
-				size_t receiverAntennaIndex,
-				size_t senderAntennaIndex,
-				const vector<vector<double>>& randomPhase,
-				vector<int> *subcluster,
-				VectorNd<std::complex<double>,2>& raySum
-				);
-
-		/**
 		 * Precompute values for ray clusters
 		 */
 		VectorNd<RayCluster,5> precomputeRayValues(
@@ -290,7 +244,25 @@ class METISChannel : public Channel{
 				);
 
 		/**
-		 * Precompute delay values
+		 * @brief Precompute per-cluster delays
+		 *
+		 * For each receiver/sender pair, the METIS model generates 
+		 * several rays with normal distributed path delay. See
+		 * section 7.3.12 of the METIS D1.2 document.
+		 *
+		 * @param LOSCondition A [#receivers]x[#senders] vector 
+		 * 			containing LOS conditions 
+		 * 			(see genLosCond())
+		 * @param sigmaDS_LOS The delay spread variance for line of sight 
+		 * 			(see recomputeLargeScaleParameters() 
+		 * 			and 3GPP Doc 25996)
+		 * @param sigmaDS_NLOS The delay spread variance for non line 
+		 * 			of sight (see recomputeLargeScaleParameters()
+		 * 			and 3GPP Doc 25996)
+		 * @param sigmaKF_LOS The variance of the Ricean K-factor for 
+		 * 			line of sight (see recomputeLargeScaleParameters() 
+		 * 			and 3GPP Doc 25996)
+		 * @return A 3D vector [#receivers]x[#senders]x[#ray clusters] 
 		 */
 		VectorNd<double,3> precomputeClusterDelays(
 				const VectorNd<bool,2>& LOSCondition,
@@ -298,29 +270,6 @@ class METISChannel : public Channel{
 				const VectorNd<double,2>& sigmaDS_NLOS,
 				const VectorNd<double,2>& sigmaKF_LOS
 				);
-
-		/**
-		 * @brief Compute ray sums for given receivers/senders
-		 */
-		tuple<VectorNd<std::complex<double>,5>, VectorNd<std::complex<double>,5>>
-				computeRaySums(VectorNd<bool,2>& LOSCondition,
-						const VectorNd<double,2>& sigma_kf,
-						int numReceiverAntenna,
-						int numSenderAntenna,
-						const VectorNd<double,3>& clusterPowers,
-						const VectorNd<double,4>& azimuth_ASA,
-						const VectorNd<double,4>& azimuth_ASD,
-						const VectorNd<double,4>& elevation_ASA,
-						const VectorNd<double,4>& elevation_ASD,
-						const VectorNd<array<double,3>,2>& receiverAntennaPos,
-						const VectorNd<array<double,3>,2>& senderAntennaPos,
-						const VectorNd<double,5>& randomPhase,
-						const VectorNd<double,2>& randomPhase_LOS,
-						const VectorNd<double,2>& AoA_LOS_dir,
-						const VectorNd<double,2>& ZoA_LOS_dir,
-						const VectorNd<double,2>& AoD_LOS_dir,
-						const VectorNd<double,2>& ZoD_LOS_dir
-						);
 
 		/**
 		 * @brief Compute coefficients for given receivers/senders
@@ -340,31 +289,33 @@ class METISChannel : public Channel{
 				);
 
 		/**
-		 * @brief Compute the downlink (BS->MS) coefficients
+		 * @brief Precompute the downlink (BS->MS) cluster/delay values
 		 *
-		 * After executing this method, the coeffDown table will hold 
-		 * the coefficients for the links from all BS to the 
-		 * local MS.
+		 * After executing this method, the precomp and delay tables will be
+		 * populated with all values which can be computed at the beginning of the
+		 * simulation.
 		 */
-		void recomputeDownCoefficients(const vector<Position>& msPositions,
+		void precomputeDownValues(const vector<Position>& msPositions,
 				const vector<Position>& bsPositions);
 
 		/**
-		 * @brief Compute the uplink (MS->BS) coefficients
+		 * @brief Precompute the uplink (MS->BS) cluster/delay values
 		 *
-		 * After executing this method, the coeffUp table will hold 
-		 * the coefficients for the links from all MS to the local BS
+		 * After executing this method, the precomp and delay tables will be
+		 * populated with all values which can be computed at the beginning of the
+		 * simulation.
 		 */
-		void recomputeUpCoefficients(const vector<vector<Position>>& msPositions,
+		void precomputeUpValues(const vector<vector<Position>>& msPositions,
 				const vector<Position>& bsPositions);
 		
 		/**
-		 * @brief Compute the D2D (MS->MS) coefficients
+		 * @brief Precompute the D2D (MS->MS) cluster/delay
 		 *
-		 * After executing this method, the coeffUpD2D and coeffDownD2D tables will hold 
-		 * the coefficients for the links from all MS to all local MS
+		 * After executing this method, the precomp and delay tables will be
+		 * populated with all values which can be computed at the beginning of the
+		 * simulation.
 		 */
-		void recomputeD2DCoefficients(const vector<vector<Position>>& msPositions);
+		void precomputeD2DValues(const vector<vector<Position>>& msPositions);
 
 	public:
 		//! Initialize the METIS channel through ini access via OMNeT++ module pointer.
