@@ -10,13 +10,14 @@
 #pragma once
 
 #include "includes.h"
-#include <cmath>
-#include "Position.h"
 #include "Channel.h"
+#include "MetisRays.h"
+#include "Position.h"
 #include "VecNd.h"
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <complex>
 #include <ostream>
 #include <tuple>
@@ -26,112 +27,6 @@
 using std::vector;
 using std::array;
 using std::tuple;
-
-class Ray{
-	private:
-		double dirAoA;
-		std::complex<double> precompVal;
-	
-	public:
-		Ray(const double dirAoA, std::complex<double> precompVal)
-				:dirAoA(dirAoA),precompVal(precompVal){}
-		Ray(){}
-		static Ray initialize(
-				double azimuthASA,
-				double azimuthASD,
-				double zenithASA,
-				double zenithASD,
-				double k_0,
-				const array<double,3>& senderAntennaPos,
-				const array<double,3>& receiverAntennaPos,
-				const vector<double>& randomPhase
-				);
-		virtual std::complex<double> value(double t, double moveAngle,
-				double velocity, double k_0);
-
-};
-
-class LOSRay: public Ray{
-	public:
-		LOSRay(const double dirAoA, std::complex<double> precompVal)
-				:Ray(dirAoA,precompVal){}
-		LOSRay(){}
-		static LOSRay initialize(
-				double dirAoA,
-				double dirAoD,
-				double dirZoA,
-				double dirZoD,
-				double k_0,
-				const array<double,3>& senderAntennaPos,
-				const array<double,3>& receiverAntennaPos,
-				double randomPhase
-				);
-};
-
-class RayCluster{
-	private:
-		bool los;
-		double k;
-		vector<Ray> rays;
-		double sq_P_over_M;
-		LOSRay losRay;
-		static vector<Ray> genNLOSRays(
-				size_t numRays,
-				double wavenumber,
-				const vector<double>& zenithASA,
-				const vector<double>& zenithASD,
-				const vector<double>& azimuthASA,
-				const vector<double>& azimuthASD,
-				const array<double,3>& senderAntennaPos,
-				const array<double,3>& receiverAntennaPos,
-				const VectorNd<double,2>& randomPhase,
-				vector<int> *subcluster
-				);
-	public:
-		RayCluster(vector<Ray>&& rays, double sq_P_over_M,LOSRay losRay,double k)
-				: los(true),
-				k(k),
-				rays(rays),
-				sq_P_over_M(sq_P_over_M),
-				losRay(losRay){}
-		RayCluster(vector<Ray>&& rays, double sq_P_over_M)
-				: los(false),rays(rays),sq_P_over_M(sq_P_over_M){}
-		RayCluster():los(false){}
-		static RayCluster initialize(
-				size_t numRays,
-				double prefactor,
-				double wavenumber,
-				const vector<double>& zenithASA,
-				const vector<double>& zenithASD,
-				const vector<double>& azimuthASA,
-				const vector<double>& azimuthASD,
-				const array<double,3>& senderAntennaPos,
-				const array<double,3>& receiverAntennaPos,
-				const VectorNd<double,2>& randomPhase,
-				vector<int> *subcluster
-				);
-		static RayCluster initialize(
-				double k,
-				size_t numRays,
-				double prefactor,
-				double wavenumber,
-				const vector<double>& zenithASA,
-				const vector<double>& zenithASD,
-				const vector<double>& azimuthASA,
-				const vector<double>& azimuthASD,
-				const array<double,3>& senderAntennaPos,
-				const array<double,3>& receiverAntennaPos,
-				const VectorNd<double,2>& randomPhase,
-				double randomPhaseLOS,
-				vector<int> *subcluster,
-				double dirAoA,
-				double dirAoD,
-				double dirZoA,
-				double dirZoD
-				);
-		std::complex<double> clusterValue(double t, double moveAngle,
-				double velocity, double k_0);
-};
 
 class METISChannel : public Channel{
 	private:
