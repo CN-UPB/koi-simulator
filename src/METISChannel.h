@@ -43,6 +43,9 @@ class METISChannel : public Channel{
 		 * 2*PI/(C/Carrier Freq)
 		 */
 		double k_0;
+		VectorNd<bool,2> losDownTable;
+		VectorNd<bool,3> losUpTable;
+		VectorNd<bool,3> losD2DTable;
 		static double ray_offset[20];				/* Ray offset. Table 7.6 METIS D1.2 */
 		int N_cluster_LOS;
 		int N_cluster_NLOS;

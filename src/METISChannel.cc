@@ -911,7 +911,7 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 			);
 	
 	//Assign LOS Conditions:
-	vector<vector<bool>> LOSCondition(genLosCond(senderPos,receiverPos));
+	losDownTable = std::move(genLosCond(senderPos,receiverPos));
 	
 	VectorNd<double,2> sigma_ds_LOS(receiverPos.size(),
 			vector<double>(neighbourPositions.size()));
@@ -958,13 +958,13 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
     
 	// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
 	delayDownTable = precomputeClusterDelays(
-			LOSCondition,
+			losDownTable,
 			sigma_ds_LOS,
 			sigma_ds_NLOS,
 			sigma_kf_LOS
 			);
 
-	VectorNd<double,3> clusterPowers(genClusterPowers(LOSCondition,
+	VectorNd<double,3> clusterPowers(genClusterPowers(losDownTable,
 				delayDownTable,
 				sigma_ds_LOS,
 				sigma_ds_NLOS,
@@ -983,7 +983,7 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 	
 	// Generate azimuth angles of arrival
 	VectorNd<double,4> azimuth_ASA(recomputeAzimuthAngles(
-			LOSCondition,
+			losDownTable,
 			sigma_asA_LOS,
 			sigma_asA_NLOS,
 			sigma_kf_LOS,
@@ -993,7 +993,7 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 
 	// Generate azimuth angles of departure in the same way 
 	VectorNd<double,4> azimuth_ASD(recomputeAzimuthAngles(
-			LOSCondition,
+			losDownTable,
 			sigma_asD_LOS,
 			sigma_asD_NLOS,
 			sigma_kf_LOS,
@@ -1003,7 +1003,7 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 
 	// Generate Zenith angles 
 	VectorNd<double,4> elevation_ASA(recomputeZenithAngles(
-				LOSCondition,
+				losDownTable,
 				sigma_zsA_LOS,
 				sigma_zsA_NLOS,
 				sigma_kf_LOS,
@@ -1012,7 +1012,7 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 				true));
 
 	VectorNd<double,4> elevation_ASD(recomputeZenithAngles(
-				LOSCondition,
+				losDownTable,
 				sigma_zsD_LOS,
 				sigma_zsD_NLOS,
 				sigma_kf_LOS,
@@ -1023,12 +1023,12 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 	// Generate random phases (7.3.17)
 	VectorNd<double,5> randomPhase;
 	VectorNd<double,2> randomPhase_LOS;
-	std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(LOSCondition);
+	std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(losDownTable);
 	
 	// Generate cross polarization values
-	VectorNd<double,4> Xn_m(genCrossPolarization(LOSCondition));
+	VectorNd<double,4> Xn_m(genCrossPolarization(losDownTable));
 
-	precompDownTable = std::move(precomputeRayValues(LOSCondition,
+	precompDownTable = std::move(precomputeRayValues(losDownTable,
 			sigma_kf_LOS,
 			numReceiverAntenna,
 			numSenderAntenna,
@@ -1048,7 +1048,7 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 			));
 	
 	coeffDownTable = std::move(computeCoeffs(
-				LOSCondition,
+				losDownTable,
 				receiverPos,
 				senderPos,
 				heightUE,
@@ -1093,7 +1093,7 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 				);
 
 		//Assign LOS Conditions:
-		VectorNd<bool,2> LOSCondition(genLosCond(senderPos,receiverPos));
+		losUpTable[j] = std::move(genLosCond(senderPos,receiverPos));
 
 		VectorNd<double,2> sigma_ds_LOS(receiverPos.size(),
 				vector<double>(senderPos.size()));
@@ -1141,13 +1141,13 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 
 		// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
 		delayUpTable[j] = precomputeClusterDelays(
-				LOSCondition,
+				losUpTable[j],
 				sigma_ds_LOS,
 				sigma_ds_NLOS,
 				sigma_kf_LOS
 				);
 
-		VectorNd<double,3> clusterPowers(genClusterPowers(LOSCondition,
+		VectorNd<double,3> clusterPowers(genClusterPowers(losUpTable[j],
 					delayUpTable[j],
 					sigma_ds_LOS,
 					sigma_ds_NLOS,
@@ -1166,7 +1166,7 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 
 		// Generate azimuth angles of arrival
 		VectorNd<double,4> azimuth_ASA(recomputeAzimuthAngles(
-					LOSCondition,
+					losUpTable[j],
 					sigma_asA_LOS,
 					sigma_asA_NLOS,
 					sigma_kf_LOS,
@@ -1176,7 +1176,7 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 
 		// Generate azimuth angles of departure in the same way 
 		VectorNd<double,4> azimuth_ASD(recomputeAzimuthAngles(
-					LOSCondition,
+					losUpTable[j],
 					sigma_asD_LOS,
 					sigma_asD_NLOS,
 					sigma_kf_LOS,
@@ -1186,7 +1186,7 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 
 		// Generate Zenith angles 
 		VectorNd<double,4> elevation_ASA(recomputeZenithAngles(
-					LOSCondition,
+					losUpTable[j],
 					sigma_zsA_LOS,
 					sigma_zsA_NLOS,
 					sigma_kf_LOS,
@@ -1195,7 +1195,7 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 					true));
 
 		VectorNd<double,4> elevation_ASD(recomputeZenithAngles(
-					LOSCondition,
+					losUpTable[j],
 					sigma_zsD_LOS,
 					sigma_zsD_NLOS,
 					sigma_kf_LOS,
@@ -1206,14 +1206,14 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 		// Generate random phases (7.3.17)
 		VectorNd<double,5> randomPhase;
 		VectorNd<double,2> randomPhase_LOS;
-		std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(LOSCondition);
+		std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(losUpTable[j]);
 
 		// Generate cross polarization values
 		VectorNd<double,4> Xn_m(genCrossPolarization(
-					LOSCondition));
+					losUpTable[j]));
 
 
-		precompUpTable[j] = precomputeRayValues(LOSCondition,
+		precompUpTable[j] = precomputeRayValues(losUpTable[j],
 				sigma_kf_LOS,
 				numReceiverAntenna,
 				numSenderAntenna,
@@ -1233,7 +1233,7 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 				);
 
 		coeffUpTable[j] = std::move(computeCoeffs(
-					LOSCondition,
+					losUpTable[j],
 					receiverPos,
 					senderPos,
 					heightBS,
@@ -1302,7 +1302,7 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 				);
 
 		//Assign LOS Conditions:
-		VectorNd<bool,2> LOSCondition(genLosCond(senderPos,receiverPos));
+		losD2DTable[j] = std::move(genLosCond(senderPos,receiverPos));
 
 		VectorNd<double,2> sigma_ds_LOS(receiverPos.size(),
 				vector<double>(senderPos.size()));
@@ -1350,13 +1350,13 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 
 		// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
 		delayD2DTable[j] = precomputeClusterDelays(
-				LOSCondition,
+				losD2DTable[j],
 				sigma_ds_LOS,
 				sigma_ds_NLOS,
 				sigma_kf_LOS
 				);
 
-		VectorNd<double,3> clusterPowers(genClusterPowers(LOSCondition,
+		VectorNd<double,3> clusterPowers(genClusterPowers(losD2DTable[j],
 					delayD2DTable[j],
 					sigma_ds_LOS,
 					sigma_ds_NLOS,
@@ -1375,7 +1375,7 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 
 		// Generate azimuth angles of arrival
 		VectorNd<double,4> azimuth_ASA(recomputeAzimuthAngles(
-					LOSCondition,
+					losD2DTable[j],
 					sigma_asA_LOS,
 					sigma_asA_NLOS,
 					sigma_kf_LOS,
@@ -1385,7 +1385,7 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 
 		// Generate azimuth angles of departure in the same way 
 		VectorNd<double,4> azimuth_ASD(recomputeAzimuthAngles(
-					LOSCondition,
+					losD2DTable[j],
 					sigma_asD_LOS,
 					sigma_asD_NLOS,
 					sigma_kf_LOS,
@@ -1395,7 +1395,7 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 
 		// Generate Zenith angles 
 		VectorNd<double,4> elevation_ASA(recomputeZenithAngles(
-					LOSCondition,
+					losD2DTable[j],
 					sigma_zsA_LOS,
 					sigma_zsA_NLOS,
 					sigma_kf_LOS,
@@ -1404,7 +1404,7 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 					true));
 
 		VectorNd<double,4> elevation_ASD(recomputeZenithAngles(
-					LOSCondition,
+					losD2DTable[j],
 					sigma_zsD_LOS,
 					sigma_zsD_NLOS,
 					sigma_kf_LOS,
@@ -1415,13 +1415,13 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 		// Generate random phases (7.3.17)
 		VectorNd<double,5> randomPhase;
 		VectorNd<double,2> randomPhase_LOS;
-		std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(LOSCondition);
+		std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(losD2DTable[j]);
 
 		// Generate cross polarization values
 		VectorNd<double,4> Xn_m(genCrossPolarization(
-					LOSCondition));
+					losD2DTable[j]));
 
-		precompD2DTable[j] = std::move(precomputeRayValues(LOSCondition,
+		precompD2DTable[j] = std::move(precomputeRayValues(losD2DTable[j],
 				sigma_kf_LOS,
 				numReceiverAntenna,
 				numSenderAntenna,
@@ -1441,7 +1441,7 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 				));
 
 		coeffUpD2DTable[j] = std::move(computeCoeffs(
-					LOSCondition,
+					losD2DTable[j],
 					receiverPos,
 					senderPos,
 					heightUE,
@@ -1454,7 +1454,7 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 					delayD2DTable[j]
 					));
 		coeffDownD2DTable[j] = std::move(computeCoeffs(
-					LOSCondition,
+					losD2DTable[j],
 					receiverPos,
 					senderPos,
 					heightUE,
