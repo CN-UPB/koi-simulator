@@ -3,8 +3,6 @@
  * @brief Implmentation of the MetisRay header
  */
 
-#pragma once
-
 #include "includes.h"
 #include "MetisRays.h"
 #include "VecNd.h"
@@ -16,6 +14,16 @@
 using std::array;
 using std::complex;
 using std::vector;
+
+double getMSGain(double AoA, double EoA){ // Hertzian dipole; TODO: Change the return value to a vector for getting both theta and phi components
+	//return (-1.0 * sin(EoA)); 
+	return -1.0;				// For Z-oriented Hertzian dipole, F_phi is always zero and F_theta is -sin(theta), theta is in radians
+}
+
+double getBSGain(double AoD, double EoD){ // Hertzian dipole; TODO: Change the return value to a vector for getting both theta and phi components, EoD and AoD are in radians
+	//return (-1.0 * sin(EoD));
+	return -1.0;
+}
 
 Ray Ray::initialize(
 		double azimuthASA,
@@ -31,13 +39,13 @@ Ray Ray::initialize(
 	double AoD[3];
 	double receiverGain;
 	double senderGain;
-	AoA[0] = sin(zenithASA*pi/180) * cos(azimuthASA*pi/180);
-	AoA[1] = sin(zenithASA*pi/180) * sin(azimuthASA*pi/180);
-	AoA[2] = cos(zenithASA*pi/180);
+	AoA[0] = sin(zenithASA*PI/180) * cos(azimuthASA*PI/180);
+	AoA[1] = sin(zenithASA*PI/180) * sin(azimuthASA*PI/180);
+	AoA[2] = cos(zenithASA*PI/180);
 
-	AoD[0] = sin(zenithASD*pi/180) * cos(azimuthASD*pi/180);
-	AoD[1] = sin(zenithASD*pi/180) * sin(azimuthASD*pi/180);
-	AoD[2] = cos(zenithASD*pi/180);
+	AoD[0] = sin(zenithASD*PI/180) * cos(azimuthASD*PI/180);
+	AoD[1] = sin(zenithASD*PI/180) * sin(azimuthASD*PI/180);
+	AoD[2] = cos(zenithASD*PI/180);
 
 	// Ray arrival component
 	complex<double> expArrival = exp( complex<double>(0.0,k_0 * (AoA[0] * receiverAntennaPos[0] + AoA[1] * receiverAntennaPos[1] + AoA[2] * receiverAntennaPos[2])) );
@@ -45,14 +53,14 @@ Ray Ray::initialize(
 	complex<double> expDeparture = exp( complex<double>(0.0,k_0 * (AoD[0] * senderAntennaPos[0] + AoD[1] * senderAntennaPos[1] + AoD[2] * senderAntennaPos[2])) );
 
 	// Ray Polarization
-	receiverGain = getMSGain(azimuthASA*pi/180, zenithASA*pi/180);
-	senderGain = getBSGain(azimuthASD*pi/180, zenithASD*pi/180);
+	receiverGain = getMSGain(azimuthASA*PI/180, zenithASA*PI/180);
+	senderGain = getBSGain(azimuthASD*PI/180, zenithASD*PI/180);
 	complex<double> pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase[0]));
-	return Ray(azimuthASA*pi/180,expArrival*expDeparture*pol);
+	return Ray(azimuthASA*PI/180,expArrival*expDeparture*pol);
 }
 
-std::complex<double> Ray::value(double t, double moveAngle,
-		double velocity, double k_0){
+std::complex<double> Ray::value(const double t, double moveAngle,
+		double velocity, double k_0) const {
 	std::complex<double> doppler = exp( complex<double>(0,k_0 * velocity * cos(dirAoA - moveAngle) * t ) );
 	return doppler*precompVal;
 }
@@ -189,11 +197,11 @@ RayCluster RayCluster::initialize(
 	return RayCluster(std::move(rays),prefactor,std::move(losRay),k);
 }
 
-complex<double> RayCluster::clusterValue(double t, double moveAngle,
-		double velocity, double k_0){
+complex<double> RayCluster::clusterValue(const double t, double moveAngle,
+		double velocity, double k_0) const {
 	complex<double> val(0.0,0.0);
 	// Add up all NLOS rays in the cluster
-	for(Ray& r:rays){
+	for(const Ray& r:rays){
 		val += r.value(t,moveAngle,velocity,k_0);
 	}
 	// Multiply with prefactor

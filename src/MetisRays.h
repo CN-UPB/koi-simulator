@@ -31,8 +31,8 @@ class Ray{
 				const std::array<double,3>& receiverAntennaPos,
 				const std::vector<double>& randomPhase
 				);
-		virtual std::complex<double> value(double t, double moveAngle,
-				double velocity, double k_0);
+		virtual std::complex<double> value(const double t, double moveAngle,
+				double velocity, double k_0) const;
 
 };
 
@@ -114,7 +114,7 @@ class RayCluster{
 				double dirZoA,
 				double dirZoD
 				);
-		std::complex<double> clusterValue(double t, double moveAngle,
-				double velocity, double k_0);
+		std::complex<double> clusterValue(const double t, double moveAngle,
+				double velocity, double k_0) const;
 };
 

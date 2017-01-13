@@ -31,13 +31,19 @@ using std::tuple;
 class METISChannel : public Channel{
 	private:
 		// METIS Channel Parameters
-		VectorNd<RayCluster,3> delayDownTable;
-		VectorNd<RayCluster,4> delayUpTable;
-		VectorNd<RayCluster,4> delayD2DDownTable;
-		VectorNd<RayCluster,4> delayD2DUpTable;
+		VectorNd<double,3> delayDownTable;
+		VectorNd<double,4> delayUpTable;
+		VectorNd<double,4> delayD2DDownTable;
+		VectorNd<double,4> delayD2DUpTable;
 		double freq_c;						/*!< center/carrier frequence */
 		double heightUE;					/*!< Height of the user equipments */
 		double heightBS;					/*!< Height of the base stations */
+		/**
+		 * Wavenumber
+		 *
+		 * 2*PI/(C/Carrier Freq)
+		 */
+		double k_0;
 		static double ray_offset[20];				/* Ray offset. Table 7.6 METIS D1.2 */
 		int N_cluster_LOS;
 		int N_cluster_NLOS;
@@ -329,10 +335,8 @@ class METISChannel : public Channel{
 				int numRBs,
 				int numReceiverAntenna,
 				int numSenderAntenna,
-				const VectorNd<std::complex<double>,5>& raySum,
-				const VectorNd<std::complex<double>,5>& raySum_LOS,
-				const VectorNd<double,3>& clusterDelays,
-				const VectorNd<double,3>& clusterDelays_LOS
+				const VectorNd<RayCluster,5>& rayClusters,
+				const VectorNd<double,3>& delays
 				);
 
 		/**
