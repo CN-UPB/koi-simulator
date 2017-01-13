@@ -310,6 +310,7 @@ bool METISChannel::init(cSimpleModule* module,
 	XPR_Std_LOS = module->par("XPR_Std_LOS");
 	XPR_Mean_NLOS = module->par("XPR_Mean_NLOS");
 	XPR_Std_NLOS = module->par("XPR_Std_NLOS");
+	velocity = module->par("msVel");
     
     
 	// Actually, this counts the own BS as well, so substract 1 

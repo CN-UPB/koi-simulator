@@ -188,6 +188,8 @@ simple BsChannel  {
 		bool debug = default(false);
 		// Should D2D values be computed?
 		bool d2dActive = default(true);
+		// Velocity of the mobile stations in m/s
+		double msVel;
 		@display("i=block/rxtx");
 		
 	gates:

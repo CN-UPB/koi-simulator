@@ -136,6 +136,10 @@ class RayCluster{
 class METISChannel : public Channel{
 	private:
 		// METIS Channel Parameters
+		VectorNd<RayCluster,3> delayDownTable;
+		VectorNd<RayCluster,4> delayUpTable;
+		VectorNd<RayCluster,4> delayD2DDownTable;
+		VectorNd<RayCluster,4> delayD2DUpTable;
 		double freq_c;						/*!< center/carrier frequence */
 		double heightUE;					/*!< Height of the user equipments */
 		double heightBS;					/*!< Height of the base stations */
@@ -148,19 +152,19 @@ class METISChannel : public Channel{
 		int NumMsAntenna;					/*!< Number of Mobile Station Antenna */
 		vector<vector<array<double,3>>> bsAntennaPositions;				/*!< Position vector of Base Station antenna */
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
+		VectorNd<RayCluster,5> precompDownTable;
+		VectorNd<RayCluster,6> precompUpTable;
+		VectorNd<RayCluster,6> precompD2DDownTable;
+		VectorNd<RayCluster,6> precompD2DUpTable;
+		/**
+		 * MS velocity in m/s
+		 */
+		double velocity;
 		double wavelength;
 		double XPR_Mean_LOS;
 		double XPR_Std_LOS;
 		double XPR_Mean_NLOS;
 		double XPR_Std_NLOS;
-		VectorNd<RayCluster,5> precompDownTable;
-		VectorNd<RayCluster,6> precompUpTable;
-		VectorNd<RayCluster,6> precompD2DDownTable;
-		VectorNd<RayCluster,6> precompD2DUpTable;
-		VectorNd<RayCluster,3> delayDownTable;
-		VectorNd<RayCluster,4> delayUpTable;
-		VectorNd<RayCluster,4> delayD2DDownTable;
-		VectorNd<RayCluster,4> delayD2DUpTable;
 		
 		/**
 		 * @brief Calculate Antenna positions for the given transmitters
