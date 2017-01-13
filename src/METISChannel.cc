@@ -459,6 +459,62 @@ VectorNd<bool,2> METISChannel::genLosCond(const vector<Position>& sendPos,
 	return losCond;
 }
 
+VectorNd<double,3> METISChannel::precomputeClusterDelays(
+		const VectorNd<bool,2>& LOSCondition,
+		const VectorNd<double,2>& sigmaDS_LOS,
+		const VectorNd<double,2>& sigmaDS_NLOS,
+		const VectorNd<double,2>& sigmaKF_LOS
+		){
+	VectorNd<double,3> clusterDelays(LOSCondition.size(),
+			VectorNd<double,2>(LOSCondition[0].size(),
+				vector<double>())); 
+	int n_clusters;
+	double delayScaling;
+	double delayScaling_NLOS = initModule->par("DelayScaling_NLOS");
+	double delayScaling_LOS = initModule->par("DelayScaling_LOS");
+	double min_delay;
+	double sigma_ds;
+	for(size_t i = 0; i < LOSCondition.size(); i++){
+		for(size_t j = 0; j<LOSCondition[i].size(); j++){
+			if(LOSCondition[i][j]){
+				// LOS Condition
+				n_clusters = N_cluster_LOS;
+				delayScaling = delayScaling_LOS;
+				sigma_ds = sigmaDS_LOS[i][j];
+			}
+			else{
+				// NLOS Condition
+				n_clusters = N_cluster_NLOS;
+				delayScaling = delayScaling_NLOS;
+				sigma_ds = sigmaDS_NLOS[i][j];
+			}
+			clusterDelays[i][j].resize(n_clusters,0.0);
+			for(int k = 0; k < n_clusters; k++){
+				clusterDelays[i][j][k] = -1.0*delayScaling*sigma_ds*log(uniform(0,1));
+			}
+			min_delay = *std::min_element(clusterDelays[i][j].cbegin(), clusterDelays[i][j].cbegin() + n_clusters);
+			// Normalize the delays (7.39)
+			for(int k = 0; k < n_clusters; k++){
+				clusterDelays[i][j][k] = clusterDelays[i][j][k] - min_delay;
+			}
+			// Sort the delays (7.39)
+			std::sort(clusterDelays[i][j].begin(), clusterDelays[i][j].begin() + n_clusters, std::less<double>());
+			if(LOSCondition[i][j]){
+				// Apply LOS Peak compensation factor
+				// Compute LOS Peak compensation factor (7.41)
+				double K = 10.0 * log10(abs(sigmaKF_LOS[i][j]));
+				double C_DS = 0.7705 - 0.0433 * K + 0.0002 * pow(K,2) + 0.000017 * pow(K,3);
+
+				// Apply LOS compensation factor
+				for(int k = 0; k < n_clusters; k++){
+					clusterDelays[i][j][k] = clusterDelays[i][j][k] / C_DS;
+				}	
+			}	
+		}
+	}
+	return clusterDelays;
+}
+
 tuple<VectorNd<double,3>,VectorNd<double,3>>
 METISChannel::recomputeClusterDelays(const VectorNd<bool,2>& LOSCondition,
 		const VectorNd<double,2>& sigmaDS_LOS,

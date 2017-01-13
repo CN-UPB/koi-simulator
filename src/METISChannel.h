@@ -157,6 +157,10 @@ class METISChannel : public Channel{
 		VectorNd<RayCluster,6> precompUpTable;
 		VectorNd<RayCluster,6> precompD2DDownTable;
 		VectorNd<RayCluster,6> precompD2DUpTable;
+		VectorNd<RayCluster,3> delayDownTable;
+		VectorNd<RayCluster,4> delayUpTable;
+		VectorNd<RayCluster,4> delayD2DDownTable;
+		VectorNd<RayCluster,4> delayD2DUpTable;
 		
 		/**
 		 * @brief Calculate Antenna positions for the given transmitters
@@ -378,6 +382,16 @@ class METISChannel : public Channel{
 				const VectorNd<double,2>& ZoA_LOS_dir,
 				const VectorNd<double,2>& AoD_LOS_dir,
 				const VectorNd<double,2>& ZoD_LOS_dir
+				);
+
+		/**
+		 * Precompute delay values
+		 */
+		VectorNd<double,3> precomputeClusterDelays(
+				const VectorNd<bool,2>& LOSCondition,
+				const VectorNd<double,2>& sigmaDS_LOS,
+				const VectorNd<double,2>& sigmaDS_NLOS,
+				const VectorNd<double,2>& sigmaKF_LOS
 				);
 
 		/**
