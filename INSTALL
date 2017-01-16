@@ -18,11 +18,15 @@ Follow these steps to install HORIZON:
 		git clone https://code.comsys.rwth-aachen.de/git/horizon-4-public horizon
 	2) change to horizon dir: cd horizon
 	3) set environment: . setenv (note the dot!)
-	4) Run configuration: ./configure
+	4) Uncomment CFLAGS_DEBUG/CFLAGS_RELEASE lines in configure.user and add 
+		"-std=c++11" to the ends of both lines
+	5) Download OMNeT++ 4.6, configure and build it
+		copy "omnetpp-4.6/src/common/matchexpression.tab.cc" to "horizon/src/common"
+	6) Run configuration: ./configure
 		This might throw a few errors about missing libraries. If so, 
 		install those libraries with your distribution's package manager.
-	5) Run make
-		For faster compilation, run "make -jN", where is your number 
+	7) Run make
+		For faster compilation, run "make -jN", where N is your number 
 		of processor cores.
 
 The KOI simulation also requires the IT++ library. Install it via your 
@@ -47,14 +51,5 @@ the src/ directory.
 Troubleshooting
 ---------------
 
-Should you encounter the error 
-"too few arguments to function 'int matchexpressionyylex(char**, void*)'",
-please download and decompress the file 
-"https://omnetpp.org/omnetpp/summary/30-omnet-releases/2290-omnet-4-6-source-ide-tgz".
-
-Then, copy the file "omnetpp-4.6/src/common/matchexpression.tab.cc" to 
-"src/common/" in the HORZION directory.
-
-Should you encounter compiler errors mentioning cxx_11, you need to add 
-"-std=c++11" to "src/Makefile", at the end of the line 
-"COPTS = $(CFLAGS)  $(INCLUDE_PATH) -I$(OMNETPP_INCL_DIR)".
+Should you encounter a compile error complaining about "getcwd not defined", 
+you need to add "#include <unistd.h>" to the imports in "src/utils/abspath.cc".
