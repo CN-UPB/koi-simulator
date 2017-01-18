@@ -23,7 +23,7 @@ enum MessageType: short {
 	sendSchedules,
 	sinrEst,
 	longTermSinrEst,
-	clearTransInfo,
+	cleanupTTI,
 	scheduleInfo,
 	staticSchedule,
 	genStaticSchedule

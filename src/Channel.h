@@ -215,6 +215,11 @@ class Channel{
 		virtual std::ostream& printCoeffDownTables(std::ostream& out);
 
 		/**
+		 * @brief Recompute values which need to be updated for each TTI
+		 */
+		virtual void recomputePerTTIValues();
+
+		/**
 		 * @brief Updates the Channel if necessary for moving MS
 		 */
 		virtual void updateChannel(const vector<vector<Position>>& msPos) = 0;

@@ -202,9 +202,12 @@ void BsChannel::handleMessage(cMessage *msg)  {
 			delete msg;
 		}
 	}
-	else if(msg->getKind()==MessageType::clearTransInfo){
+	else if(msg->getKind()==MessageType::cleanupTTI){
 		// Clear all TransInfo messages from the channel
 		channel->clearTransInfo();
+		// Recompute all channel values specific to each TTI, e.g. time dependent
+		// ones.
+		channel->recomputePerTTIValues();
 	}
 	else if(msg->arrivedOn("fromMs"))  {
 		assert(msg->getKind() == MessageType::koidata);

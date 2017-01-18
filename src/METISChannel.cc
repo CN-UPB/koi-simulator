@@ -886,7 +886,7 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 	return coeffs;
 }
 
-void METISChannel::recomputePerTTICoeffs(){
+void METISChannel::recomputePerTTIValues(){
 	// Compute DOWN coefficients for the current TTI
 	int numReceiverAntenna = NumMsAntenna;
 	int numSenderAntenna = NumBsAntenna;
@@ -1993,11 +1993,6 @@ double METISChannel::sigma_ZSD(double meanZSD, bool LOS){
 		double sigma;
 		return sigma = normal(meanZSD, pow(epsilon_ZSD,2) );
 	}
-}
-
-void METISChannel::clearTransInfo(){
-	Channel::clearTransInfo();
-	recomputePerTTICoeffs();
 }
 
 /**

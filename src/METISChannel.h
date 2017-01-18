@@ -124,17 +124,6 @@ class METISChannel : public Channel{
 		 */
 		void precomputeMETISValues(const vector<vector<Position>>& msPositions);
 
-		/**
-		 * @brief Compute per-TTI coefficients for the current time
-		 *
-		 * This method fills the coeff* table members with the coefficient values
-		 * for the current TTI. This method makes use of the precomputed values.
-		 *
-		 * This means: The precomputeMETISValues method needs to be called before
-		 * this method is called.
-		 */
-		void recomputePerTTICoeffs();
-
 		//! Generate the spatial correlation between the MS for LOS links.
 		void generateAutoCorrelation_LOS(const vector<Position>& senders,
 				const vector<Position>& receivers,
@@ -347,5 +336,14 @@ class METISChannel : public Channel{
 
 		//! Destructor of METIS Channel subclass.
 		virtual ~METISChannel(){}
-		void clearTransInfo();
+		/**
+		 * @brief Compute per-TTI coefficients for the current time
+		 *
+		 * This method fills the coeff* table members with the coefficient values
+		 * for the current TTI. This method makes use of the precomputed values.
+		 *
+		 * This means: The precomputeMETISValues method needs to be called before
+		 * this method is called.
+		 */
+		void recomputePerTTIValues();
 };

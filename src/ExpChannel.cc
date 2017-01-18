@@ -148,8 +148,7 @@ void ExpChannel::updateChannel(const vector<vector<Position>>& msPos){
 void ExpChannel::handleMessage(cMessage* msg){
 }
 
-void ExpChannel::clearTransInfo(){
-	Channel::clearTransInfo();
+void ExpChannel::recomputePerTTIValues(){
 	recomputeCoefficients(msPos);
 }
 

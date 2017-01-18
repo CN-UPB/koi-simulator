@@ -217,8 +217,7 @@ void FactoryChannel::updateChannel(const vector<vector<Position>>& msPos){
 void FactoryChannel::handleMessage(cMessage* msg){
 }
 
-void FactoryChannel::clearTransInfo(){
-	Channel::clearTransInfo();
+void FactoryChannel::recomputePerTTIValues(){
 	recomputeCoefficients(msPos);
 }
 

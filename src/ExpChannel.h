@@ -24,12 +24,12 @@ class ExpChannel: public Channel{
 				const std::vector<std::vector<Position>>& msPositions);
 	
 	public:
-		void clearTransInfo();
 		void handleMessage(cMessage* msg);
 		bool init(cSimpleModule* module,
 				const std::vector<std::vector<Position>>& msPositions, 
 				std::map<int,Position>& neighbourPositions);
 
+		void recomputePerTTIValues();
 		void updateChannel(const std::vector<std::vector<Position>>& msPos);
 
 		virtual ~ExpChannel();

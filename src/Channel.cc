@@ -277,6 +277,11 @@ std::ostream& Channel::printCoeffDownTables(std::ostream& out){
 	return out;
 }
 
+void Channel::recomputePerTTIValues(){
+	// Empty by default. Override this method if a channel needs any values 
+	// recomputed at the beginning of a TTI.
+}
+
 Channel::~Channel(){
 	if(initialized){
 		// All of the following member variables are only allocated 
