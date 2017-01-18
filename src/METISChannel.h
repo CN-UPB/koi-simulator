@@ -31,6 +31,7 @@ using std::tuple;
 class METISChannel : public Channel{
 	private:
 		// METIS Channel Parameters
+		vector<Position> bsPositions;
 		VectorNd<double,3> delayDownTable;
 		VectorNd<double,4> delayUpTable;
 		VectorNd<double,4> delayD2DTable;
@@ -55,6 +56,7 @@ class METISChannel : public Channel{
 		int NumMsAntenna;					/*!< Number of Mobile Station Antenna */
 		vector<vector<array<double,3>>> bsAntennaPositions;				/*!< Position vector of Base Station antenna */
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
+		VectorNd<Position,2> msPos;
 		VectorNd<RayCluster,5> precompDownTable;
 		VectorNd<RayCluster,6> precompUpTable;
 		VectorNd<RayCluster,6> precompD2DTable;
@@ -121,6 +123,17 @@ class METISChannel : public Channel{
 		 * TTI.
 		 */
 		void precomputeMETISValues(const vector<vector<Position>>& msPositions);
+
+		/**
+		 * @brief Compute per-TTI coefficients for the current time
+		 *
+		 * This method fills the coeff* table members with the coefficient values
+		 * for the current TTI. This method makes use of the precomputed values.
+		 *
+		 * This means: The precomputeMETISValues method needs to be called before
+		 * this method is called.
+		 */
+		void recomputePerTTICoeffs();
 
 		//! Generate the spatial correlation between the MS for LOS links.
 		void generateAutoCorrelation_LOS(const vector<Position>& senders,
@@ -334,4 +347,5 @@ class METISChannel : public Channel{
 
 		//! Destructor of METIS Channel subclass.
 		virtual ~METISChannel(){}
+		void clearTransInfo();
 };

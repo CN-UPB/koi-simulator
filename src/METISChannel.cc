@@ -113,6 +113,7 @@ bool METISChannel::init(cSimpleModule* module,
 	velocity = module->par("msVel");
 	// Wavenumber k_0
 	k_0 = (2 * pi) / (speedOfLight / freq_c);
+	this->msPos = msPositions;
     
     
 	// Actually, this counts the own BS as well, so substract 1 
@@ -123,11 +124,11 @@ bool METISChannel::init(cSimpleModule* module,
 	// For even value of NumBsAntenna, the antenna elements will be equally 
 	// spaced around the center of Tx
 	wavelength = speedOfLight / freq_c;
-	vector<Position> tmpPos(neighbourPositions.size());
+	bsPositions = vector<Position>(neighbourPositions.size());
 	for(size_t i = 0; i<neighbourPositions.size(); i++){
-		tmpPos[i] = neighbourPositions[i];
+		bsPositions[i] = neighbourPositions[i];
 	}
-	bsAntennaPositions = computeAntennaPos(tmpPos,NumBsAntenna,
+	bsAntennaPositions = computeAntennaPos(bsPositions,NumBsAntenna,
 			heightBS);
 
 	//Precompute cluster ray sum components and delay values
@@ -885,6 +886,94 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 	return coeffs;
 }
 
+void METISChannel::recomputePerTTICoeffs(){
+	// Compute DOWN coefficients for the current TTI
+	int numReceiverAntenna = NumMsAntenna;
+	int numSenderAntenna = NumBsAntenna;
+	VectorNd<array<double,3>,2> receiverAntennaPos(computeAntennaPos(
+				msPos[bsId],numReceiverAntenna,heightUE));
+	VectorNd<array<double,3>,2>& senderAntennaPos = bsAntennaPositions;
+	coeffDownTable = std::move(computeCoeffs(
+				losDownTable,
+				this->msPos[bsId],
+				bsPositions,
+				heightUE,
+				heightBS,
+				false,
+				downRBs,
+				numReceiverAntenna,
+				numSenderAntenna,
+				precompDownTable,
+				delayDownTable
+				));
+	// Compute UP coefficients for the current TTI
+	numReceiverAntenna = NumBsAntenna;
+	numSenderAntenna = NumMsAntenna;
+	coeffUpTable = VectorNd<double,4>(neighbourPositions.size(),
+			VectorNd<double,3>(1));
+	for(size_t j=0; j<msPos.size(); j++){
+		VectorNd<array<double,3>,2> senderAntennaPos(computeAntennaPos(
+					vector<Position>{neighbourPositions[bsId]},numSenderAntenna,heightUE));
+
+		coeffUpTable[j] = std::move(computeCoeffs(
+					losUpTable[j],
+					vector<Position>{neighbourPositions[bsId]},
+					msPos[j],
+					heightBS,
+					heightUE,
+					true,
+					upRBs,
+					numReceiverAntenna,
+					numSenderAntenna,
+					precompUpTable[j],
+					delayUpTable[j]
+					));
+	}
+	if(d2dActive){
+		numReceiverAntenna = NumMsAntenna;
+		numSenderAntenna = NumMsAntenna;
+
+		VectorNd<array<double,3>,2> receiverAntennaPos(computeAntennaPos(
+					msPos[bsId],numReceiverAntenna,heightUE));
+		coeffUpD2DTable = VectorNd<double,4>(msPos.size(),
+				VectorNd<double,3>(numberOfMobileStations));
+		coeffDownD2DTable = VectorNd<double,4>(msPos.size(),
+				VectorNd<double,3>(numberOfMobileStations));
+		for(size_t j=0; j<msPos.size(); j++){
+			VectorNd<array<double,3>,2> senderAntennaPos(computeAntennaPos(
+						msPos[j],numSenderAntenna,heightUE));
+			coeffUpD2DTable[j] = std::move(computeCoeffs(
+						losD2DTable[j],
+						msPos[bsId],
+						msPos[j],
+						heightUE,
+						heightUE,
+						true,
+						upRBs,
+						numReceiverAntenna,
+						numSenderAntenna,
+						precompD2DTable[j],
+						delayD2DTable[j]
+						));
+			coeffDownD2DTable[j] = std::move(computeCoeffs(
+						losD2DTable[j],
+						msPos[bsId],
+						msPos[j],
+						heightUE,
+						heightUE,
+						false,
+						downRBs,
+						numReceiverAntenna,
+						numSenderAntenna,
+						precompD2DTable[j],
+						delayD2DTable[j]
+						));
+		}
+	
+	}
+	
+}
+
 void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 		const vector<Position>& bsPositions){
 	int numReceiverAntenna = NumMsAntenna;
@@ -1047,19 +1136,6 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 			ZoD_LOS_dir
 			));
 	
-	coeffDownTable = std::move(computeCoeffs(
-				losDownTable,
-				receiverPos,
-				senderPos,
-				heightUE,
-				heightBS,
-				false,
-				downRBs,
-				numReceiverAntenna,
-				numSenderAntenna,
-				precompDownTable,
-				delayDownTable
-				));
 }
 
 void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPositions,
@@ -1232,20 +1308,6 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 				ZoD_LOS_dir
 				);
 
-		coeffUpTable[j] = std::move(computeCoeffs(
-					losUpTable[j],
-					receiverPos,
-					senderPos,
-					heightBS,
-					heightUE,
-					true,
-					upRBs,
-					numReceiverAntenna,
-					numSenderAntenna,
-					precompUpTable[j],
-					delayUpTable[j]
-					));
-
 	}
 }
 
@@ -1261,12 +1323,8 @@ void METISChannel::precomputeMETISValues(const vector<vector<Position>>& msPosit
 			msPos[j][i].y = msPositions[j][i].y;
 		}
 	}
-	vector<Position> bsPos(neighbourPositions.size());
-	for(size_t j=0; j<neighbourPositions.size(); j++){
-		bsPos[j] = neighbourPositions[j];
-	}
-	precomputeDownValues(msPos[bsId],bsPos);
-	precomputeUpValues(msPos,bsPos);
+	precomputeDownValues(msPos[bsId],bsPositions);
+	precomputeUpValues(msPos,bsPositions);
 	if(d2dActive){
 		precomputeD2DValues(msPos);
 	}
@@ -1935,6 +1993,11 @@ double METISChannel::sigma_ZSD(double meanZSD, bool LOS){
 		double sigma;
 		return sigma = normal(meanZSD, pow(epsilon_ZSD,2) );
 	}
+}
+
+void METISChannel::clearTransInfo(){
+	Channel::clearTransInfo();
+	recomputePerTTICoeffs();
 }
 
 /**
