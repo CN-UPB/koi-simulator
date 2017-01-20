@@ -133,6 +133,8 @@ bool METISChannel::init(cSimpleModule* module,
 
 	//Precompute cluster ray sum components and delay values
 	precomputeMETISValues(msPositions);
+	// Compute first set of coefficients
+	recomputePerTTIValues();
 
 	return true;
 }
@@ -832,7 +834,10 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 	double delay_SC_2 = 10 * pow(10,-9); // delay for sub-cluster 2 (7-60)
 	// Store current simulation time
 	simtime_t currTime = simTime();
-	
+	if(currTime.dbl()<epsilon){
+		// Simulation start, set t=epsilon to avoid coefficients equaling zero.
+		currTime += epsilon;
+	}
 	for(size_t i = 0; i < numReceivers; i++){
 		//Fourier Transform for interferers:
 		for(size_t idIdx = 0; idIdx<numSenders; idIdx++){
@@ -1000,6 +1005,7 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 			);
 	
 	//Assign LOS Conditions:
+	losDownTable.resize(receiverPos.size(),vector<bool>(senderPos.size()));
 	losDownTable = std::move(genLosCond(senderPos,receiverPos));
 	
 	VectorNd<double,2> sigma_ds_LOS(receiverPos.size(),
@@ -1148,8 +1154,11 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 	// given cell.
 	vector<Position> receiverPos{bsPositions[bsId]};
 	VectorNd<array<double,3>,2> receiverAntennaPos{bsAntennaPositions[bsId]};
+	precompUpTable = VectorNd<RayCluster,6>(bsPositions.size());
 	coeffUpTable = VectorNd<double,4>(bsPositions.size(),
 			VectorNd<double,3>(1));
+	losUpTable.resize(msPositions.size());
+	delayUpTable.resize(msPositions.size());
 	for(size_t j=0; j<msPositions.size(); j++){
 		// Copy MS Positions
 		vector<Position> senderPos(msPositions[j]);
@@ -1169,6 +1178,7 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 				);
 
 		//Assign LOS Conditions:
+		losUpTable[j].resize(receiverPos.size(),vector<bool>(senderPos.size()));
 		losUpTable[j] = std::move(genLosCond(senderPos,receiverPos));
 
 		VectorNd<double,2> sigma_ds_LOS(receiverPos.size(),
@@ -1339,8 +1349,11 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 				receiverPos,numReceiverAntenna,heightUE));
 	coeffUpD2DTable = VectorNd<double,4>(msPositions.size(),
 			VectorNd<double,3>(numberOfMobileStations));
+	precompD2DTable = VectorNd<RayCluster,6>(msPositions.size());
 	coeffDownD2DTable = VectorNd<double,4>(msPositions.size(),
 			VectorNd<double,3>(numberOfMobileStations));
+	losD2DTable.resize(msPositions.size());
+	delayD2DTable.resize(msPositions.size());
 	for(size_t j=0; j<msPositions.size(); j++){
 		// Copy MS Positions
 		vector<Position> senderPos(msPositions[j]);
@@ -1360,6 +1373,7 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 				);
 
 		//Assign LOS Conditions:
+		losD2DTable[j].resize(receiverPos.size(),vector<bool>(senderPos.size()));
 		losD2DTable[j] = std::move(genLosCond(senderPos,receiverPos));
 
 		VectorNd<double,2> sigma_ds_LOS(receiverPos.size(),
@@ -1498,34 +1512,6 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 				ZoD_LOS_dir
 				));
 
-		coeffUpD2DTable[j] = std::move(computeCoeffs(
-					losD2DTable[j],
-					receiverPos,
-					senderPos,
-					heightUE,
-					heightUE,
-					true,
-					upRBs,
-					numReceiverAntenna,
-					numSenderAntenna,
-					precompD2DTable[j],
-					delayD2DTable[j]
-					));
-		coeffDownD2DTable[j] = std::move(computeCoeffs(
-					losD2DTable[j],
-					receiverPos,
-					senderPos,
-					heightUE,
-					heightUE,
-					false,
-					downRBs,
-					numReceiverAntenna,
-					numSenderAntenna,
-					precompD2DTable[j],
-					delayD2DTable[j]
-					));
-
-	
 	}
     
 	

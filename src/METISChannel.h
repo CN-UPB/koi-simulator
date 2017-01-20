@@ -35,6 +35,7 @@ class METISChannel : public Channel{
 		VectorNd<double,3> delayDownTable;
 		VectorNd<double,4> delayUpTable;
 		VectorNd<double,4> delayD2DTable;
+		double epsilon;
 		double freq_c;						/*!< center/carrier frequence */
 		double heightUE;					/*!< Height of the user equipments */
 		double heightBS;					/*!< Height of the base stations */

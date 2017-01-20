@@ -113,7 +113,7 @@ vector<Ray> RayCluster::genNLOSRays(
 	size_t rayIdx;
 	for(size_t m = 0; m < numRays; m++){
 		rayIdx = (subcluster!=nullptr) ? (*subcluster)[m] : m;
-		res[rayIdx] = Ray::initialize(
+		res[m] = Ray::initialize(
 				azimuthASA[rayIdx],
 				azimuthASD[rayIdx],
 				zenithASA[rayIdx],
