@@ -69,13 +69,13 @@ VectorNd<array<double,3>,2> METISChannel::computeAntennaPos(
 		double heightAntennas){
 	VectorNd<array<double,3>,2> antennaPos(transmitterPos.size(),
 			vector<array<double,3>>(numAntennas));
-	for(int i = 0; i < transmitterPos.size(); i++){
-		for(int k = 0; k < (numAntennas/2); k++){
+	for(size_t i = 0; i < transmitterPos.size(); i++){
+		for(size_t k = 0; k < (numAntennas/2); k++){
 			antennaPos[i][k][0] = transmitterPos[i].x - (0.25 * wavelength * (numAntennas - 1 - (k*2.0)));
 			antennaPos[i][k][1] = transmitterPos[i].y;
 			antennaPos[i][k][2] = heightAntennas;
 		}
-		for(int k = (numAntennas/2); k < numAntennas ; k++){
+		for(size_t k = (numAntennas/2); k < numAntennas ; k++){
 			antennaPos[i][k][0] = antennaPos[i][k-1][0] + (0.5 * wavelength);
 			antennaPos[i][k][1] = transmitterPos[i].y;
 			antennaPos[i][k][2] = heightAntennas;
@@ -1986,19 +1986,6 @@ double METISChannel::sigma_ZSD(double meanZSD, bool LOS){
 * @param msg Concrete message of potentially arbitrary subtype
 */
 void METISChannel::handleMessage(cMessage* msg){
-	if(msg->isName("DEBUG")){
-		std::ofstream upTables;
-		std::string fname("coeff_table_up_"+std::to_string(bsId)+".dat");
-		upTables.open(fname,std::ofstream::trunc);
-		printCoeffUpTables(upTables);
-		upTables.close();
-		std::ofstream downTables;
-		fname = "coeff_table_down_"+std::to_string(bsId)+".dat";
-		downTables.open(fname,std::ofstream::trunc);
-		printCoeffDownTables(downTables);
-		downTables.close();
-	}
-	delete msg;
 }
 
 void METISChannel::updateChannel(const vector<vector<Position>>& msPos){
