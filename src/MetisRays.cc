@@ -59,10 +59,9 @@ Ray Ray::initialize(
 	return Ray(azimuthASA*PI/180,expArrival*expDeparture*pol);
 }
 
-std::complex<double> Ray::value(const double t, double moveAngle,
+inline std::complex<double> Ray::value(const double t, double moveAngle,
 		double velocity, double k_0) const {
-	std::complex<double> doppler = exp( complex<double>(0,k_0 * velocity * cos(dirAoA - moveAngle) * t ) );
-	return doppler*precompVal;
+	return precompVal*exp( complex<double>(0,k_0 * velocity * cos(dirAoA - moveAngle) * t ));
 }
 
 LOSRay LOSRay::initialize(

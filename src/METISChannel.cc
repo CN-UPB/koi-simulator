@@ -886,14 +886,14 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 			complex<double> res = complex<double>(0.0,0.0);
 			pathloss = CalcPathloss(dist2D, dist3D, LOSCondition[i][idIdx]);
 			double moveAngle = uniform(0,360);
+			if(LOSCondition[i][idIdx]){
+				n_clusters = N_cluster_LOS;
+			}
+			else{
+				n_clusters = N_cluster_NLOS;
+			}
 			for(int f = 0; f < numRBs; f++){
 				res = complex<double>(0.0,0.0);
-				if(LOSCondition[i][idIdx]){
-					n_clusters = N_cluster_LOS;
-				}
-				else{
-					n_clusters = N_cluster_NLOS;
-				}
 				for(int u = 0; u < numReceiverAntenna; u++){
 					for(int s = 0; s < numSenderAntenna; s++){
 						for(int n = 0; n < n_clusters; n++){
@@ -901,8 +901,7 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 						}
 					}
 				}
-				double tempRes = pow(res.real(),2) + pow(res.imag(),2);
-				coeffs[i][idIdx][f] = pathloss * tempRes;
+				coeffs[i][idIdx][f] = pathloss * (pow(res.real(),2) + pow(res.imag(),2));
 			}
 		}
 	}
