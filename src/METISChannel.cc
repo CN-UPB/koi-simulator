@@ -892,12 +892,27 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 			else{
 				n_clusters = N_cluster_NLOS;
 			}
+			const VectorNd<RayCluster,3>& antennaClusters(rayClusters[i][idIdx]);
+			// Precompute all cluster values for the current TTI/Movement
+			// Since cluster values are independent of the resource block,
+			// computing them for each RB would be a waste of time.
+			VectorNd<complex<double>,3> clusterVals(antennaClusters.size());
+			for(int u = 0; u < numReceiverAntenna; u++){
+				clusterVals[u].resize(antennaClusters[u].size());
+				for(int s = 0; s < numSenderAntenna; s++){
+					clusterVals[u][s].resize(antennaClusters[u][s].size());
+					for(int n = 0; n < n_clusters; n++){
+						clusterVals[u][s][n] = antennaClusters[u][s][n].clusterValue(currTime.dbl(),moveAngle,velocity,k_0);
+					}
+				}
+			}
 			for(int f = 0; f < numRBs; f++){
 				res = complex<double>(0.0,0.0);
 				for(int u = 0; u < numReceiverAntenna; u++){
 					for(int s = 0; s < numSenderAntenna; s++){
+						vector<complex<double>>& clusters(clusterVals[u][s]);
 						for(int n = 0; n < n_clusters; n++){
-							res = res + rayClusters[i][idIdx][u][s][n].clusterValue(currTime.dbl(),moveAngle,velocity,k_0) * delays[i][idIdx][n][f];
+							res = res + clusters[n] * delays[i][idIdx][n][f];
 						}
 					}
 				}
