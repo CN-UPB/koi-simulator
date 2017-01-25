@@ -32,9 +32,10 @@ class METISChannel : public Channel{
 	private:
 		// METIS Channel Parameters
 		vector<Position> bsPositions;
-		VectorNd<double,3> delayDownTable;
-		VectorNd<double,4> delayUpTable;
-		VectorNd<double,4> delayD2DTable;
+		VectorNd<std::complex<double>,4> delayDownTable;
+		VectorNd<std::complex<double>,5> delayUpTable;
+		VectorNd<std::complex<double>,5> delayD2DUpTable;
+		VectorNd<std::complex<double>,5> delayD2DDownTable;
 		double epsilon;
 		double freq_c;						/*!< center/carrier frequence */
 		double heightUE;					/*!< Height of the user equipments */
@@ -278,6 +279,16 @@ class METISChannel : public Channel{
 				);
 
 		/**
+		 * @brief Add subcluster delays for first two clusters
+		 *
+		 * See METIS D1.2 equation 7-60.
+		 */
+		VectorNd<std::complex<double>,4> addClusterDelayOffsets(
+				VectorNd<double,3>& delays,
+				bool up,
+				size_t numRb);
+
+		/**
 		 * @brief Compute coefficients for given receivers/senders
 		 */
 		VectorNd<double,3> computeCoeffs(
@@ -291,7 +302,7 @@ class METISChannel : public Channel{
 				int numReceiverAntenna,
 				int numSenderAntenna,
 				const VectorNd<RayCluster,5>& rayClusters,
-				const VectorNd<double,3>& delays
+				const VectorNd<std::complex<double>,4>& delays
 				);
 
 		/**

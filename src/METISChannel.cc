@@ -321,6 +321,48 @@ VectorNd<double,3> METISChannel::precomputeClusterDelays(
 	return clusterDelays;
 }
 
+VectorNd<std::complex<double>,4> METISChannel::addClusterDelayOffsets(
+		VectorNd<double,3>& delays,
+		bool up,
+		size_t numRb){
+	// Split delays for first two clusters in each path into their respective
+	// subclusters and add delay offsets, as per METIS D1.2 eqn 7-60
+	VectorNd<complex<double>,4> complexDelays(delays.size(),
+			VectorNd<complex<double>,3>(delays[0].size()));
+	double delay_SC_1 = 5 * pow(10,-9); // delay for sub-cluster 1 (7-60)
+	double delay_SC_2 = 10 * pow(10,-9); // delay for sub-cluster 2 (7-60)
+	double freq_;
+	for(size_t receiver = 0; receiver < delays.size(); ++receiver){
+		for(size_t sender = 0; sender < delays[receiver].size(); ++sender){
+			complexDelays[receiver][sender].resize(delays[receiver][sender].size()+4,
+					vector<complex<double>>(numRb));
+			for(size_t rb = 0; rb<numRb; ++rb){
+				if(up){
+					// Computing values for UP
+					// resource blocks
+					freq_ = freq_c + (rb+1)*rbBandwidth;
+				}
+				else{
+					// Computing values for DOWN
+					// resource blocks
+					freq_ = freq_c - rb*rbBandwidth;
+				}
+				// Add subcluster delays as per METIS D1.2 Equation 7-60
+				complexDelays[receiver][sender][0][rb] = exp( complex<double>(0.0, -2.0 * pi * freq_ * delays[receiver][sender][0]));
+				complexDelays[receiver][sender][1][rb] = exp( complex<double>(0.0, -2.0 * pi * freq_ * (delays[receiver][sender][0]+delay_SC_1)));
+				complexDelays[receiver][sender][2][rb] = exp( complex<double>(0.0, -2.0 * pi * freq_ * (delays[receiver][sender][0]+delay_SC_2)));
+				complexDelays[receiver][sender][3][rb] = exp( complex<double>(0.0, -2.0 * pi * freq_ * delays[receiver][sender][1]));
+				complexDelays[receiver][sender][4][rb] = exp( complex<double>(0.0, -2.0 * pi * freq_ * (delays[receiver][sender][1]+delay_SC_1)));
+				complexDelays[receiver][sender][5][rb] = exp( complex<double>(0.0, -2.0 * pi * freq_ * (delays[receiver][sender][1]+delay_SC_2)));
+				for(size_t n = 2; n < delays[receiver][sender].size(); n++){
+					complexDelays[receiver][sender][n+4][rb] = exp( complex<double>(0.0, -2.0 * pi * freq_ * delays[receiver][sender][n]));
+				}
+			}
+		}
+	}
+	return complexDelays;
+}
+
 VectorNd<double,3> METISChannel::genClusterPowers(
 		const VectorNd<bool,2>& LOSCondition,
 		const VectorNd<double,3>& clusterDelays,
@@ -821,7 +863,7 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 		int numReceiverAntenna,
 		int numSenderAntenna,
 		const VectorNd<RayCluster,5>& rayClusters,
-		const VectorNd<double,3>& delays
+		const VectorNd<complex<double>,4>& delays
 		){
 	size_t numReceivers = receiverPos.size();
 	size_t numSenders = senderPos.size();
@@ -830,8 +872,6 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 	double pathloss, dist3D, dist2D;
 	int n_clusters;
 	
-	double delay_SC_1 = 5 * pow(10,-9); // delay for sub-cluster 1 (7-60)
-	double delay_SC_2 = 10 * pow(10,-9); // delay for sub-cluster 2 (7-60)
 	// Store current simulation time
 	simtime_t currTime = simTime();
 	if(currTime.dbl()<epsilon){
@@ -847,17 +887,6 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 			pathloss = CalcPathloss(dist2D, dist3D, LOSCondition[i][idIdx]);
 			double moveAngle = uniform(0,360);
 			for(int f = 0; f < numRBs; f++){
-				double freq_;
-				if(up){
-					// Computing values for UP
-					// resource blocks
-					freq_ = freq_c + (f+1)*rbBandwidth;
-				}
-				else{
-					// Computing values for DOWN
-					// resource blocks
-					freq_ = freq_c - f*rbBandwidth;
-				}
 				res = complex<double>(0.0,0.0);
 				if(LOSCondition[i][idIdx]){
 					n_clusters = N_cluster_LOS;
@@ -868,18 +897,7 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 				for(int u = 0; u < numReceiverAntenna; u++){
 					for(int s = 0; s < numSenderAntenna; s++){
 						for(int n = 0; n < n_clusters; n++){
-							if(n == 0){ // add additional sub-cluster delays for first two clusters at this stage (7-60 in METIS 1.2)
-								res = res + rayClusters[i][idIdx][u][s][n].clusterValue(currTime.dbl(),moveAngle,velocity,k_0) * exp( complex<double>(0.0, -2.0 * pi * freq_ * delays[i][idIdx][n]) );
-								res = res + rayClusters[i][idIdx][u][s][n+1].clusterValue(currTime.dbl(),moveAngle,velocity,k_0) * exp( complex<double>(0.0, -2.0 * pi * freq_ * (delays[i][idIdx][n] + delay_SC_1)) );
-								res = res + rayClusters[i][idIdx][u][s][n+2].clusterValue(currTime.dbl(),moveAngle,velocity,k_0) * exp( complex<double>(0.0, -2.0 * pi * freq_ * (delays[i][idIdx][n] + delay_SC_2)) );
-								res = res + rayClusters[i][idIdx][u][s][n+3].clusterValue(currTime.dbl(),moveAngle,velocity,k_0) * exp( complex<double>(0.0, -2.0 * pi * freq_ * delays[i][idIdx][n+1]) );
-								res = res + rayClusters[i][idIdx][u][s][n+4].clusterValue(currTime.dbl(),moveAngle,velocity,k_0) * exp( complex<double>(0.0, -2.0 * pi * freq_ * (delays[i][idIdx][n+1] + delay_SC_1)) );
-								res = res + rayClusters[i][idIdx][u][s][n+5].clusterValue(currTime.dbl(),moveAngle,velocity,k_0) * exp( complex<double>(0.0, -2.0 * pi * freq_ * (delays[i][idIdx][n+1] + delay_SC_2)) );
-								// Jump to cluster id 3, passing by the 6 subclusters into which clusters 0,1 are divided
-								n += 5;
-							}else{
-								res = res + rayClusters[i][idIdx][u][s][n].clusterValue(currTime.dbl(),moveAngle,velocity,k_0) * exp( complex<double>(0.0, -2.0 * pi * freq_ * delays[i][idIdx][n]) );
-							}
+							res = res + rayClusters[i][idIdx][u][s][n].clusterValue(currTime.dbl(),moveAngle,velocity,k_0) * delays[i][idIdx][n][f];
 						}
 					}
 				}
@@ -958,7 +976,7 @@ void METISChannel::recomputePerTTIValues(){
 						numReceiverAntenna,
 						numSenderAntenna,
 						precompD2DTable[j],
-						delayD2DTable[j]
+						delayD2DUpTable[j]
 						));
 			coeffDownD2DTable[j] = std::move(computeCoeffs(
 						losD2DTable[j],
@@ -971,7 +989,7 @@ void METISChannel::recomputePerTTIValues(){
 						numReceiverAntenna,
 						numSenderAntenna,
 						precompD2DTable[j],
-						delayD2DTable[j]
+						delayD2DDownTable[j]
 						));
 		}
 	
@@ -1052,15 +1070,15 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
     	// Begin small scale parameter generation.
     
 	// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
-	delayDownTable = precomputeClusterDelays(
+	VectorNd<double,3> delays(precomputeClusterDelays(
 			losDownTable,
 			sigma_ds_LOS,
 			sigma_ds_NLOS,
 			sigma_kf_LOS
-			);
+			));
 
 	VectorNd<double,3> clusterPowers(genClusterPowers(losDownTable,
-				delayDownTable,
+				delays,
 				sigma_ds_LOS,
 				sigma_ds_NLOS,
 				sigma_kf_LOS
@@ -1141,7 +1159,8 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 			AoD_LOS_dir,
 			ZoD_LOS_dir
 			));
-	
+
+	delayDownTable = std::move(addClusterDelayOffsets(delays,false,downRBs));
 }
 
 void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPositions,
@@ -1226,15 +1245,15 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 		// Begin small scale parameter generation.
 
 		// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
-		delayUpTable[j] = precomputeClusterDelays(
+		VectorNd<double,3> delays = std::move(precomputeClusterDelays(
 				losUpTable[j],
 				sigma_ds_LOS,
 				sigma_ds_NLOS,
 				sigma_kf_LOS
-				);
+				));
 
 		VectorNd<double,3> clusterPowers(genClusterPowers(losUpTable[j],
-					delayUpTable[j],
+					delays,
 					sigma_ds_LOS,
 					sigma_ds_NLOS,
 					sigma_kf_LOS
@@ -1318,6 +1337,7 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 				ZoD_LOS_dir
 				);
 
+		delayUpTable[j] = std::move(addClusterDelayOffsets(delays,true,upRBs));
 	}
 }
 
@@ -1353,7 +1373,8 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 	coeffDownD2DTable = VectorNd<double,4>(msPositions.size(),
 			VectorNd<double,3>(numberOfMobileStations));
 	losD2DTable.resize(msPositions.size());
-	delayD2DTable.resize(msPositions.size());
+	delayD2DUpTable.resize(msPositions.size());
+	delayD2DDownTable.resize(msPositions.size());
 	for(size_t j=0; j<msPositions.size(); j++){
 		// Copy MS Positions
 		vector<Position> senderPos(msPositions[j]);
@@ -1421,15 +1442,15 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 		// Begin small scale parameter generation.
 
 		// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
-		delayD2DTable[j] = precomputeClusterDelays(
+		VectorNd<double,3> delays(precomputeClusterDelays(
 				losD2DTable[j],
 				sigma_ds_LOS,
 				sigma_ds_NLOS,
 				sigma_kf_LOS
-				);
+				));
 
 		VectorNd<double,3> clusterPowers(genClusterPowers(losD2DTable[j],
-					delayD2DTable[j],
+					delays,
 					sigma_ds_LOS,
 					sigma_ds_NLOS,
 					sigma_kf_LOS
@@ -1512,9 +1533,9 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 				ZoD_LOS_dir
 				));
 
+		delayD2DUpTable[j] = std::move(addClusterDelayOffsets(delays,true,upRBs));
+		delayD2DDownTable[j] = std::move(addClusterDelayOffsets(delays,false,downRBs));
 	}
-    
-	
 }
 
 /**
