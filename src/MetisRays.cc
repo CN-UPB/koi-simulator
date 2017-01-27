@@ -33,7 +33,7 @@ Ray Ray::initialize(
 		double k_0,
 		const array<double,3>& senderAntennaPos,
 		const array<double,3>& receiverAntennaPos,
-		const vector<double>& randomPhase
+		const double randomPhase
 		){
 	double AoA[3];
 	double AoD[3];
@@ -55,7 +55,7 @@ Ray Ray::initialize(
 	// Ray Polarization
 	receiverGain = getMSGain(azimuthASA*PI/180, zenithASA*PI/180);
 	senderGain = getBSGain(azimuthASD*PI/180, zenithASD*PI/180);
-	complex<double> pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase[0]));
+	complex<double> pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase));
 	return Ray(azimuthASA*PI/180,expArrival*expDeparture*pol);
 }
 
@@ -105,7 +105,7 @@ vector<Ray> RayCluster::genNLOSRays(
 		const vector<double>& azimuthASD,
 		const array<double,3>& senderAntennaPos,
 		const array<double,3>& receiverAntennaPos,
-		const VectorNd<double,2>& randomPhase,
+		const vector<double>& randomPhase,
 		vector<int> *subcluster
 		){
 	vector<Ray> res(numRays);
@@ -136,7 +136,7 @@ RayCluster RayCluster::initialize(
 		const vector<double>& azimuthASD,
 		const array<double,3>& senderAntennaPos,
 		const array<double,3>& receiverAntennaPos,
-		const VectorNd<double,2>& randomPhase,
+		const vector<double>& randomPhase,
 		vector<int> *subcluster
 		){
 	// Precompute NLOS ray components
@@ -166,7 +166,7 @@ RayCluster RayCluster::initialize(
 		const vector<double>& azimuthASD,
 		const array<double,3>& senderAntennaPos,
 		const array<double,3>& receiverAntennaPos,
-		const VectorNd<double,2>& randomPhase,
+		const vector<double>& randomPhase,
 		double randomPhaseLOS,
 		vector<int> *subcluster,
 		double dirAoA,

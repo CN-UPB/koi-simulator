@@ -29,7 +29,7 @@ class Ray{
 				double k_0,
 				const std::array<double,3>& senderAntennaPos,
 				const std::array<double,3>& receiverAntennaPos,
-				const std::vector<double>& randomPhase
+				const double randomPhase
 				);
 		virtual std::complex<double> value(const double t, double moveAngle,
 				double velocity, double k_0) const;
@@ -69,7 +69,7 @@ class RayCluster{
 				const std::vector<double>& azimuthASD,
 				const std::array<double,3>& senderAntennaPos,
 				const std::array<double,3>& receiverAntennaPos,
-				const VectorNd<double,2>& randomPhase,
+				const std::vector<double>& randomPhase,
 				std::vector<int> *subcluster
 				);
 	public:
@@ -92,7 +92,7 @@ class RayCluster{
 				const std::vector<double>& azimuthASD,
 				const std::array<double,3>& senderAntennaPos,
 				const std::array<double,3>& receiverAntennaPos,
-				const VectorNd<double,2>& randomPhase,
+				const std::vector<double>& randomPhase,
 				std::vector<int> *subcluster
 				);
 		static RayCluster initialize(
@@ -106,7 +106,7 @@ class RayCluster{
 				const std::vector<double>& azimuthASD,
 				const std::array<double,3>& senderAntennaPos,
 				const std::array<double,3>& receiverAntennaPos,
-				const VectorNd<double,2>& randomPhase,
+				const std::vector<double>& randomPhase,
 				double randomPhaseLOS,
 				std::vector<int> *subcluster,
 				double dirAoA,

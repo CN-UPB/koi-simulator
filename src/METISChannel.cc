@@ -629,14 +629,14 @@ VectorNd<double,4> METISChannel::recomputeZenithAngles(
 	return zenithRays;
 }
 
-tuple<VectorNd<double,5>,VectorNd<double,2>>
+tuple<VectorNd<double,4>,VectorNd<double,2>>
 METISChannel::genRandomPhases(
 		const VectorNd<bool,2>& LOSCondition
 		){
 	size_t numReceivers = LOSCondition.size();
 	size_t numSenders = LOSCondition[0].size();
-	VectorNd<double,5> phases(numReceivers,
-			VectorNd<double,4>(numSenders, VectorNd<double,3>()));
+	VectorNd<double,4> phases(numReceivers,
+			VectorNd<double,3>(numSenders, VectorNd<double,2>()));
 	VectorNd<double,2> phases_LOS(numReceivers,vector<double>(numSenders));
 	int n_clusters;
 	int n_rays;
@@ -651,15 +651,13 @@ METISChannel::genRandomPhases(
 				n_rays = numOfRays_NLOS;
 			}
 			phases[i][j].resize(n_clusters,
-					vector<vector<double>>(n_rays, vector<double>(4)));
+					vector<double>(n_rays));
 			phases_LOS[i][j] = uniform(-1.0*pi, pi);
 			for(int k = 0; k < n_clusters; k++){
 				for(int r = 0; r < n_rays; r++){
-					for(int l = 0; l < 4; l++){
-						// for the random phases of NLOS component in equation 7-61 of 
-						// METIS 1.2
-						phases[i][j][k][r][l] = uniform(-1.0*pi, pi);			
-					}
+					// for the random phases of NLOS component in equation 7-61 of 
+					// METIS 1.2
+					phases[i][j][k][r] = uniform(-1.0*pi, pi);			
 				}
 			}
 		}
@@ -712,7 +710,7 @@ METISChannel::precomputeRayValues(VectorNd<bool,2>& LOSCondition,
 		const VectorNd<double,4>& elevation_ASD,
 		const VectorNd<array<double,3>,2>& receiverAntennaPos,
 		const VectorNd<array<double,3>,2>& senderAntennaPos,
-		const VectorNd<double,5>& randomPhase,
+		const VectorNd<double,4>& randomPhase,
 		const VectorNd<double,2>& randomPhase_LOS,
 		const VectorNd<double,2>& AoA_LOS_dir,
 		const VectorNd<double,2>& ZoA_LOS_dir,
@@ -1148,7 +1146,7 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 				false));
 
 	// Generate random phases (7.3.17)
-	VectorNd<double,5> randomPhase;
+	VectorNd<double,4> randomPhase;
 	VectorNd<double,2> randomPhase_LOS;
 	std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(losDownTable);
 	
@@ -1323,7 +1321,7 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 					false));
 
 		// Generate random phases (7.3.17)
-		VectorNd<double,5> randomPhase;
+		VectorNd<double,4> randomPhase;
 		VectorNd<double,2> randomPhase_LOS;
 		std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(losUpTable[j]);
 
@@ -1520,7 +1518,7 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 					false));
 
 		// Generate random phases (7.3.17)
-		VectorNd<double,5> randomPhase;
+		VectorNd<double,4> randomPhase;
 		VectorNd<double,2> randomPhase_LOS;
 		std::tie(randomPhase,randomPhase_LOS) = genRandomPhases(losD2DTable[j]);
 

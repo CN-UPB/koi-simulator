@@ -219,7 +219,7 @@ class METISChannel : public Channel{
 		/**
 		 * @brief Generate random phases
 		 */
-		tuple<VectorNd<double,5>,VectorNd<double,2>>
+		tuple<VectorNd<double,4>,VectorNd<double,2>>
 		genRandomPhases(const VectorNd<bool,2>& LOSCondition);
 
 		/**
@@ -242,7 +242,7 @@ class METISChannel : public Channel{
 				const VectorNd<double,4>& elevation_ASD,
 				const VectorNd<array<double,3>,2>& receiverAntennaPos,
 				const VectorNd<array<double,3>,2>& senderAntennaPos,
-				const VectorNd<double,5>& randomPhase,
+				const VectorNd<double,4>& randomPhase,
 				const VectorNd<double,2>& randomPhase_LOS,
 				const VectorNd<double,2>& AoA_LOS_dir,
 				const VectorNd<double,2>& ZoA_LOS_dir,
