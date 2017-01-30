@@ -861,7 +861,8 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 		int numReceiverAntenna,
 		int numSenderAntenna,
 		const VectorNd<RayCluster,5>& rayClusters,
-		const VectorNd<complex<double>,4>& delays
+		const VectorNd<complex<double>,4>& delays,
+		const VectorNd<double,2>& moveDirections
 		){
 	size_t numReceivers = receiverPos.size();
 	size_t numSenders = senderPos.size();
@@ -883,7 +884,7 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 			dist3D = sqrt(pow(dist2D,2) + pow((heightSenders - heightReceivers),2));
 			complex<double> res = complex<double>(0.0,0.0);
 			pathloss = CalcPathloss(dist2D, dist3D, LOSCondition[i][idIdx]);
-			double moveAngle = uniform(0,360);
+			const double& moveAngle = moveDirections[i][idIdx];
 			if(LOSCondition[i][idIdx]){
 				n_clusters = N_cluster_LOS;
 			}
@@ -939,7 +940,8 @@ void METISChannel::recomputePerTTIValues(){
 				numReceiverAntenna,
 				numSenderAntenna,
 				precompDownTable,
-				delayDownTable
+				delayDownTable,
+				moveDirDownTable
 				));
 	// Compute UP coefficients for the current TTI
 	numReceiverAntenna = NumBsAntenna;
@@ -961,7 +963,8 @@ void METISChannel::recomputePerTTIValues(){
 					numReceiverAntenna,
 					numSenderAntenna,
 					precompUpTable[j],
-					delayUpTable[j]
+					delayUpTable[j],
+					moveDirUpTable[j]
 					));
 	}
 	if(d2dActive){
@@ -988,7 +991,8 @@ void METISChannel::recomputePerTTIValues(){
 						numReceiverAntenna,
 						numSenderAntenna,
 						precompD2DTable[j],
-						delayD2DUpTable[j]
+						delayD2DUpTable[j],
+						moveDirD2DTable[j]
 						));
 			coeffDownD2DTable[j] = std::move(computeCoeffs(
 						losD2DTable[j],
@@ -1001,7 +1005,8 @@ void METISChannel::recomputePerTTIValues(){
 						numReceiverAntenna,
 						numSenderAntenna,
 						precompD2DTable[j],
-						delayD2DDownTable[j]
+						delayD2DDownTable[j],
+						moveDirD2DTable[j]
 						));
 		}
 	
@@ -1037,7 +1042,13 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 	//Assign LOS Conditions:
 	losDownTable.resize(receiverPos.size(),vector<bool>(senderPos.size()));
 	losDownTable = std::move(genLosCond(senderPos,receiverPos));
-	
+
+	// Assign move angles
+	moveDirDownTable.resize(receiverPos.size(),vector<double>(senderPos.size()));
+	auto gen = []() -> double{return uniform(0,360);};
+	for(auto& v:moveDirDownTable){
+		std::generate(v.begin(),v.end(),gen);
+	}
 	VectorNd<double,2> sigma_ds_LOS(receiverPos.size(),
 			vector<double>(neighbourPositions.size()));
 	VectorNd<double,2> sigma_asD_LOS(receiverPos.size(),
@@ -1190,6 +1201,7 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 			VectorNd<double,3>(1));
 	losUpTable.resize(msPositions.size());
 	delayUpTable.resize(msPositions.size());
+	moveDirUpTable.resize(msPositions.size());
 	for(size_t j=0; j<msPositions.size(); j++){
 		// Copy MS Positions
 		vector<Position> senderPos(msPositions[j]);
@@ -1211,6 +1223,12 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 		//Assign LOS Conditions:
 		losUpTable[j].resize(receiverPos.size(),vector<bool>(senderPos.size()));
 		losUpTable[j] = std::move(genLosCond(senderPos,receiverPos));
+		// Generate move directions
+		moveDirUpTable[j].resize(receiverPos.size(),vector<double>(senderPos.size()));
+		auto gen = []() -> double{return uniform(0,360);};
+		for(auto& v:moveDirUpTable[j]){
+			std::generate(v.begin(),v.end(),gen);
+		}
 
 		VectorNd<double,2> sigma_ds_LOS(receiverPos.size(),
 				vector<double>(senderPos.size()));
@@ -1387,6 +1405,7 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 	losD2DTable.resize(msPositions.size());
 	delayD2DUpTable.resize(msPositions.size());
 	delayD2DDownTable.resize(msPositions.size());
+	moveDirD2DTable.resize(msPositions.size());
 	for(size_t j=0; j<msPositions.size(); j++){
 		// Copy MS Positions
 		vector<Position> senderPos(msPositions[j]);
@@ -1408,6 +1427,12 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 		//Assign LOS Conditions:
 		losD2DTable[j].resize(receiverPos.size(),vector<bool>(senderPos.size()));
 		losD2DTable[j] = std::move(genLosCond(senderPos,receiverPos));
+		// Generate move directions
+		moveDirD2DTable[j].resize(receiverPos.size(),vector<double>(senderPos.size()));
+		auto gen = []() -> double{return uniform(0,360);};
+		for(auto& v:moveDirD2DTable[j]){
+			std::generate(v.begin(),v.end(),gen);
+		}
 
 		VectorNd<double,2> sigma_ds_LOS(receiverPos.size(),
 				vector<double>(senderPos.size()));

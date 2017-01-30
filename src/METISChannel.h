@@ -58,6 +58,9 @@ class METISChannel : public Channel{
 		int NumMsAntenna;					/*!< Number of Mobile Station Antenna */
 		vector<vector<array<double,3>>> bsAntennaPositions;				/*!< Position vector of Base Station antenna */
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
+		VectorNd<double,2> moveDirDownTable;
+		VectorNd<double,3> moveDirUpTable;
+		VectorNd<double,3> moveDirD2DTable;
 		VectorNd<Position,2> msPos;
 		VectorNd<RayCluster,5> precompDownTable;
 		VectorNd<RayCluster,6> precompUpTable;
@@ -302,7 +305,8 @@ class METISChannel : public Channel{
 				int numReceiverAntenna,
 				int numSenderAntenna,
 				const VectorNd<RayCluster,5>& rayClusters,
-				const VectorNd<std::complex<double>,4>& delays
+				const VectorNd<std::complex<double>,4>& delays,
+				const VectorNd<double,2>& moveDirections
 				);
 
 		/**
