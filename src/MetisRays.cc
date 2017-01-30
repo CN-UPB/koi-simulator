@@ -39,9 +39,9 @@ Ray Ray::initialize(
 	double AoD[3];
 	double receiverGain;
 	double senderGain;
-	AoA[0] = sin(zenithASA*PI/180) * cos(azimuthASA*PI/180);
-	AoA[1] = sin(zenithASA*PI/180) * sin(azimuthASA*PI/180);
-	AoA[2] = cos(zenithASA*PI/180);
+	AoA[0] = sin(zenithASA) * cos(azimuthASA);
+	AoA[1] = sin(zenithASA) * sin(azimuthASA);
+	AoA[2] = cos(zenithASA);
 
 	AoD[0] = sin(zenithASD*PI/180) * cos(azimuthASD*PI/180);
 	AoD[1] = sin(zenithASD*PI/180) * sin(azimuthASD*PI/180);
@@ -56,7 +56,7 @@ Ray Ray::initialize(
 	receiverGain = getMSGain(azimuthASA*PI/180, zenithASA*PI/180);
 	senderGain = getBSGain(azimuthASD*PI/180, zenithASD*PI/180);
 	complex<double> pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase));
-	return Ray(azimuthASA*PI/180,expArrival*expDeparture*pol);
+	return Ray(azimuthASA,expArrival*expDeparture*pol);
 }
 
 inline std::complex<double> Ray::value(const double t, double moveAngle,
