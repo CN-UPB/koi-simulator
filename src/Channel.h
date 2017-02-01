@@ -12,6 +12,7 @@
 #include "NeighbourIdMatching.h"
 #include "Position.h"
 #include "TransInfo_m.h"
+#include "VecNd.h"
 #include <forward_list>
 #include <utility>
 #include <vector>
@@ -31,27 +32,27 @@ class Channel{
 		/**
 		 * @brief Table to save downlink coefficients
 		 *
-		 * [receivingMsId][sendingBsId][counter][RB]
+		 * [receivingMsId][sendingBsId][RB]
 		 */
-		vector<vector<vector<vector<double>>>> coeffDownTable;
+		VectorNd<double,3> coeffDownTable;
 		/**
 		 * @brief Table to save uplink coefficients
 		 *
-		 * [sendingMsCellID][0][sendingMsId][counter][RB]
+		 * [sendingMsCellID][0][sendingMsId][RB]
 		 */
-		vector<vector<vector<vector<vector<double>>>>> coeffUpTable;
+		VectorNd<double,4> coeffUpTable;
 		/**
 		 * @brief Table to save D2D DOWN Rb coefficients
 		 *
-		 * [sendingMsCellID][receivingMsId][sendingMsId][counter][RB]
+		 * [sendingMsCellID][receivingMsId][sendingMsId][RB]
 		 */
-		vector<vector<vector<vector<vector<double>>>>> coeffDownD2DTable;
+		VectorNd<double,4> coeffDownD2DTable;
 		/**
 		 * @brief Table to save D2D UP Rb coefficients
 		 *
-		 * [sendingMsCellID][receivingMsId][sendingMsId][counter][RB]
+		 * [sendingMsCellID][receivingMsId][sendingMsId][RB]
 		 */
-		vector<vector<vector<vector<vector<double>>>>> coeffUpD2DTable;
+		VectorNd<double,4> coeffUpD2DTable;
 		/**
 		 * Should interference be considered or not
 		 */
@@ -102,10 +103,6 @@ class Channel{
 		 */
 		double rbBandwidth;
 		/**
-		 * If position resend intervall > 1, it counts the current TTI
-		 */
-		int SINRcounter;
-		/**
 		 * Size of playground in the X dimension
 		 */
 		double sizeX;
@@ -117,12 +114,6 @@ class Channel{
 		 * The speed of light in m/s
 		 */
 		const static double speedOfLight;
-		/**
-		 * Number of TTIs until Position is updated 
-		 *
-		 * (Number of Time Samples for Channel Model)
-		 */
-		int timeSamples;
 		/**
 		 * Interference information from local and neighbouring senders
 		 */
@@ -142,7 +133,6 @@ class Channel{
 		virtual double calcInterference(std::forward_list<TransInfo*>& interferers,
 				int rb,
 				int receiverId,
-				int SINRCounter,
 				MessageDirection dir);
 		/**
 		 * @brief Computes the Termal Noise
@@ -223,6 +213,11 @@ class Channel{
 		 * @brief Output the Down coefficient table to out stream
 		 */
 		virtual std::ostream& printCoeffDownTables(std::ostream& out);
+
+		/**
+		 * @brief Recompute values which need to be updated for each TTI
+		 */
+		virtual void recomputePerTTIValues();
 
 		/**
 		 * @brief Updates the Channel if necessary for moving MS

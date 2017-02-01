@@ -7,6 +7,7 @@
 #include "Channel.h"
 #include "includes.h"
 #include "Position.h"
+#include "VecNd.h"
 
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/exponential_distribution.hpp>
@@ -37,19 +38,19 @@ class FactoryChannel: public Channel{
 		/**
 		 * Shadowing table UP, [BS]x[MS]
 		 */
-		std::vector<std::vector<double>> shUp;
+		VectorNd<double,2> shUp;
 		/**
 		 * Shadowing table DOWN, [MS]x[BS]
 		 */
-		std::vector<std::vector<double>> shDown;
+		VectorNd<double,2> shDown;
 		/**
 		 * Shadowing table D2D DOWN, [CELL]x[MS]x[MS]
 		 */
-		std::vector<std::vector<std::vector<double>>> shD2DDown;
+		VectorNd<double,3> shD2DDown;
 		/**
 		 * Shadowing table D2D UP, [CELL]x[MS]x[MS]
 		 */
-		std::vector<std::vector<std::vector<double>>> shD2DUp;
+		VectorNd<double,3> shD2DUp;
 
 		double pathgain(Position sender, Position receiver);
 		double fadingRicean(double pl, double gainTx, double gainRx);
@@ -61,12 +62,12 @@ class FactoryChannel: public Channel{
 				const std::vector<std::vector<Position>>& msPositions);
 	
 	public:
-		void clearTransInfo();
 		void handleMessage(cMessage* msg);
 		bool init(cSimpleModule* module,
 				const std::vector<std::vector<Position>>& msPositions, 
 				std::map<int,Position>& neighbourPositions);
 
+		void recomputePerTTIValues();
 		void updateChannel(const std::vector<std::vector<Position>>& msPos);
 		double calcLongtermUpSINR(int rb, int msId, double transPower);
 		double calcLongtermDownSINR(int rb, int msId, double transPower);

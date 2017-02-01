@@ -10,16 +10,19 @@
 #pragma once
 
 #include "includes.h"
-#include <unordered_map>
-#include <cmath>
-#include "Position.h"
 #include "Channel.h"
+#include "MetisRays.h"
+#include "Position.h"
+#include "VecNd.h"
+
 #include <algorithm>
-#include <complex>
-#include <vector>
-#include <tuple>
 #include <array>
+#include <cmath>
+#include <complex>
 #include <ostream>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
 
 using std::vector;
 using std::array;
@@ -28,9 +31,24 @@ using std::tuple;
 class METISChannel : public Channel{
 	private:
 		// METIS Channel Parameters
+		vector<Position> bsPositions;
+		VectorNd<std::complex<double>,4> delayDownTable;
+		VectorNd<std::complex<double>,5> delayUpTable;
+		VectorNd<std::complex<double>,5> delayD2DUpTable;
+		VectorNd<std::complex<double>,5> delayD2DDownTable;
+		double epsilon;
 		double freq_c;						/*!< center/carrier frequence */
 		double heightUE;					/*!< Height of the user equipments */
 		double heightBS;					/*!< Height of the base stations */
+		/**
+		 * Wavenumber
+		 *
+		 * 2*PI/(C/Carrier Freq)
+		 */
+		double k_0;
+		VectorNd<bool,2> losDownTable;
+		VectorNd<bool,3> losUpTable;
+		VectorNd<bool,3> losD2DTable;
 		static double ray_offset[20];				/* Ray offset. Table 7.6 METIS D1.2 */
 		int N_cluster_LOS;
 		int N_cluster_NLOS;
@@ -40,6 +58,14 @@ class METISChannel : public Channel{
 		int NumMsAntenna;					/*!< Number of Mobile Station Antenna */
 		vector<vector<array<double,3>>> bsAntennaPositions;				/*!< Position vector of Base Station antenna */
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
+		VectorNd<Position,2> msPos;
+		VectorNd<RayCluster,5> precompDownTable;
+		VectorNd<RayCluster,6> precompUpTable;
+		VectorNd<RayCluster,6> precompD2DTable;
+		/**
+		 * MS velocity in m/s
+		 */
+		double velocity;
 		double wavelength;
 		double XPR_Mean_LOS;
 		double XPR_Std_LOS;
@@ -59,11 +85,11 @@ class METISChannel : public Channel{
 		
 		//! Maps the cluster number to scaling factors for azimuth angles
 		double C_AS(int numCluster, bool LOS, int i,
-				vector<vector<double>> sigma_kf_LOS);
+				VectorNd<double,2> sigma_kf_LOS);
 		
 		//! Maps the cluster number to scaling factors for zenith angles
 		double C_ZS(int numCluster, bool LOS,
-				vector<vector<double>> sigma_kf_LOS);
+				VectorNd<double,2> sigma_kf_LOS);
 		
 		//! Calculates the probability of a link being a LOS link.
 		bool LineOfSight(double dist2D);
@@ -77,32 +103,38 @@ class METISChannel : public Channel{
 		//! Recalculate the METIS large scale params for the given Rx/Tx
 		void recomputeLargeScaleParameters(const vector<Position>& senders,
 				const vector<Position>& receivers, 
-				vector<vector<double>>& sigma_ds_LOS,
-				vector<vector<double>>& sigma_asD_LOS,
-				vector<vector<double>>& sigma_asA_LOS,
-				vector<vector<double>>& sigma_zsD_LOS,
-				vector<vector<double>>& sigma_zsA_LOS,
-				vector<vector<double>>& sigma_sf_LOS,
-				vector<vector<double>>& sigma_kf_LOS,
-				vector<vector<double>>& sigma_ds_NLOS,
-				vector<vector<double>>& sigma_asD_NLOS,
-				vector<vector<double>>& sigma_asA_NLOS,
-				vector<vector<double>>& sigma_zsD_NLOS,
-				vector<vector<double>>& sigma_zsA_NLOS,
-				vector<vector<double>>& sigma_sf_NLOS);
+				VectorNd<double,2>& sigma_ds_LOS,
+				VectorNd<double,2>& sigma_asD_LOS,
+				VectorNd<double,2>& sigma_asA_LOS,
+				VectorNd<double,2>& sigma_zsD_LOS,
+				VectorNd<double,2>& sigma_zsA_LOS,
+				VectorNd<double,2>& sigma_sf_LOS,
+				VectorNd<double,2>& sigma_kf_LOS,
+				VectorNd<double,2>& sigma_ds_NLOS,
+				VectorNd<double,2>& sigma_asD_NLOS,
+				VectorNd<double,2>& sigma_asA_NLOS,
+				VectorNd<double,2>& sigma_zsD_NLOS,
+				VectorNd<double,2>& sigma_zsA_NLOS,
+				VectorNd<double,2>& sigma_sf_NLOS);
 
-		//! Recalculate all position dependent values, e.g. SINR
-		void recomputeMETISParams(const vector<vector<Position>>& msPositions);
+		/**
+		 * @brief Precompute all METIS values for clusters/delays
+		 *
+		 * Cluster ray sum components as well as delays can be precomputed 
+		 * at the start of each simulation, instead of being recomputed for each 
+		 * TTI.
+		 */
+		void precomputeMETISValues(const vector<vector<Position>>& msPositions);
 
 		//! Generate the spatial correlation between the MS for LOS links.
 		void generateAutoCorrelation_LOS(const vector<Position>& senders,
 				const vector<Position>& receivers,
-				vector<vector<vector<double>>>& correlation);
+				VectorNd<double,3>& correlation);
 
 		//! Generate the spatial correlation between the MS for NLOS links.
 		void generateAutoCorrelation_NLOS(const vector<Position>& senders,
 				const vector<Position>& receivers,
-				vector<vector<vector<double>>>& correlation);
+				VectorNd<double,3>& correlation);
 
 		/**
 		 * @brief Compute line of sight for each sender/receiver pair
@@ -118,11 +150,109 @@ class METISChannel : public Channel{
 		 * 		where [i][j] is `TRUE` iff there is a line of 
 		 * 		sight between receiver `i` and sender `j`
 		 */
-		vector<vector<bool>> genLosCond(const vector<Position>& sendPos,
+		VectorNd<bool,2> genLosCond(const vector<Position>& sendPos,
 				const vector<Position>& receivePos);
+        
+		/**
+		 * @brief Recompute per-cluster powers
+		 *
+		 */
+		VectorNd<double,3> genClusterPowers(const VectorNd<bool,2>& LOSCondition,
+				const VectorNd<double,3>& clusterDelays,
+				const VectorNd<double,2>& sigmaDS_LOS,
+				const VectorNd<double,2>& sigmaDS_NLOS,
+				const VectorNd<double,2>& sigmaKF_LOS
+				);
 
 		/**
-		 * @brief Recompute per-cluster delays
+		 * @brief Recompute per-ray powers
+		 */
+		VectorNd<double,3> recomputeRayPowers(const VectorNd<bool,2>& LOSCondition,
+				VectorNd<double,3>& clusterPowers
+				);
+
+		/**
+		 * @brief Recompute angle directions
+		 */
+		tuple<VectorNd<double,2>,VectorNd<double,2>,VectorNd<double,2>,VectorNd<double,2>> 
+		recomputeAngleDirection(
+				const vector<Position>& receivers,
+				const vector<Position>& senders,
+				double heightSenders,
+				double heightReceivers
+				);
+				
+		/**
+		 * @brief Recompute ray azimuth angles
+		 *
+		 * This method works for angles of arrival as well as angles 
+		 * of departure, depending on which angle spread and angle 
+		 * direction values are provided.
+		 */
+		VectorNd<double,4>
+		recomputeAzimuthAngles(const VectorNd<bool,2>& LOSCondition,
+				const VectorNd<double,2>& sigma_as_LOS,
+				const VectorNd<double,2>& sigma_as_NLOS,
+				const VectorNd<double,2>& sigma_kf,
+				const VectorNd<double,3>& clusterPowers,
+				const VectorNd<double,2>& angleDir,
+				const bool arrival
+				);
+
+		/**
+		 * @brief Recompute ray zenith angles
+		 *
+		 * This method works for angles of arrival as well as angles 
+		 * of departure, depending on which angle spread and angle 
+		 * direction values are provided.
+		 */
+		VectorNd<double,4> recomputeZenithAngles(
+				const VectorNd<bool,2>& LOSCondition,
+				const VectorNd<double,2>& sigma_zs_LOS,
+				const VectorNd<double,2>& sigma_zs_NLOS,
+				const VectorNd<double,2>& sigma_kf,
+				const VectorNd<double,3>& clusterPowers,
+				const VectorNd<double,2>& angleDir,
+				const bool arrival
+				);
+
+		/**
+		 * @brief Generate random phases
+		 */
+		tuple<VectorNd<double,4>,VectorNd<double,2>>
+		genRandomPhases(const VectorNd<bool,2>& LOSCondition);
+
+		/**
+		 * @brief Generate cross polarization values
+		 */
+		VectorNd<double,4> genCrossPolarization(VectorNd<bool,2>& LOSCondition);
+
+		/**
+		 * Precompute values for ray clusters
+		 */
+		VectorNd<RayCluster,5> precomputeRayValues(
+				VectorNd<bool,2>& LOSCondition,
+				const VectorNd<double,2>& sigma_kf,
+				int numReceiverAntenna,
+				int numSenderAntenna,
+				const VectorNd<double,3>& clusterPowers,
+				const VectorNd<double,4>& azimuth_ASA,
+				const VectorNd<double,4>& azimuth_ASD,
+				const VectorNd<double,4>& elevation_ASA,
+				const VectorNd<double,4>& elevation_ASD,
+				const VectorNd<array<double,3>,2>& receiverAntennaPos,
+				const VectorNd<array<double,3>,2>& senderAntennaPos,
+				const VectorNd<double,4>& randomPhase,
+				const VectorNd<double,2>& randomPhase_LOS,
+				const VectorNd<double,2>& AoA_LOS_dir,
+				const VectorNd<double,2>& ZoA_LOS_dir,
+				const VectorNd<double,2>& AoD_LOS_dir,
+				const VectorNd<double,2>& ZoD_LOS_dir,
+				const VectorNd<double,2>& moveDirections
+				);
+
+		/**
+		 * @brief Precompute per-cluster delays
 		 *
 		 * For each receiver/sender pair, the METIS model generates 
 		 * several rays with normal distributed path delay. See
@@ -140,141 +270,30 @@ class METISChannel : public Channel{
 		 * @param sigmaKF_LOS The variance of the Ricean K-factor for 
 		 * 			line of sight (see recomputeLargeScaleParameters() 
 		 * 			and 3GPP Doc 25996)
-		 * @return A pair of [#receivers]x[#senders]x[#ray clusters] vectors 
-		 * 		where the first component contains the spreads 
-		 * 		for the LOS case and second one containing those 
-		 * 		for the NLOS case.
+		 * @return A 3D vector [#receivers]x[#senders]x[#ray clusters] 
 		 */
-		std::tuple<vector<vector<vector<double>>>,vector<vector<vector<double>>>>
-		recomputeClusterDelays(const vector<vector<bool>>& LOSCondition,
-				const vector<vector<double>>& sigmaDS_LOS,
-				const vector<vector<double>>& sigmaDS_NLOS,
-				const vector<vector<double>>& sigmaKF_LOS);
-        
+		VectorNd<double,3> precomputeClusterDelays(
+				const VectorNd<bool,2>& LOSCondition,
+				const VectorNd<double,2>& sigmaDS_LOS,
+				const VectorNd<double,2>& sigmaDS_NLOS,
+				const VectorNd<double,2>& sigmaKF_LOS
+				);
+
 		/**
-		 * @brief Recompute per-cluster powers
+		 * @brief Add subcluster delays for first two clusters
 		 *
+		 * See METIS D1.2 equation 7-60.
 		 */
-		vector<vector<vector<double>>> genClusterPowers(const vector<vector<bool>>& LOSCondition,
-				const vector<vector<vector<double>>>& clusterDelays,
-				const vector<vector<double>>& sigmaDS_LOS,
-				const vector<vector<double>>& sigmaDS_NLOS,
-				const vector<vector<double>>& sigmaKF_LOS
-				);
-
-		/**
-		 * @brief Recompute per-ray powers
-		 */
-		vector<vector<vector<double>>> recomputeRayPowers(const vector<vector<bool>>& LOSCondition,
-				vector<vector<vector<double>>>& clusterPowers
-				);
-
-		/**
-		 * @brief Recompute angle directions
-		 */
-		tuple<vector<vector<double>>,vector<vector<double>>,vector<vector<double>>,vector<vector<double>>> 
-		recomputeAngleDirection(
-				const vector<Position>& receivers,
-				const vector<Position>& senders,
-				double heightSenders,
-				double heightReceivers
-				);
-				
-		/**
-		 * @brief Recompute ray azimuth angles
-		 *
-		 * This method works for angles of arrival as well as angles 
-		 * of departure, depending on which angle spread and angle 
-		 * direction values are provided.
-		 */
-		vector<vector<vector<vector<double>>>>
-		recomputeAzimuthAngles(const vector<vector<bool>>& LOSCondition,
-				const vector<vector<double>>& sigma_as_LOS,
-				const vector<vector<double>>& sigma_as_NLOS,
-				const vector<vector<double>>& sigma_kf,
-				const vector<vector<vector<double>>>& clusterPowers,
-				const vector<vector<double>>& angleDir,
-				const bool arrival
-				);
-
-		/**
-		 * @brief Recompute ray zenith angles
-		 *
-		 * This method works for angles of arrival as well as angles 
-		 * of departure, depending on which angle spread and angle 
-		 * direction values are provided.
-		 */
-		vector<vector<vector<vector<double>>>> recomputeZenithAngles(
-				const vector<vector<bool>>& LOSCondition,
-				const vector<vector<double>>& sigma_zs_LOS,
-				const vector<vector<double>>& sigma_zs_NLOS,
-				const vector<vector<double>>& sigma_kf,
-				const vector<vector<vector<double>>>& clusterPowers,
-				const vector<vector<double>>& angleDir,
-				const bool arrival
-				);
-
-		/**
-		 * @brief Generate random phases
-		 */
-		tuple<vector<vector<vector<vector<vector<double>>>>>,vector<vector<double>>>
-		genRandomPhases( const vector<vector<bool>>& LOSCondition);
-
-		/**
-		 * @brief Generate cross polarization values
-		 */
-		vector<vector<vector<vector<double>>>> genCrossPolarization(
-				vector<vector<bool>>& LOSCondition);
-
-		/**
-		 * @brief Compute ray sum for a full cluster
-		 */
-		void computeRaySumCluster(
-				size_t numRays,
-				double prefactor,
-				double k_0,
-				const vector<double>& zenithASA,
-				const vector<double>& zenithASD,
-				const vector<double>& azimuthASA,
-				const vector<double>& azimuthASD,
-				const array<double,3>& senderAntennaPos,
-				const array<double,3>& receiverAntennaPos,
-				size_t receiverAntennaIndex,
-				size_t senderAntennaIndex,
-				const vector<vector<double>>& randomPhase,
-				vector<int> *subcluster,
-				vector<vector<vector<std::complex<double>>>>& raySum
-				);
-
-		/**
-		 * @brief Compute ray sums for given receivers/senders
-		 */
-		tuple<vector<vector<vector<vector<vector<vector<std::complex<double>>>>>>>,
-			vector<vector<vector<vector<vector<vector<std::complex<double>>>>>>>>
-				computeRaySums(vector<vector<bool>>& LOSCondition,
-						const vector<vector<double>>& sigma_kf,
-						int numReceiverAntenna,
-						int numSenderAntenna,
-						const vector<vector<vector<double>>>& clusterPowers,
-						const vector<vector<vector<vector<double>>>>& azimuth_ASA,
-						const vector<vector<vector<vector<double>>>>& azimuth_ASD,
-						const vector<vector<vector<vector<double>>>>& elevation_ASA,
-						const vector<vector<vector<vector<double>>>>& elevation_ASD,
-						const vector<vector<array<double,3>>>& receiverAntennaPos,
-						const vector<vector<array<double,3>>>& senderAntennaPos,
-						const vector<vector<vector<vector<vector<double>>>>>& randomPhase,
-						const vector<vector<double>>& randomPhase_LOS,
-						const vector<vector<double>>& AoA_LOS_dir,
-						const vector<vector<double>>& ZoA_LOS_dir,
-						const vector<vector<double>>& AoD_LOS_dir,
-						const vector<vector<double>>& ZoD_LOS_dir
-						);
+		VectorNd<std::complex<double>,4> addClusterDelayOffsets(
+				VectorNd<double,3>& delays,
+				bool up,
+				size_t numRb);
 
 		/**
 		 * @brief Compute coefficients for given receivers/senders
 		 */
-		vector<vector<vector<vector<double>>>> computeCoeffs(
-				const vector<vector<bool>>& LOSCondition,
+		VectorNd<double,3> computeCoeffs(
+				const VectorNd<bool,2>& LOSCondition,
 				const vector<Position>& receiverPos,
 				const vector<Position>& senderPos,
 				double heightReceivers,
@@ -283,38 +302,38 @@ class METISChannel : public Channel{
 				int numRBs,
 				int numReceiverAntenna,
 				int numSenderAntenna,
-				const vector<vector<vector<vector<vector<vector<std::complex<double>>>>>>>& raySum,
-				const vector<vector<vector<vector<vector<vector<std::complex<double>>>>>>>& raySum_LOS,
-				const vector<vector<vector<double>>>& clusterDelays,
-				const vector<vector<vector<double>>>& clusterDelays_LOS
+				const VectorNd<RayCluster,5>& rayClusters,
+				const VectorNd<std::complex<double>,4>& delays
 				);
 
 		/**
-		 * @brief Compute the downlink (BS->MS) coefficients
+		 * @brief Precompute the downlink (BS->MS) cluster/delay values
 		 *
-		 * After executing this method, the coeffDown table will hold 
-		 * the coefficients for the links from all BS to the 
-		 * local MS.
+		 * After executing this method, the precomp and delay tables will be
+		 * populated with all values which can be computed at the beginning of the
+		 * simulation.
 		 */
-		void recomputeDownCoefficients(const vector<Position>& msPositions,
+		void precomputeDownValues(const vector<Position>& msPositions,
 				const vector<Position>& bsPositions);
 
 		/**
-		 * @brief Compute the uplink (MS->BS) coefficients
+		 * @brief Precompute the uplink (MS->BS) cluster/delay values
 		 *
-		 * After executing this method, the coeffUp table will hold 
-		 * the coefficients for the links from all MS to the local BS
+		 * After executing this method, the precomp and delay tables will be
+		 * populated with all values which can be computed at the beginning of the
+		 * simulation.
 		 */
-		void recomputeUpCoefficients(const vector<vector<Position>>& msPositions,
+		void precomputeUpValues(const vector<vector<Position>>& msPositions,
 				const vector<Position>& bsPositions);
 		
 		/**
-		 * @brief Compute the D2D (MS->MS) coefficients
+		 * @brief Precompute the D2D (MS->MS) cluster/delay
 		 *
-		 * After executing this method, the coeffUpD2D and coeffDownD2D tables will hold 
-		 * the coefficients for the links from all MS to all local MS
+		 * After executing this method, the precomp and delay tables will be
+		 * populated with all values which can be computed at the beginning of the
+		 * simulation.
 		 */
-		void recomputeD2DCoefficients(const vector<vector<Position>>& msPositions);
+		void precomputeD2DValues(const vector<vector<Position>>& msPositions);
 
 	public:
 		//! Initialize the METIS channel through ini access via OMNeT++ module pointer.
@@ -330,4 +349,14 @@ class METISChannel : public Channel{
 
 		//! Destructor of METIS Channel subclass.
 		virtual ~METISChannel(){}
+		/**
+		 * @brief Compute per-TTI coefficients for the current time
+		 *
+		 * This method fills the coeff* table members with the coefficient values
+		 * for the current TTI. This method makes use of the precomputed values.
+		 *
+		 * This means: The precomputeMETISValues method needs to be called before
+		 * this method is called.
+		 */
+		void recomputePerTTIValues();
 };

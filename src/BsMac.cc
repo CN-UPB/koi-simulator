@@ -137,7 +137,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 			// All local stations have completed their SINR estimates, so the 
 			// last TTI's transmission infos can now be cleared from the local 
 			// channel.
-			send(new cMessage(nullptr,MessageType::clearTransInfo),"toBsChannel",
+			send(new cMessage(nullptr,MessageType::cleanupTTI),"toBsChannel",
 					0);
 			sinrEstCount = 0;
 		}

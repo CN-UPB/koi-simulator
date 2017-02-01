@@ -34,7 +34,6 @@ bool Channel::init(cSimpleModule* module,
 	maxNumberOfNeighbours = module->par("maxNumberOfNeighbours");
 	this->neighbourPositions = neighbourPositions;
 	numberOfMobileStations = module->par("numberOfMobileStations");
-	SINRcounter = 0;
 	tti = module->par("tti");
 	upRBs = module->par("upResourceBlocks");
 
@@ -44,12 +43,6 @@ bool Channel::init(cSimpleModule* module,
 	// Get Playground size from cell module:
 	sizeX = cell->par("playgroundSizeX");
 	sizeY = cell->par("playgroundSizeY");
-	// Get position resend interval (Stationary MS assumed during this interval)
-	timeSamples = module->par("positionResendInterval");
-	// 4 Samples per TTI; for smooth Fourier transform
-	// scale according to positionResendInterval; timeSamples should be comparable
-	// to sim-time-limit
-	timeSamples *= 4; 
 	// Resize the vectors for the per-RB trans infos to the number of 
 	// resource blocks.
 	if(considerInterference){
@@ -82,7 +75,6 @@ void Channel::addTransInfo(TransInfo* trans){
 double Channel::calcInterference(forward_list<TransInfo*>& interferers,
 		int rb,
 		int receiverId,
-		int SINRCounter,
 		MessageDirection dir){
 	double interference = 0.0;
 	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
@@ -91,25 +83,25 @@ double Channel::calcInterference(forward_list<TransInfo*>& interferers,
 			if(receiverId==-1){
 				// Interference at the local base station
 				interference += (*it)->getPower() 
-					* coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][SINRCounter][rb];
+					* coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][rb];
 			}
 			else{
 				// Interference at local mobile stations
 				if((*it)->getMessageDirection()==MessageDirection::down){
 					// Interference from a neighbouring BS
-					interference += (*it)->getPower() * coeffDownTable[receiverId][(*it)->getBsId()][SINRCounter][rb];
+					interference += (*it)->getPower() * coeffDownTable[receiverId][(*it)->getBsId()][rb];
 				}
 				else if((*it)->getMessageDirection()==MessageDirection::d2dDown){
 					// Interference from a MS transmitting D2D on the same down resource 
 					// block
 					interference += (*it)->getPower() 
-						* coeffDownD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
+						* coeffDownD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][rb];
 				}
 				else if((*it)->getMessageDirection()==MessageDirection::d2dUp
 						|| ((*it)->getMessageDirection()==MessageDirection::up 
 							&& d2dActive)){
 					interference += (*it)->getPower() 
-						* coeffUpD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][SINRCounter][rb];
+						* coeffUpD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][rb];
 				}
 			}
 		}
@@ -121,11 +113,10 @@ double Channel::calcInterference(forward_list<TransInfo*>& interferers,
 double Channel::calcUpSINR(int RB, 
 		int msId,
 		double transPower){
-	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
 	double received = 0;
 	double interference = calcInterference(transInfo.first[RB],
-			RB,-1,SINRCounter,MessageDirection::up);
-	received = transPower * coeffUpTable[bsId][0][msId][SINRcounter][RB];
+			RB,-1,MessageDirection::up);
+	received = transPower * coeffUpTable[bsId][0][msId][RB];
 	// Convert to db scale
 	return 10 * log10( received / interference );
 }
@@ -133,11 +124,10 @@ double Channel::calcUpSINR(int RB,
 double Channel::calcDownSINR(int RB, 
 		int msId,
 		double transPower){
-	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
 	double received = 0;
 	double interference = calcInterference(transInfo.second[RB],
-			RB,msId,SINRCounter,MessageDirection::down);
-	received = transPower * coeffDownTable[msId][bsId][SINRcounter][RB];
+			RB,msId,MessageDirection::down);
+	received = transPower * coeffDownTable[msId][bsId][RB];
 	// Convert to db scale
 	return 10 * log10( received / interference );
 }
@@ -145,9 +135,8 @@ double Channel::calcDownSINR(int RB,
 double Channel::senseUpSINR(int RB, 
 		int msId,
 		double transPower){
-	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
 	double received = 0;
-	received = transPower * coeffUpTable[bsId][0][msId][SINRcounter][RB];
+	received = transPower * coeffUpTable[bsId][0][msId][RB];
 	// Convert to db scale
 	return 10 * log10( received / getTermalNoise(300,chnBandwidth) );
 }
@@ -155,9 +144,8 @@ double Channel::senseUpSINR(int RB,
 double Channel::senseDownSINR(int RB, 
 		int msId,
 		double transPower){
-	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
 	double received = 0;
-	received = transPower * coeffDownTable[msId][bsId][SINRcounter][RB];
+	received = transPower * coeffDownTable[msId][bsId][RB];
 	// Convert to db scale
 	return 10 * log10( received / getTermalNoise(300,chnBandwidth) );
 }
@@ -167,18 +155,17 @@ double Channel::calcD2DSINR(int RB,
 		int receiveMsId,
 		MessageDirection direction,
 		double transPower){
-	int SINRCounter = 3; //originally set to std::round( simTime().dbl() * 1000.0* 4.0) - 1 
 	double received = 0;
 	double interference = 0.0;
 	if(direction==MessageDirection::d2dDown){
-		received = transPower * coeffDownD2DTable[bsId][receiveMsId][sendMsID][SINRCounter][RB];
+		received = transPower * coeffDownD2DTable[bsId][receiveMsId][sendMsID][RB];
 		interference = calcInterference(transInfo.second[RB],
-				RB,receiveMsId,SINRCounter,MessageDirection::down);
+				RB,receiveMsId,MessageDirection::down);
 	}
 	else{
-		received = transPower * coeffUpD2DTable[bsId][receiveMsId][sendMsID][SINRCounter][RB];
+		received = transPower * coeffUpD2DTable[bsId][receiveMsId][sendMsID][RB];
 		interference = calcInterference(transInfo.first[RB],
-				RB,receiveMsId,SINRCounter,MessageDirection::up);
+				RB,receiveMsId,MessageDirection::up);
 	}
 	// Convert to db scale
 	return 10 * log10( received / interference );
@@ -264,16 +251,12 @@ double Channel::getTermalNoise(double temp, double bandwidth){
 }
 
 std::ostream& Channel::printCoeffUpTables(std::ostream& out){
-	out << "BS" << "\t" << "MS" << "\t" << "Time" << "\t" << "RB"
-		<< "\t" << "Coeff" << std::endl;
+	out << "BS" << "\t" << "MS" << "\t" << "RB" << "\t" << "Coeff" << std::endl;
 	for(size_t i=0; i<coeffUpTable.size(); i++){
 		for(size_t j=0; j<coeffUpTable[i][0].size(); j++){
-			for(size_t t=0; t<timeSamples; t++){
-				for(size_t r=0; r<downRBs; r++){
-					out << i << "\t" << j << "\t" << t << "\t" << r 
-						<< "\t" << coeffUpTable[i][0][j][t][r] << std::endl;
-				}
-
+			for(size_t r=0; r<downRBs; r++){
+				out << i << "\t" << j << "\t" << r 
+					<< "\t" << coeffUpTable[i][0][j][r] << std::endl;
 			}
 		}
 	}
@@ -281,20 +264,22 @@ std::ostream& Channel::printCoeffUpTables(std::ostream& out){
 }
 
 std::ostream& Channel::printCoeffDownTables(std::ostream& out){
-	out << "MS" << "\t" << "BS" << "\t" << "Time" << "\t" << "RB" 
+	out << "MS" << "\t" << "BS" << "\t" << "RB" 
 		<< "\t" << "Coeff" << std::endl;
 	for(size_t i=0; i<coeffDownTable.size(); i++){
 		for(size_t j=0; j<coeffDownTable[i].size(); j++){
-			for(size_t t=0; t<timeSamples; t++){
-				for(size_t r=0; r<downRBs; r++){
-					out << i << "\t" << j << "\t" << t << "\t" << r
-						<< "\t" << coeffDownTable[i][j][t][r] << std::endl;
-				}
-
+			for(size_t r=0; r<downRBs; r++){
+				out << i << "\t" << j << "\t" << r
+					<< "\t" << coeffDownTable[i][j][r] << std::endl;
 			}
 		}
 	}
 	return out;
+}
+
+void Channel::recomputePerTTIValues(){
+	// Empty by default. Override this method if a channel needs any values 
+	// recomputed at the beginning of a TTI.
 }
 
 Channel::~Channel(){

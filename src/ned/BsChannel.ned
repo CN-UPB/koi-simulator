@@ -148,7 +148,6 @@ simple BsChannel  {
 		double XPR_Std_NLOS = default(0.0);
 		double XPR_Mean_LOS = default(0.0);
 		double XPR_Std_LOS = default(0.0);
-		double positionResendInterval = default(0.0);
 		double CarrierFrequency = default(5.2e9Hz) @unit(Hz);
 		// Number of antennas on BaseStation
 		int NumBsAntenna = default(8);
@@ -189,6 +188,8 @@ simple BsChannel  {
 		bool debug = default(false);
 		// Should D2D values be computed?
 		bool d2dActive = default(true);
+		// Velocity of the mobile stations in m/s
+		double msVel;
 		@display("i=block/rxtx");
 		
 	gates:
