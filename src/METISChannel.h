@@ -32,6 +32,7 @@ class METISChannel : public Channel{
 	private:
 		// METIS Channel Parameters
 		vector<Position> bsPositions;
+		double d0;
 		VectorNd<std::complex<double>,4> delayDownTable;
 		VectorNd<std::complex<double>,5> delayUpTable;
 		VectorNd<std::complex<double>,5> delayD2DUpTable;
@@ -59,6 +60,8 @@ class METISChannel : public Channel{
 		vector<vector<array<double,3>>> bsAntennaPositions;				/*!< Position vector of Base Station antenna */
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
 		VectorNd<Position,2> msPos;
+		double pl0;
+		double plExp;
 		VectorNd<RayCluster,5> precompDownTable;
 		VectorNd<RayCluster,6> precompUpTable;
 		VectorNd<RayCluster,6> precompD2DTable;
@@ -81,8 +84,10 @@ class METISChannel : public Channel{
 				double heightAntennas);
 		
 		//! Calculates the pathloss for a given distance.
-		double CalcPathloss(double dist2D, double dist3D, bool LOS);
-		
+		double CalcPathlossMETIS(double dist2D, double dist3D, bool LOS);
+
+		double CalcPathlossTanghe(double dist3D);
+
 		//! Maps the cluster number to scaling factors for azimuth angles
 		double C_AS(int numCluster, bool LOS, int i,
 				VectorNd<double,2> sigma_kf_LOS);

@@ -101,6 +101,9 @@ bool METISChannel::init(cSimpleModule* module,
 	N_cluster_NLOS = module->par("NumberOfClusters_NLOS");
 	numOfRays_LOS = module->par("NumberOfRays_LOS");
 	numOfRays_NLOS = module->par("NumberOfRays_NLOS");
+	plExp = module->par("plExp");
+	pl0 = module->par("pl0");
+	d0 = module->par("d0");
 	freq_c = module->par("CarrierFrequency");
 	NumBsAntenna = module->par("NumBsAntenna");
 	NumMsAntenna = module->par("NumMsAntenna");
@@ -891,7 +894,7 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 			dist2D = sqrt(pow((senderPos[idIdx].x - receiverPos[i].x),2) + pow((senderPos[idIdx].y - receiverPos[i].y),2));
 			dist3D = sqrt(pow(dist2D,2) + pow((heightSenders - heightReceivers),2));
 			complex<double> res = complex<double>(0.0,0.0);
-			pathloss = CalcPathloss(dist2D, dist3D, LOSCondition[i][idIdx]);
+			pathloss = CalcPathlossTanghe(dist3D);
 			if(LOSCondition[i][idIdx]){
 				n_clusters = N_cluster_LOS;
 			}
@@ -1955,7 +1958,7 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 * @param LOS Boolean value which is true, iff the link is a LOS link.
 * @return The pathloss for this link.
 */
-double METISChannel::CalcPathloss(double dist2D, double dist3D, bool LOS){
+double METISChannel::CalcPathlossMETIS(double dist2D, double dist3D, bool LOS){
 	double pathloss;
 	double distBP = 4 * (heightUE - 1.0) * (heightBS - 1.0) * (freq_c / speedOfLight); // Breakpoint Distance
 	double pl_a;
@@ -1989,6 +1992,12 @@ double METISChannel::CalcPathloss(double dist2D, double dist3D, bool LOS){
 	pl_a = pow(10,(pathloss/10));
 	return 1/pl_a;
 	//return 1/pow(10, (22*log10(dist2D) + 28 + 20*log10(freq_c / 1000000000)) /10);
+}
+
+double METISChannel::CalcPathlossTanghe(double dist3D){
+	double pl = (pl0+10*plExp*log10(dist3D/d0));
+	// Convert pathloss to linear scale and return gain instead of loss
+	return std::pow(10,-pl/10);
 }
 
 /**
