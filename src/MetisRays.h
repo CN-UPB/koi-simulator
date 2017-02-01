@@ -14,12 +14,12 @@
 
 class Ray{
 	private:
-		double dirAoA;
+		double velComp;
 		std::complex<double> precompVal;
 	
 	public:
-		Ray(const double dirAoA, std::complex<double> precompVal)
-				:dirAoA(dirAoA),precompVal(precompVal){}
+		Ray(const double velComp, std::complex<double> precompVal)
+				:velComp(velComp),precompVal(precompVal){}
 		Ray(){}
 		static Ray initialize(
 				double azimuthASA,
@@ -27,19 +27,20 @@ class Ray{
 				double zenithASA,
 				double zenithASD,
 				double k_0,
+				double moveAngle,
+				double velocity,
 				const std::array<double,3>& senderAntennaPos,
 				const std::array<double,3>& receiverAntennaPos,
 				const double randomPhase
 				);
-		virtual std::complex<double> value(const double t, double moveAngle,
-				double velocity, double k_0) const;
+		virtual std::complex<double> value(const double t) const;
 
 };
 
 class LOSRay: public Ray{
 	public:
-		LOSRay(const double dirAoA, std::complex<double> precompVal)
-				:Ray(dirAoA,precompVal){}
+		LOSRay(const double velComp, std::complex<double> precompVal)
+				:Ray(velComp,precompVal){}
 		LOSRay(){}
 		static LOSRay initialize(
 				double dirAoA,
@@ -47,6 +48,8 @@ class LOSRay: public Ray{
 				double dirZoA,
 				double dirZoD,
 				double k_0,
+				double moveAngle,
+				double velocity,
 				const std::array<double,3>& senderAntennaPos,
 				const std::array<double,3>& receiverAntennaPos,
 				double randomPhase
@@ -67,6 +70,8 @@ class RayCluster{
 				const std::vector<double>& zenithASD,
 				const std::vector<double>& azimuthASA,
 				const std::vector<double>& azimuthASD,
+				double moveAngle,
+				double velocity,
 				const std::array<double,3>& senderAntennaPos,
 				const std::array<double,3>& receiverAntennaPos,
 				const std::vector<double>& randomPhase,
@@ -90,6 +95,8 @@ class RayCluster{
 				const std::vector<double>& zenithASD,
 				const std::vector<double>& azimuthASA,
 				const std::vector<double>& azimuthASD,
+				double moveAngle,
+				double velocity,
 				const std::array<double,3>& senderAntennaPos,
 				const std::array<double,3>& receiverAntennaPos,
 				const std::vector<double>& randomPhase,
@@ -104,6 +111,8 @@ class RayCluster{
 				const std::vector<double>& zenithASD,
 				const std::vector<double>& azimuthASA,
 				const std::vector<double>& azimuthASD,
+				double moveAngle,
+				double velocity,
 				const std::array<double,3>& senderAntennaPos,
 				const std::array<double,3>& receiverAntennaPos,
 				const std::vector<double>& randomPhase,
@@ -114,7 +123,6 @@ class RayCluster{
 				double dirZoA,
 				double dirZoD
 				);
-		std::complex<double> clusterValue(const double t, double moveAngle,
-				double velocity, double k_0) const;
+		std::complex<double> clusterValue(const double t) const;
 };
 

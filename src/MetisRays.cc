@@ -31,6 +31,8 @@ Ray Ray::initialize(
 		double zenithASA,
 		double zenithASD,
 		double k_0,
+		double moveAngle,
+		double velocity,
 		const array<double,3>& senderAntennaPos,
 		const array<double,3>& receiverAntennaPos,
 		const double randomPhase
@@ -56,12 +58,15 @@ Ray Ray::initialize(
 	receiverGain = getMSGain(azimuthASA*PI/180, zenithASA*PI/180);
 	senderGain = getBSGain(azimuthASD*PI/180, zenithASD*PI/180);
 	complex<double> pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase));
-	return Ray(azimuthASA,expArrival*expDeparture*pol);
+
+	// Precomputable part of the doppler component
+	array<double,3> velVec = {cos(moveAngle),sin(moveAngle),0};
+	double velComp = k_0*(AoA[0]*velVec[0]+AoA[1]*velVec[1]+AoA[2]*velVec[2])*velocity;
+	return Ray(velComp,expArrival*expDeparture*pol);
 }
 
-inline std::complex<double> Ray::value(const double t, double moveAngle,
-		double velocity, double k_0) const {
-	return precompVal*exp( complex<double>(0,k_0 * velocity * cos(dirAoA - moveAngle) * t ));
+inline std::complex<double> Ray::value(const double t) const {
+	return precompVal*exp( complex<double>(0,velComp * t));
 }
 
 LOSRay LOSRay::initialize(
@@ -70,6 +75,8 @@ LOSRay LOSRay::initialize(
 		double dirZoA,
 		double dirZoD,
 		double k_0,
+		double moveAngle,
+		double velocity,
 		const array<double,3>& senderAntennaPos,
 		const array<double,3>& receiverAntennaPos,
 		double randomPhase
@@ -92,8 +99,12 @@ LOSRay LOSRay::initialize(
 	receiverGain = getMSGain(dirAoA, dirZoA);
 	senderGain = getBSGain(dirAoD, dirZoD);
 	complex<double> pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase));
+
+	// Precomputable part of the doppler component
+	array<double,3> velVec = {cos(moveAngle),sin(moveAngle),0};
+	double velComp = k_0*(AoA[0]*velVec[0]+AoA[1]*velVec[1]+AoA[2]*velVec[2])*velocity;
 	
-	return LOSRay(dirAoA,expArrival*expDeparture*pol);
+	return LOSRay(velComp,expArrival*expDeparture*pol);
 }
 
 vector<Ray> RayCluster::genNLOSRays(
@@ -103,6 +114,8 @@ vector<Ray> RayCluster::genNLOSRays(
 		const vector<double>& zenithASD,
 		const vector<double>& azimuthASA,
 		const vector<double>& azimuthASD,
+		double moveAngle,
+		double velocity,
 		const array<double,3>& senderAntennaPos,
 		const array<double,3>& receiverAntennaPos,
 		const vector<double>& randomPhase,
@@ -118,6 +131,8 @@ vector<Ray> RayCluster::genNLOSRays(
 				zenithASA[rayIdx],
 				zenithASD[rayIdx],
 				wavenumber,
+				moveAngle,
+				velocity,
 				senderAntennaPos,
 				receiverAntennaPos,
 				randomPhase[rayIdx]
@@ -134,6 +149,8 @@ RayCluster RayCluster::initialize(
 		const vector<double>& zenithASD,
 		const vector<double>& azimuthASA,
 		const vector<double>& azimuthASD,
+		double moveAngle,
+		double velocity,
 		const array<double,3>& senderAntennaPos,
 		const array<double,3>& receiverAntennaPos,
 		const vector<double>& randomPhase,
@@ -147,6 +164,8 @@ RayCluster RayCluster::initialize(
 				zenithASD,
 				azimuthASA,
 				azimuthASD,
+				moveAngle,
+				velocity,
 				senderAntennaPos,
 				receiverAntennaPos,
 				randomPhase,
@@ -164,6 +183,8 @@ RayCluster RayCluster::initialize(
 		const vector<double>& zenithASD,
 		const vector<double>& azimuthASA,
 		const vector<double>& azimuthASD,
+		double moveAngle,
+		double velocity,
 		const array<double,3>& senderAntennaPos,
 		const array<double,3>& receiverAntennaPos,
 		const vector<double>& randomPhase,
@@ -182,6 +203,8 @@ RayCluster RayCluster::initialize(
 				zenithASD,
 				azimuthASA,
 				azimuthASD,
+				moveAngle,
+				velocity,
 				senderAntennaPos,
 				receiverAntennaPos,
 				randomPhase,
@@ -191,24 +214,25 @@ RayCluster RayCluster::initialize(
 	LOSRay losRay(LOSRay::initialize(
 				dirAoA,dirAoD,dirZoA,dirZoD,
 				wavenumber,
+				moveAngle,
+				velocity,
 				senderAntennaPos,receiverAntennaPos,
 				randomPhaseLOS));
 	return RayCluster(std::move(rays),prefactor,std::move(losRay),k);
 }
 
-complex<double> RayCluster::clusterValue(const double t, double moveAngle,
-		double velocity, double k_0) const {
+complex<double> RayCluster::clusterValue(const double t) const {
 	complex<double> val(0.0,0.0);
 	// Add up all NLOS rays in the cluster
 	for(const Ray& r:rays){
-		val += r.value(t,moveAngle,velocity,k_0);
+		val += r.value(t);
 	}
 	// Multiply with prefactor
 	val *= sq_P_over_M;
 	if(los){
 		// Cmmunicating stations have Line of Sight, add a LOS ray
 		val *= std::sqrt(1.0/(k+1.0));
-		val += std::sqrt(k/(k+1.0))*losRay.value(t,moveAngle,velocity,k_0);
+		val += std::sqrt(k/(k+1.0))*losRay.value(t);
 	}
 	return val;
 }

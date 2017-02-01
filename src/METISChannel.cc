@@ -715,7 +715,8 @@ METISChannel::precomputeRayValues(VectorNd<bool,2>& LOSCondition,
 		const VectorNd<double,2>& AoA_LOS_dir,
 		const VectorNd<double,2>& ZoA_LOS_dir,
 		const VectorNd<double,2>& AoD_LOS_dir,
-		const VectorNd<double,2>& ZoD_LOS_dir
+		const VectorNd<double,2>& ZoD_LOS_dir,
+		const VectorNd<double,2>& moveDirections
 		){
 	size_t numReceivers = LOSCondition.size();
 	size_t numSenders = LOSCondition[0].size();
@@ -768,6 +769,8 @@ METISChannel::precomputeRayValues(VectorNd<bool,2>& LOSCondition,
 										elevation_ASD[i][j][n],
 										azimuth_ASA[i][j][n],
 										azimuth_ASD[i][j][n],
+										moveDirections[i][j],
+										velocity,
 										senderAntennaPos[j][s],
 										receiverAntennaPos[i][u],
 										randomPhase[i][j][n],
@@ -784,6 +787,8 @@ METISChannel::precomputeRayValues(VectorNd<bool,2>& LOSCondition,
 										elevation_ASD[i][j][n],
 										azimuth_ASA[i][j][n],
 										azimuth_ASD[i][j][n],
+										moveDirections[i][j],
+										velocity,
 										senderAntennaPos[j][s],
 										receiverAntennaPos[i][u],
 										randomPhase[i][j][n],
@@ -812,6 +817,8 @@ METISChannel::precomputeRayValues(VectorNd<bool,2>& LOSCondition,
 									elevation_ASD[i][j][n],
 									azimuth_ASA[i][j][n],
 									azimuth_ASD[i][j][n],
+									moveDirections[i][j],
+									velocity,
 									senderAntennaPos[j][s],
 									receiverAntennaPos[i][u],
 									randomPhase[i][j][n],
@@ -829,6 +836,8 @@ METISChannel::precomputeRayValues(VectorNd<bool,2>& LOSCondition,
 									elevation_ASD[i][j][n],
 									azimuth_ASA[i][j][n],
 									azimuth_ASD[i][j][n],
+									moveDirections[i][j],
+									velocity,
 									senderAntennaPos[j][s],
 									receiverAntennaPos[i][u],
 									randomPhase[i][j][n],
@@ -861,8 +870,7 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 		int numReceiverAntenna,
 		int numSenderAntenna,
 		const VectorNd<RayCluster,5>& rayClusters,
-		const VectorNd<complex<double>,4>& delays,
-		const VectorNd<double,2>& moveDirections
+		const VectorNd<complex<double>,4>& delays
 		){
 	size_t numReceivers = receiverPos.size();
 	size_t numSenders = senderPos.size();
@@ -884,7 +892,6 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 			dist3D = sqrt(pow(dist2D,2) + pow((heightSenders - heightReceivers),2));
 			complex<double> res = complex<double>(0.0,0.0);
 			pathloss = CalcPathloss(dist2D, dist3D, LOSCondition[i][idIdx]);
-			const double& moveAngle = moveDirections[i][idIdx];
 			if(LOSCondition[i][idIdx]){
 				n_clusters = N_cluster_LOS;
 			}
@@ -901,7 +908,7 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 				for(int s = 0; s < numSenderAntenna; s++){
 					clusterVals[u][s].resize(antennaClusters[u][s].size());
 					for(int n = 0; n < n_clusters; n++){
-						clusterVals[u][s][n] = antennaClusters[u][s][n].clusterValue(currTime.dbl(),moveAngle,velocity,k_0);
+						clusterVals[u][s][n] = antennaClusters[u][s][n].clusterValue(currTime.dbl());
 					}
 				}
 			}
@@ -940,8 +947,7 @@ void METISChannel::recomputePerTTIValues(){
 				numReceiverAntenna,
 				numSenderAntenna,
 				precompDownTable,
-				delayDownTable,
-				moveDirDownTable
+				delayDownTable
 				));
 	// Compute UP coefficients for the current TTI
 	numReceiverAntenna = NumBsAntenna;
@@ -963,8 +969,7 @@ void METISChannel::recomputePerTTIValues(){
 					numReceiverAntenna,
 					numSenderAntenna,
 					precompUpTable[j],
-					delayUpTable[j],
-					moveDirUpTable[j]
+					delayUpTable[j]
 					));
 	}
 	if(d2dActive){
@@ -991,8 +996,7 @@ void METISChannel::recomputePerTTIValues(){
 						numReceiverAntenna,
 						numSenderAntenna,
 						precompD2DTable[j],
-						delayD2DUpTable[j],
-						moveDirD2DTable[j]
+						delayD2DUpTable[j]
 						));
 			coeffDownD2DTable[j] = std::move(computeCoeffs(
 						losD2DTable[j],
@@ -1005,8 +1009,7 @@ void METISChannel::recomputePerTTIValues(){
 						numReceiverAntenna,
 						numSenderAntenna,
 						precompD2DTable[j],
-						delayD2DDownTable[j],
-						moveDirD2DTable[j]
+						delayD2DDownTable[j]
 						));
 		}
 	
@@ -1044,9 +1047,9 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 	losDownTable = std::move(genLosCond(senderPos,receiverPos));
 
 	// Assign move angles
-	moveDirDownTable.resize(receiverPos.size(),vector<double>(senderPos.size()));
+	VectorNd<double,2> moveDirTable(receiverPos.size(),vector<double>(senderPos.size()));
 	auto gen = []() -> double{return uniform(0,360);};
-	for(auto& v:moveDirDownTable){
+	for(auto& v:moveDirTable){
 		std::generate(v.begin(),v.end(),gen);
 	}
 	VectorNd<double,2> sigma_ds_LOS(receiverPos.size(),
@@ -1180,7 +1183,8 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 			AoA_LOS_dir,
 			ZoA_LOS_dir,
 			AoD_LOS_dir,
-			ZoD_LOS_dir
+			ZoD_LOS_dir,
+			moveDirTable
 			));
 
 	delayDownTable = std::move(addClusterDelayOffsets(delays,false,downRBs));
@@ -1201,7 +1205,6 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 			VectorNd<double,3>(1));
 	losUpTable.resize(msPositions.size());
 	delayUpTable.resize(msPositions.size());
-	moveDirUpTable.resize(msPositions.size());
 	for(size_t j=0; j<msPositions.size(); j++){
 		// Copy MS Positions
 		vector<Position> senderPos(msPositions[j]);
@@ -1224,9 +1227,9 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 		losUpTable[j].resize(receiverPos.size(),vector<bool>(senderPos.size()));
 		losUpTable[j] = std::move(genLosCond(senderPos,receiverPos));
 		// Generate move directions
-		moveDirUpTable[j].resize(receiverPos.size(),vector<double>(senderPos.size()));
+		VectorNd<double,2> moveDirTable(receiverPos.size(),vector<double>(senderPos.size()));
 		auto gen = []() -> double{return uniform(0,360);};
-		for(auto& v:moveDirUpTable[j]){
+		for(auto& v:moveDirTable){
 			std::generate(v.begin(),v.end(),gen);
 		}
 
@@ -1364,7 +1367,8 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 				AoA_LOS_dir,
 				ZoA_LOS_dir,
 				AoD_LOS_dir,
-				ZoD_LOS_dir
+				ZoD_LOS_dir,
+				moveDirTable
 				);
 
 		delayUpTable[j] = std::move(addClusterDelayOffsets(delays,true,upRBs));
@@ -1405,7 +1409,6 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 	losD2DTable.resize(msPositions.size());
 	delayD2DUpTable.resize(msPositions.size());
 	delayD2DDownTable.resize(msPositions.size());
-	moveDirD2DTable.resize(msPositions.size());
 	for(size_t j=0; j<msPositions.size(); j++){
 		// Copy MS Positions
 		vector<Position> senderPos(msPositions[j]);
@@ -1428,9 +1431,9 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 		losD2DTable[j].resize(receiverPos.size(),vector<bool>(senderPos.size()));
 		losD2DTable[j] = std::move(genLosCond(senderPos,receiverPos));
 		// Generate move directions
-		moveDirD2DTable[j].resize(receiverPos.size(),vector<double>(senderPos.size()));
+		VectorNd<double,2> moveDirTable(receiverPos.size(),vector<double>(senderPos.size()));
 		auto gen = []() -> double{return uniform(0,360);};
-		for(auto& v:moveDirD2DTable[j]){
+		for(auto& v:moveDirTable){
 			std::generate(v.begin(),v.end(),gen);
 		}
 
@@ -1567,7 +1570,8 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 				AoA_LOS_dir,
 				ZoA_LOS_dir,
 				AoD_LOS_dir,
-				ZoD_LOS_dir
+				ZoD_LOS_dir,
+				moveDirTable
 				));
 
 		delayD2DUpTable[j] = std::move(addClusterDelayOffsets(delays,true,upRBs));
