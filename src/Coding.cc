@@ -19,7 +19,7 @@ double Coding::reftti = 0;
 std::once_flag Coding::tFlag;
 Coding::MCSTable Coding::tMCS;
 
-void Coding::loadTable(const string& tpath, int rbBW){
+void Coding::loadTable(const string& tpath, int rbBW, double tti){
 	std::ifstream tableFile;
 	tableFile.open(tpath,std::ifstream::in);
 	// Read in the reference bitrate
@@ -33,6 +33,7 @@ void Coding::loadTable(const string& tpath, int rbBW){
 	std::getline(tableFile,line);
 	// Read in table lines until eof
 	double bwDB = toDB(rbBW);
+	double timeFactor = toDB(reftti/tti);
 	int rx = 0;
 	int tx = 0;
 	int mcs = 0;
@@ -49,7 +50,7 @@ void Coding::loadTable(const string& tpath, int rbBW){
 		mcs = std::stoi(line,&currPos);
 		line = line.substr(currPos);
 		normSnr = std::stod(line,&currPos);
-		specSNR = normSnr - bwDB;
+		specSNR = normSnr - bwDB + timeFactor;
 		line = line.substr(currPos);
 		refbw = std::stod(line,&currPos);
 		tMCS[tx][rx][mcs] = std::make_tuple(specSNR,refbw);
@@ -61,7 +62,7 @@ void Coding::init(const string& tpath,double ptti, double prbBW){
 	tti = ptti;
 	rbBW = prbBW;
 	// Load the table only once per simulation
-	std::call_once(tFlag,loadTable,tpath,rbBW);
+	std::call_once(tFlag,loadTable,tpath,rbBW,tti);
 }
 
 unsigned Coding::getNumBits(double bwMCS){

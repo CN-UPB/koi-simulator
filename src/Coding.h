@@ -43,7 +43,7 @@ class Coding{
 
 	private:
 		unsigned getNumBits(double bwMCS);
-		static void loadTable(const std::string& tpath, int rbBW);
+		static void loadTable(const std::string& tpath, int rbBW,double tti);
 
 	public:
 		Coding(){}
