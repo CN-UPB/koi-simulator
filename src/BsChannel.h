@@ -35,7 +35,7 @@ class BsChannel : public cSimpleModule  {
         double **schedulePower;
         double *maxPower;
         int bsId;
-        size_t init_counter;
+        int init_counter;
         int numberOfVR;
         Position bsPosition;
         bool scheduleCatch;

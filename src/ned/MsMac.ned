@@ -46,8 +46,6 @@ simple MsMac  {
 			double initMsXPos = default(0.0);
 			// The Y position of the MobileStation. 
 			double initMsYPos = default(0.0);
-			// The quadrant for initial positioning by sector.
-			int initQuadrant;
 			// Offset from the simulation start reserved for initialization messages.
 			// No traffic is generated/send before it.
 			double initOffset @unit(s);
@@ -59,19 +57,11 @@ simple MsMac  {
 			int positionResendInterval;
 			// The number of MobileStations in the local cell
 			int numberOfMobileStations;
-			// The alpha angle for initial positioning by sector.
-			double initPosAlpha;
-			// The beta angle for initial positioning by sector.
-			double initPosBeta;
-			// The gamma angle for initial positioning by sector.
-			double initPosGamma;
 			// A small offset used control message order in cases where ordering 
 			// cannot be guaranteed by generation order.
 			double epsilon @unit(s);
 			// The radius of the local cell.
 			double radius;
-			// The random seed used for initial positioning by sector.
-			int PosSeed = (42);
 			// This is the length in Bits for all packets generated at this 
 			// mobile station
 			int packetLength = default(1500b) @unit(b);
@@ -80,9 +70,8 @@ simple MsMac  {
 			// The positioning algorithm for MobileStations inside their cell
 			// 0 - Uniformely random anywhere in the cell
 			// 1 - Use the positions given as OMNet parameters (initMsXPos,initMsXPos)
-			// 2 - Use initial placement by sector
-			// 3 - Use linear placement simulating a straight road
-			// 4 - Use line placement
+			// 2 - Use linear placement simulating a straight road
+			// 3 - Use line placement
 			int positioning = default(0);
 
 			@display("i=block/mac");

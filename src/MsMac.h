@@ -53,7 +53,6 @@ class MsMac : public cSimpleModule  {
 			Position initBsPos; //just used for position centering in Tkenv ms pos calc in init
 			double transmissionPower;
 			inline simtime_t positionResendTime();
-			Position initMsPosition(int quadrant, double alpha, double beta, double gamma);
 			Position initMsPositionLinear();
 			Position initMsPositionRand();
 			Position initMsPositionLine();
@@ -62,7 +61,7 @@ class MsMac : public cSimpleModule  {
 			 * @enum Placement
 			 * All possible methods to determine initial Mobile Station placement
 			 */
-			enum Placement: int{uniformRand,params,bySector,linear,line};
+			enum Placement: int{uniformRand,params,linear,line};
 
 			/**
 			 * @var MsMac::Placement MsMac::uniformRand
@@ -71,10 +70,6 @@ class MsMac : public cSimpleModule  {
 			/**
 			 * @var MsMac::Placement MsMac::params
 			 * Place mobile stations as set in the initMsXPos,initMsYPos params.
-			 */
-			/**
-			 * @var MsMac::Placement MsMac::bySector
-			 * Place mobile stations randomly into cell sectors.
 			 */
 			/**
 			 * @var MsMac::Placement MsMac::linear

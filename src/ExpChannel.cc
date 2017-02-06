@@ -48,7 +48,7 @@ void ExpChannel::recomputeCoefficients(
 	// +1 because when this method is called, it computes the values for the 
 	// NEXT TTI, not the current one.
 	int tti = std::floor(val);
-	size_t numBs = msPositions.size();
+	int numBs = msPositions.size();
 	// If the mobile station positions have not yet been stored locally, do so 
 	// now.
 	if(msPos.empty()){
@@ -59,8 +59,8 @@ void ExpChannel::recomputeCoefficients(
 			VectorNd<double,2>(numBs,vector<double>(upRBs)));
 	double pg = 0.0;
 	double exp = 0.0;
-	for(size_t msIds=0; msIds<numberOfMobileStations; ++msIds){
-		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+	for(int msIds=0; msIds<numberOfMobileStations; ++msIds){
+		for(int bsIds=0; bsIds<numBs; ++bsIds){
 			pg = pathgain(neighbourPositions[bsIds],msPositions[bsId][msIds]);
 			for(size_t rb=0; rb<downRBs; ++rb){
 				exp = exponential(expMean);
@@ -82,11 +82,11 @@ void ExpChannel::recomputeCoefficients(
 	// Compute UP RB coefficients
 	coeffUpTable.resize(numBs,
 			VectorNd<double,3>(1));
-	size_t numMs;
-	for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+	int numMs;
+	for(int bsIds=0; bsIds<numBs; ++bsIds){
 		numMs = msPositions[bsIds].size();
 		coeffUpTable[bsIds][0].resize(numMs,vector<double>(upRBs));
-		for(size_t msIds=0; msIds<numMs; ++msIds){
+		for(int msIds=0; msIds<numMs; ++msIds){
 			pg = pathgain(msPositions[bsIds][msIds],neighbourPositions[bsId]);
 			for(size_t rb=0; rb<upRBs; ++rb){
 				exp = exponential(expMean);
@@ -110,12 +110,12 @@ void ExpChannel::recomputeCoefficients(
 		// Compute D2D UP RB coefficients
 		coeffUpD2DTable.resize(numBs,
 				VectorNd<double,3>(numberOfMobileStations));
-		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+		for(int bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
-			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
+			for(int recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
 				coeffUpD2DTable[bsIds][recMsId].resize(numMs,
 						vector<double>(upRBs));
-				for(size_t msIds=0; msIds<numMs; ++msIds){
+				for(int msIds=0; msIds<numMs; ++msIds){
 					for(size_t rb=0; rb<upRBs; ++rb){
 						pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
 						coeffUpD2DTable[bsIds][recMsId][msIds][rb] = pg * exponential(expMean);
@@ -126,11 +126,11 @@ void ExpChannel::recomputeCoefficients(
 		// Compute D2D DOWN RB coefficients
 		coeffDownD2DTable.resize(numBs,
 				VectorNd<double,3>(numberOfMobileStations));
-		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+		for(int bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
-			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
+			for(int recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
 				coeffDownD2DTable[bsIds][recMsId].resize(numMs,vector<double>(upRBs));
-				for(size_t msIds=0; msIds<numMs; ++msIds){
+				for(int msIds=0; msIds<numMs; ++msIds){
 					for(size_t rb=0; rb<downRBs; ++rb){
 						pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
 						coeffDownD2DTable[bsIds][recMsId][msIds][rb] = pg * exponential(expMean);

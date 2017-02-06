@@ -39,10 +39,10 @@ class KBestRRStreamScheduler: public StreamScheduler{
 		std::unordered_map<int,std::unordered_map<int,std::vector<StreamTransReq*>>> requests;
 		std::unordered_map<int,std::unordered_map<int,std::vector<int>>> originAssignments;
 		virtual std::set<int>::iterator scheduleKBest(std::set<int>::iterator iter,
-				std::vector<int>& blocks,MessageDirection dir,int k);
+				std::vector<int>& blocks,MessageDirection dir,unsigned k);
 		virtual std::set<int>::iterator scheduleKBestStatic(
 				std::set<int>::iterator iter,
-				std::vector<int> blocks,MessageDirection dir,int k,
+				std::vector<int> blocks,MessageDirection dir,unsigned k,
 				std::unordered_map<int,std::vector<int>>& schedule);
     virtual void initialize();
 		virtual void finish();

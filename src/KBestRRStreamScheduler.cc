@@ -64,7 +64,7 @@ void KBestRRStreamScheduler::finish(){
 
 std::set<int>::iterator KBestRRStreamScheduler::scheduleKBest(
 		std::set<int>::iterator iter,std::vector<int>& blocks,
-		MessageDirection dir,int k){
+		MessageDirection dir,unsigned k){
 	bool assigned = true;
 	while(blocks.size()>=k){
 		if(iter==allOrigins.end()){
@@ -152,7 +152,7 @@ std::set<int>::iterator KBestRRStreamScheduler::scheduleKBest(
 
 std::set<int>::iterator KBestRRStreamScheduler::scheduleKBestStatic(
 		std::set<int>::iterator iter,
-		std::vector<int> blocks,MessageDirection dir,int k,
+		std::vector<int> blocks,MessageDirection dir,unsigned k,
 		std::unordered_map<int,std::vector<int>>& schedule){
 	while(blocks.size()>=k){
 		if(iter==allOrigins.end()){

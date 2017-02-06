@@ -72,7 +72,7 @@ class Channel{
 		/**
 		 * Number of down resource blocks
 		 */
-		int downRBs;
+		unsigned downRBs;
 		/**
 		 * True iff METISChannel::init has been called
 		 */
@@ -84,7 +84,7 @@ class Channel{
 		/**
 		 * Max Number of Neighbour BS
 		 */
-		int maxNumberOfNeighbours;
+		unsigned maxNumberOfNeighbours;
 		/**
 		 * Information about neighbouring cells
 		 */
@@ -97,7 +97,6 @@ class Channel{
 		 * Number of MSs within the local cell
 		 */
 		int numberOfMobileStations;
-
 		/**
 		 * Bandwidth in Hz per resource block
 		 */
@@ -126,7 +125,7 @@ class Channel{
 		/**
 		 * Number of up resource blocks
 		 */
-		int upRBs;
+		unsigned upRBs;
 		/**
 		 * @brief Calculate interference for transmission
 		 */

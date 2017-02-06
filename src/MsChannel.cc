@@ -34,8 +34,6 @@ void MsChannel::initialize()  {
 	numMSAntenna = par("NumMsAntenna");
 	numBSAntenna = par("NumBsAntenna");
 	coding.init(par("MCSTable"),tti.dbl(),par("bandwidthPerRB"));
-	//find the neighbours and store the pair (bsId, position in data structures) in a map
-	cModule *cell = getParentModule()->getParentModule();
 
 	// EESM Beta values for effective SINR
 	string eesm_beta = par("eesm_beta");

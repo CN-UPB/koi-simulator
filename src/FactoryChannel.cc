@@ -62,21 +62,21 @@ double FactoryChannel::pathgain(Position sender, Position receiver){
 
 void FactoryChannel::generateShadowing(
 				const std::vector<std::vector<Position>>& msPositions){
-	size_t numBs = msPositions.size();
+	int numBs = msPositions.size();
 	// Generate DOWN Shadowing
 	shDown.resize(numberOfMobileStations,vector<double>(numBs));
-	for(size_t msIds=0; msIds<numberOfMobileStations; ++msIds){
-		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+	for(int msIds=0; msIds<numberOfMobileStations; ++msIds){
+		for(int bsIds=0; bsIds<numBs; ++bsIds){
 			shDown[msIds][bsIds] = shadowing();
 		}
 	}
 	// Compute UP shadowing
 	shUp.resize(numBs,vector<double>());
-	size_t numMs;
-	for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+	int numMs;
+	for(int bsIds=0; bsIds<numBs; ++bsIds){
 		numMs = msPositions[bsIds].size();
 		shUp[bsIds].resize(numMs);
-		for(size_t msIds=0; msIds<numMs; ++msIds){
+		for(int msIds=0; msIds<numMs; ++msIds){
 			shUp[bsIds][msIds] = shadowing();
 		}
 	}
@@ -84,11 +84,11 @@ void FactoryChannel::generateShadowing(
 		// Compute D2D UP shadowing
 		shD2DUp.resize(numBs,
 				VectorNd<double,2>(numberOfMobileStations));
-		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+		for(int bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
-			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
+			for(int recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
 				shD2DUp[bsIds][recMsId].resize(numMs);
-				for(size_t msIds=0; msIds<numMs; ++msIds){
+				for(int msIds=0; msIds<numMs; ++msIds){
 					shD2DUp[bsIds][recMsId][msIds] = shadowing();
 				}
 			}
@@ -96,11 +96,11 @@ void FactoryChannel::generateShadowing(
 		// Compute D2D DOWN shadowing
 		shD2DDown.resize(numBs,
 				VectorNd<double,2>(numberOfMobileStations));
-		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+		for(int bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
-			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
+			for(int recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
 				shD2DDown[bsIds][recMsId].resize(numMs);
-				for(size_t msIds=0; msIds<numMs; ++msIds){
+				for(int msIds=0; msIds<numMs; ++msIds){
 					shD2DDown[bsIds][recMsId][msIds] = shadowing();
 				}
 			}
@@ -114,7 +114,7 @@ void FactoryChannel::recomputeCoefficients(
 	// +1 because when this method is called, it computes the values for the 
 	// NEXT TTI, not the current one.
 	int tti = std::floor(val);
-	size_t numBs = msPositions.size();
+	int numBs = msPositions.size();
 	// If the mobile station positions have not yet been stored locally, do so 
 	// now.
 	if(msPos.empty()){
@@ -125,12 +125,10 @@ void FactoryChannel::recomputeCoefficients(
 			VectorNd<double,2>(numBs,
 					vector<double>(upRBs)));
 	double pg = 0.0;
-	double pl = 0.0;
 	double fading = 0.0;
-	for(size_t msIds=0; msIds<numberOfMobileStations; ++msIds){
-		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+	for(int msIds=0; msIds<numberOfMobileStations; ++msIds){
+		for(int bsIds=0; bsIds<numBs; ++bsIds){
 			pg = pathgain(neighbourPositions[bsIds],msPositions[bsId][msIds]);
-			pl = 1.0/pg;
 			for(size_t rb=0; rb<downRBs; ++rb){
 				fading = fadingExponential();
 				coeffDownTable[msIds][bsIds][rb] = pg * fading * shDown[msIds][bsIds];
@@ -149,13 +147,12 @@ void FactoryChannel::recomputeCoefficients(
 	// Compute UP RB coefficients
 	coeffUpTable.resize(numBs,
 			VectorNd<double,3>(1));
-	size_t numMs;
-	for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+	int numMs;
+	for(int bsIds=0; bsIds<numBs; ++bsIds){
 		numMs = msPositions[bsIds].size();
 		coeffUpTable[bsIds][0].resize(numMs,vector<double>(upRBs));
-		for(size_t msIds=0; msIds<numMs; ++msIds){
+		for(int msIds=0; msIds<numMs; ++msIds){
 			pg = pathgain(msPositions[bsIds][msIds],neighbourPositions[bsId]);
-			pl = 1.0/pg;
 			for(size_t rb=0; rb<upRBs; ++rb){
 				fading = fadingExponential();
 				coeffUpTable[bsIds][0][msIds][rb] = pg * fading * shUp[bsIds][msIds];
@@ -176,13 +173,12 @@ void FactoryChannel::recomputeCoefficients(
 		// Compute D2D UP RB coefficients
 		coeffUpD2DTable.resize(numBs,
 				VectorNd<double,3>(numberOfMobileStations));
-		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+		for(int bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
-			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
+			for(int recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
 				coeffUpD2DTable[bsIds][recMsId].resize(numMs,vector<double>(upRBs));
-				for(size_t msIds=0; msIds<numMs; ++msIds){
+				for(int msIds=0; msIds<numMs; ++msIds){
 					pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
-					pl = 1.0/pg;
 					for(size_t rb=0; rb<upRBs; ++rb){
 						fading = fadingExponential();
 						coeffUpD2DTable[bsIds][recMsId][msIds][rb] = pg * fading * shD2DUp[bsIds][recMsId][msIds];
@@ -193,13 +189,12 @@ void FactoryChannel::recomputeCoefficients(
 		// Compute D2D DOWN RB coefficients
 		coeffDownD2DTable.resize(numBs,
 				VectorNd<double,3>(numberOfMobileStations));
-		for(size_t bsIds=0; bsIds<numBs; ++bsIds){
+		for(int bsIds=0; bsIds<numBs; ++bsIds){
 			numMs = msPositions[bsIds].size();
-			for(size_t recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
+			for(int recMsId=0; recMsId<numberOfMobileStations; ++recMsId){
 				coeffDownD2DTable[bsIds][recMsId].resize(numMs,vector<double>(upRBs));
-				for(size_t msIds=0; msIds<numMs; ++msIds){
+				for(int msIds=0; msIds<numMs; ++msIds){
 					pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
-					pl = 1.0/pg;
 					for(size_t rb=0; rb<downRBs; ++rb){
 						fading = fadingExponential();
 						coeffDownD2DTable[bsIds][recMsId][msIds][rb] = pg * fading * shD2DDown[bsIds][recMsId][msIds];

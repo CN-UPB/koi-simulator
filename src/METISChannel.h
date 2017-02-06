@@ -55,8 +55,8 @@ class METISChannel : public Channel{
 		int N_cluster_NLOS;
 		int numOfRays_LOS;
 		int numOfRays_NLOS;
-		int NumBsAntenna;					/*!< Number of Base Station Antenna */
-		int NumMsAntenna;					/*!< Number of Mobile Station Antenna */
+		unsigned NumBsAntenna;					/*!< Number of Base Station Antenna */
+		unsigned NumMsAntenna;					/*!< Number of Mobile Station Antenna */
 		vector<vector<array<double,3>>> bsAntennaPositions;				/*!< Position vector of Base Station antenna */
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
 		VectorNd<Position,2> msPos;
@@ -80,7 +80,7 @@ class METISChannel : public Channel{
 		 */
 		vector<vector<array<double,3>>> computeAntennaPos(
 				const vector<Position>& transmitterPos,
-				int numAntennas,
+				unsigned numAntennas,
 				double heightAntennas);
 		
 		//! Calculates the pathloss for a given distance.
@@ -238,8 +238,8 @@ class METISChannel : public Channel{
 		VectorNd<RayCluster,5> precomputeRayValues(
 				VectorNd<bool,2>& LOSCondition,
 				const VectorNd<double,2>& sigma_kf,
-				int numReceiverAntenna,
-				int numSenderAntenna,
+				unsigned numReceiverAntenna,
+				unsigned numSenderAntenna,
 				const VectorNd<double,3>& clusterPowers,
 				const VectorNd<double,4>& azimuth_ASA,
 				const VectorNd<double,4>& azimuth_ASD,
@@ -292,7 +292,7 @@ class METISChannel : public Channel{
 		VectorNd<std::complex<double>,4> addClusterDelayOffsets(
 				VectorNd<double,3>& delays,
 				bool up,
-				size_t numRb);
+				unsigned numRb);
 
 		/**
 		 * @brief Compute coefficients for given receivers/senders
@@ -304,9 +304,9 @@ class METISChannel : public Channel{
 				double heightReceivers,
 				double heightSenders,
 				bool up,
-				int numRBs,
-				int numReceiverAntenna,
-				int numSenderAntenna,
+				unsigned numRBs,
+				unsigned numReceiverAntenna,
+				unsigned numSenderAntenna,
 				const VectorNd<RayCluster,5>& rayClusters,
 				const VectorNd<std::complex<double>,4>& delays
 				);

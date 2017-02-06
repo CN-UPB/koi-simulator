@@ -65,7 +65,7 @@ double METISChannel::ray_offset[20] = {
 
 VectorNd<array<double,3>,2> METISChannel::computeAntennaPos(
 		const vector<Position>& transmitterPos,
-		int numAntennas,
+		unsigned numAntennas,
 		double heightAntennas){
 	VectorNd<array<double,3>,2> antennaPos(transmitterPos.size(),
 			vector<array<double,3>>(numAntennas));
@@ -327,7 +327,7 @@ VectorNd<double,3> METISChannel::precomputeClusterDelays(
 VectorNd<std::complex<double>,4> METISChannel::addClusterDelayOffsets(
 		VectorNd<double,3>& delays,
 		bool up,
-		size_t numRb){
+		unsigned numRb){
 	// Split delays for first two clusters in each path into their respective
 	// subclusters and add delay offsets, as per METIS D1.2 eqn 7-60
 	VectorNd<complex<double>,4> complexDelays(delays.size(),
@@ -704,8 +704,8 @@ VectorNd<double,4> METISChannel::genCrossPolarization(
 VectorNd<RayCluster,5>
 METISChannel::precomputeRayValues(VectorNd<bool,2>& LOSCondition,
 		const VectorNd<double,2>& sigma_kf,
-		int numReceiverAntenna,
-		int numSenderAntenna,
+		unsigned numReceiverAntenna,
+		unsigned numSenderAntenna,
 		const VectorNd<double,3>& clusterPowers,
 		const VectorNd<double,4>& azimuth_ASA,
 		const VectorNd<double,4>& azimuth_ASD,
@@ -750,9 +750,9 @@ METISChannel::precomputeRayValues(VectorNd<bool,2>& LOSCondition,
 						numSenderAntenna,vector<RayCluster>(
 							n_clusters + 4)));
 			// Cycle through all Receiver antennas (MS)
-			for(int u = 0; u < numReceiverAntenna; u++){
+			for(size_t u = 0; u < numReceiverAntenna; u++){
 				// Cycle through all Transmitter antennas (BS)
-				for(int s = 0; s < numSenderAntenna; s++){
+				for(size_t s = 0; s < numSenderAntenna; s++){
 					// Cycle through all Paths/Clusters
 					clusterIdx = 0;
 					double P_n[3]; // Oversized, but 2 doubles really doesnt matter
@@ -869,9 +869,9 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 		double heightReceivers,
 		double heightSenders,
 		bool up,
-		int numRBs,
-		int numReceiverAntenna,
-		int numSenderAntenna,
+		unsigned numRBs,
+		unsigned numReceiverAntenna,
+		unsigned numSenderAntenna,
 		const VectorNd<RayCluster,5>& rayClusters,
 		const VectorNd<complex<double>,4>& delays
 		){
@@ -906,19 +906,19 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 			// Since cluster values are independent of the resource block,
 			// computing them for each RB would be a waste of time.
 			VectorNd<complex<double>,3> clusterVals(antennaClusters.size());
-			for(int u = 0; u < numReceiverAntenna; u++){
+			for(size_t u = 0; u < numReceiverAntenna; u++){
 				clusterVals[u].resize(antennaClusters[u].size());
-				for(int s = 0; s < numSenderAntenna; s++){
+				for(size_t s = 0; s < numSenderAntenna; s++){
 					clusterVals[u][s].resize(antennaClusters[u][s].size());
 					for(int n = 0; n < n_clusters; n++){
 						clusterVals[u][s][n] = antennaClusters[u][s][n].clusterValue(currTime.dbl());
 					}
 				}
 			}
-			for(int f = 0; f < numRBs; f++){
+			for(size_t f = 0; f < numRBs; f++){
 				res = complex<double>(0.0,0.0);
-				for(int u = 0; u < numReceiverAntenna; u++){
-					for(int s = 0; s < numSenderAntenna; s++){
+				for(size_t u = 0; u < numReceiverAntenna; u++){
+					for(size_t s = 0; s < numSenderAntenna; s++){
 						vector<complex<double>>& clusters(clusterVals[u][s]);
 						for(int n = 0; n < n_clusters; n++){
 							res = res + clusters[n] * delays[i][idIdx][n][f];
@@ -938,7 +938,6 @@ void METISChannel::recomputePerTTIValues(){
 	int numSenderAntenna = NumBsAntenna;
 	VectorNd<array<double,3>,2> receiverAntennaPos(computeAntennaPos(
 				msPos[bsId],numReceiverAntenna,heightUE));
-	VectorNd<array<double,3>,2>& senderAntennaPos = bsAntennaPositions;
 	coeffDownTable = std::move(computeCoeffs(
 				losDownTable,
 				this->msPos[bsId],
@@ -1385,7 +1384,7 @@ void METISChannel::precomputeMETISValues(const vector<vector<Position>>& msPosit
 	for(size_t j=0; j<neighbourPositions.size(); j++){
 		numMs = neighbourIdMatching->getNumberOfMS(j);
 		msPos[j].resize(numMs);
-		for(size_t i=0; i<numMs; i++){
+		for(int i=0; i<numMs; i++){
 			msPos[j][i].x = msPositions[j][i].x;
 			msPos[j][i].y = msPositions[j][i].y;
 		}

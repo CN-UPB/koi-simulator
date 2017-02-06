@@ -37,7 +37,7 @@ class KBestFairStreamScheduler: public StreamScheduler{
 		int numSubcarriers;
 		std::ofstream upSchedule;
 		std::ofstream downSchedule;
-		void scheduleKBest(std::vector<int>& blocks,MessageDirection dir,int k);
+		void scheduleKBest(std::vector<int>& blocks,MessageDirection dir,unsigned k);
 	
 	protected:
     virtual void initialize();

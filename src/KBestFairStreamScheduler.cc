@@ -62,7 +62,7 @@ void KBestFairStreamScheduler::finish(){
 }
 
 void KBestFairStreamScheduler::scheduleKBest(
-		std::vector<int>& blocks, MessageDirection dir,int k){
+		std::vector<int>& blocks, MessageDirection dir,unsigned k){
 	bool assigned = true;
 	auto iter = allOrigins.begin();
 	while(blocks.size()>=k){

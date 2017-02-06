@@ -76,10 +76,8 @@ StreamTransSched *RBScheduler::getSchedule(
 		// packets scheduled as the expected transmission rate allows.
 		// First, remove all requests from other BS/MS
 		auto delIter(reqs.begin());
-		StreamTransReq *tmp;
 		while(delIter!=reqs.end()){
 			if((*delIter)->getRequestOrigin()!=bestReq->getRequestOrigin()){
-				tmp = *delIter;
 				delIter = reqs.erase(delIter);
 			}
 			else{
