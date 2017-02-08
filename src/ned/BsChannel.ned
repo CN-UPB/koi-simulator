@@ -57,10 +57,7 @@ simple BsChannel  {
 		double initOffset @unit(s);
 		// Channel bandwidth
 		double chnBandwidth = default(180000Hz) @unit(Hz);
-		// Table of EESM values for CQI computation
-		string eesm_beta = default("");
-		// Bit Level Error Rate table for packet loss computations
-		string bler_table = default("");
+		// Cross correlation parameters for METIS
 		double cross_a = default(0.0);
 		double cross_b = default(0.0);
 		double cross_c = default(0.0);

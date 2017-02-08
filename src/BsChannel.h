@@ -17,9 +17,9 @@
 #include "Position.h"
 #include "TransInfo_m.h"
 #include <itpp/itbase.h>
-#include <vector>
 #include <forward_list>
 #include <ostream>
+#include <vector>
 
 class BsChannel : public cSimpleModule  {
     private:
@@ -30,29 +30,20 @@ class BsChannel : public cSimpleModule  {
 				int numBSAntenna;
         int upResBlocks;
         int downResBlocks;
-        int **schedules;
-        int *scheduleDirection;
-        double **schedulePower;
-        double *maxPower;
         int bsId;
         int init_counter;
-        int numberOfVR;
         Position bsPosition;
-        bool scheduleCatch;
         simtime_t tti;
         simtime_t epsilon;
 				simtime_t initOffset;
         std::vector<std::vector<Position>> msPositions;
-        NeighbourIdMatching *neighbourIdMatching;          // map the bsId to the pos in the data structures
         std::map <int,Position> neighbourPositions;
         Channel* channel;
-				itpp::vec eesm_beta_values;
 
     protected:
-        virtual void initialize();
-        virtual void handleMessage(cMessage *msg);
-        NeighbourIdMatching* getNeighbourMatching(){return neighbourIdMatching;}
+        void initialize() override;
+        void handleMessage(cMessage *msg) override;
 
     public:
-        virtual ~BsChannel();
+        ~BsChannel() override;
 };

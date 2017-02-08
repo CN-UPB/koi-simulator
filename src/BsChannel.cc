@@ -40,20 +40,9 @@ void BsChannel::initialize()  {
 	initOffset = par("initOffset");
 	bsId = par("bsId");
 
-	//find the neighbours and store the pair (bsId, position in data structures) in a map
-	cModule *cell = getParentModule()->getParentModule();
-	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
-
-	// EESM Beta values for effective SINR
-	string eesm_beta = par("eesm_beta");
-	eesm_beta_values = vec(eesm_beta);
-
 	// This counter counts how many neighbour have already transmitted all 
 	// necessary position information.
 	init_counter = 0;
-
-	// Counts the received schedules from the own mac.
-	scheduleCatch = false;
 
 	int ch = par("channelModel");
 
@@ -71,28 +60,13 @@ void BsChannel::initialize()  {
 			throw std::invalid_argument("Invalid channelModel value");
 	}
 
-	// Save the CURRENT Direction of the schedule for next TTI for all Neighbours
-	scheduleDirection = new int[neighbourIdMatching->numberOfNeighbours()];
-	maxPower = new double[neighbourIdMatching->numberOfNeighbours()];
-	schedulePower = new double*[neighbourIdMatching->numberOfNeighbours()];
-	for(int i = 0; i < neighbourIdMatching->numberOfNeighbours(); i++){
-		schedulePower[i] = new double[numberOfMobileStations];
-	}
-
 	// Prepare MS positions vector with correct sizes for each cell
-	msPositions.resize(neighbourIdMatching->numberOfNeighbours(), 
+	msPositions.resize(maxNumberOfNeighbours, 
 			vector<Position>());
 	//the position of the base stations
 	bsPosition.x = par("xPos");
 	bsPosition.y = par("yPos");
 
-	//stores the schedule of all neighbours
-	schedules = new int*[neighbourIdMatching->numberOfNeighbours()];
-	for(int i = 0; i < neighbourIdMatching->numberOfNeighbours(); ++i)  {
-		schedules[i] = new int[upResBlocks];
-		for(int j = 0; j < upResBlocks; j++)
-			schedules[i][j] = -1;
-	}
 	if(this->getIndex() == 0){
 		PointerExchange *PtrMessage = new PointerExchange("POINTER_EXCHANGE2");
 		PtrMessage->setPtr(channel);
@@ -104,7 +78,7 @@ void BsChannel::initialize()  {
 void BsChannel::handleMessage(cMessage *msg)  {
 	if(msg->isName("POINTER_EXCHANGE2"))  {
 		//cout << "Received Channel Pointer!" << endl;
-		PointerExchange *PtrMessage = (PointerExchange*) msg;
+		PointerExchange *PtrMessage = dynamic_cast<PointerExchange*>(msg);
 		Channel *old = channel;
 		channel = PtrMessage->getPtr();
 		if(old!=channel){
@@ -116,7 +90,7 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		delete msg;
 	}
 	else if(msg->isName("BS_POSITION_MSG")) {
-		PositionExchange *bsPos = (PositionExchange *) msg;
+		PositionExchange *bsPos = dynamic_cast<PositionExchange*>(msg);
 		neighbourPositions[bsPos->getId()] = bsPos->getPosition();
 		init_counter++;
 		if(this->getIndex()==0 && init_counter==2*maxNumberOfNeighbours){
@@ -126,7 +100,7 @@ void BsChannel::handleMessage(cMessage *msg)  {
 	}
 	else if(msg->isName("BS_MS_POSITIONS"))  {
 		//save the postitions of the mobile stations
-		BsMsPositions *msPos = (BsMsPositions *) msg;
+		BsMsPositions *msPos = dynamic_cast<BsMsPositions*>(msg);
 		msPositions[msPos->getBsId()].resize(msPos->getPositionsArraySize());
 		for(unsigned int i = 0; i < msPos->getPositionsArraySize(); i++)  {
 			msPositions[msPos->getBsId()][i] = msPos->getPositions(i);
@@ -210,68 +184,25 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		channel->recomputePerTTIValues();
 	}
 	else if(msg->arrivedOn("fromMs"))  {
-		assert(msg->getKind() == MessageType::koidata);
-		KoiData *packet = dynamic_cast<KoiData*>(msg);
-		// Set Scheduled flag to false again, the packet has been transmitted 
-		// and now needs to be scheduled anew for the next transmission leg.
-		packet->setScheduled(false);
+		if(msg->getKind()==MessageType::koidata){
+			KoiData *packet = dynamic_cast<KoiData*>(msg);
+			// Set Scheduled flag to false again, the packet has been transmitted 
+			// and now needs to be scheduled anew for the next transmission leg.
+			packet->setScheduled(false);
 
-		vector<double> instSINR;
-		int currentRessourceBlock = packet->getResourceBlock();
-		instSINR.push_back(channel->calcUpSINR(currentRessourceBlock,
-					packet->getSrc(),
-					packet->getTransPower()));
+			vector<double> instSINR;
+			int currentRessourceBlock = packet->getResourceBlock();
+			instSINR.push_back(channel->calcUpSINR(currentRessourceBlock,
+						packet->getSrc(),
+						packet->getTransPower()));
 
-		/**
-			double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
-		//cout << "Effektive SINR (Up): " << effSINR << endl;
-		double bler = getBler(packet->getCqi(), effSINR, this);
-		//cout << "Block Error Rate(Up): " << bler << endl;
-		vec bler_(1);
-		bler_.set(0,bler);
-		double per = getPer(bler_);
-		 **/
-		/**
-			if(uniform(0,1) > per){
-			sendDelayed(bundle, tti - epsilon, "toPhy");
-			}else{
-			delete bundle;
-			}
-		 **/
-		//For now, all packets are send successfully
-		sendDelayed(packet, epsilon, "toPhy");
-
+			//For now, all packets are send successfully
+			sendDelayed(packet, epsilon, "toPhy");
+		}
 	}
 }
 
 BsChannel::~BsChannel()  {
-    /*ev << "Bs Channel---------------------------------------------" << endl;
-    NeighbourMap *map1 = neighbourIdMatching->getNeighbourMap();
-    for(NeighbourMap::iterator i = map1->begin(); i != map1->end(); i++)  {
-        for(int j = 0; j < numberOfMobileStations; ++j)  {
-            ev << "BS " << i->first << ", MS " << j << ": " << msPositions[(i->second).first][j].x << ", " << msPositions[(i->second).first][j].y << endl;
-        }
-    }
-    ev << "-------------------------------------------------------" << endl;*/
-
-    /*ev << "Bs Channel Schedules---------------------------------------" << endl;
-    NeighbourMap *map2 = neighbourIdMatching->getNeighbourMap();
-     for(NeighbourMap::iterator i = map2->begin(); i != map2->end(); i++)  {
-        for(int j = 0; j < upResBlocks; ++j)  {
-            ev << "BS " << i->first << ", Slot " << j << ": " << schedules[(i->second).first][j] << endl;
-        }
-    }
-    ev << "-------------------------------------------------------" << endl;*/
-
-    for(int i = 0; i < neighbourIdMatching->numberOfNeighbours(); ++i)  {
-			delete[] schedulePower[i];
-			delete[] schedules[i];
-    }
-    delete[] schedulePower;
-    delete[] schedules;
-    delete neighbourIdMatching;
-    delete[] scheduleDirection;
-    delete[] maxPower;
     if(this->getIndex() == 0){
 	    delete channel;
     }
