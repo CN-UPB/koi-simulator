@@ -46,8 +46,8 @@ class Coding{
 		static void loadTable(const std::string& tpath, int rbBW,double tti);
 
 	public:
-		Coding(){}
-		void init(const std::string& tpath,double tti, double rbBW);
+		Coding() = default;
+		void init(const std::string& tpath,double ptti, double prbBW);
 		unsigned getRBCapacity(double sinr,int numTx,int numRx);
 
 };
