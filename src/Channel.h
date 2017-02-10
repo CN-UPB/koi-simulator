@@ -17,8 +17,6 @@
 #include <utility>
 #include <vector>
 
-using std::vector;
-
 class Channel{
 	protected:
 		/**
@@ -82,6 +80,10 @@ class Channel{
 		 */
 		cSimpleModule *initModule;
 		/**
+		 * Positions of all MS positions in the simulation
+		 */
+		VectorNd<Position,2> msPos;
+		/**
 		 * Max Number of Neighbour BS
 		 */
 		unsigned maxNumberOfNeighbours;
@@ -116,8 +118,8 @@ class Channel{
 		/**
 		 * Interference information from local and neighbouring senders
 		 */
-		std::pair<vector<std::forward_list<TransInfo*>>,
-			vector<std::forward_list<TransInfo*>>> transInfo;
+		std::pair<std::vector<std::forward_list<TransInfo*>>,
+			std::vector<std::forward_list<TransInfo*>>> transInfo;
 		/**
 		 * Transmission Time Interval
 		 */
@@ -129,10 +131,10 @@ class Channel{
 		/**
 		 * @brief Calculate interference for transmission
 		 */
-		virtual double calcInterference(std::forward_list<TransInfo*>& interferers,
+		virtual double calcInterference(
+				const std::forward_list<TransInfo*>& interferers,
 				int rb,
-				int receiverId,
-				MessageDirection dir);
+				int receiverId);
 		/**
 		 * @brief Computes the Termal Noise
 		 *
@@ -200,8 +202,8 @@ class Channel{
 		 * @brief Initialize the channel model with the given positions
 		 */
 		virtual bool init(cSimpleModule* module,
-				const vector<vector<Position>>& msPositions, 
-				std::map<int,Position>& neighbourPositions)=0;
+				const std::vector<std::vector<Position>>& msPositions, 
+				const std::map<int,Position>& neighbourPositions) = 0;
 
 		/**
 		 * @brief Output the Up coefficient table to out stream
@@ -221,7 +223,7 @@ class Channel{
 		/**
 		 * @brief Updates the Channel if necessary for moving MS
 		 */
-		virtual void updateChannel(const vector<vector<Position>>& msPos) = 0;
+		virtual void updateChannel(const VectorNd<Position,2>& msPos) = 0;
 		        
 		virtual ~Channel();
 };

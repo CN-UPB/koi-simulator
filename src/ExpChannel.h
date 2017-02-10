@@ -17,7 +17,6 @@ class ExpChannel: public Channel{
 		simtime_t initOffset;
 		std::ofstream downValues;
 		std::ofstream upValues;
-		std::vector<std::vector<Position>> msPos;
 
 		double pathgain(Position sender, Position receiver);
 		void recomputeCoefficients(
@@ -27,7 +26,7 @@ class ExpChannel: public Channel{
 		void handleMessage(cMessage* msg);
 		bool init(cSimpleModule* module,
 				const std::vector<std::vector<Position>>& msPositions, 
-				std::map<int,Position>& neighbourPositions);
+				const std::map<int,Position>& neighbourPositions);
 
 		void recomputePerTTIValues();
 		void updateChannel(const std::vector<std::vector<Position>>& msPos);

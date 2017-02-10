@@ -16,13 +16,12 @@
 #include <vector>
 
 using std::forward_list;
-using std::vector;
 
 const double Channel::speedOfLight = 299792458.0;
 
 bool Channel::init(cSimpleModule* module,
-		const vector<vector<Position>>& msPositions, 
-		std::map<int,Position>& neighbourPositions){
+		const std::vector<std::vector<Position>>& msPositions, 
+		const std::map<int,Position>& neighbourPositions){
 	chnBandwidth = module->par("chnBandwidth");
 	rbBandwidth = module->par("bandwidthPerRB");
 	bsId = module->par("bsId");
@@ -36,6 +35,7 @@ bool Channel::init(cSimpleModule* module,
 	numberOfMobileStations = module->par("numberOfMobileStations");
 	tti = module->par("tti");
 	upRBs = module->par("upResourceBlocks");
+	msPos = msPositions;
 
 	// Find the neighbours and store the pair (bsId, position in data structures) in a map
 	cModule *cell = module->getParentModule()->getParentModule();
@@ -72,36 +72,34 @@ void Channel::addTransInfo(TransInfo* trans){
 	}
 }
 
-double Channel::calcInterference(forward_list<TransInfo*>& interferers,
+double Channel::calcInterference(const forward_list<TransInfo*>& interferers,
 		int rb,
-		int receiverId,
-		MessageDirection dir){
+		int receiverId){
 	double interference = 0.0;
-	forward_list<TransInfo*>::iterator prev(interferers.before_begin());
 	if(considerInterference){
-		for(auto it = interferers.begin(); it!=interferers.end(); prev=it++){
+		for(auto interferer:interferers){
 			if(receiverId==-1){
 				// Interference at the local base station
-				interference += (*it)->getPower() 
-					* coeffUpTable[(*it)->getBsId()][0][(*it)->getMsId()][rb];
+				interference += interferer->getPower() 
+					* coeffUpTable[interferer->getBsId()][0][interferer->getMsId()][rb];
 			}
 			else{
 				// Interference at local mobile stations
-				if((*it)->getMessageDirection()==MessageDirection::down){
+				if(interferer->getMessageDirection()==MessageDirection::down){
 					// Interference from a neighbouring BS
-					interference += (*it)->getPower() * coeffDownTable[receiverId][(*it)->getBsId()][rb];
+					interference += interferer->getPower() * coeffDownTable[receiverId][interferer->getBsId()][rb];
 				}
-				else if((*it)->getMessageDirection()==MessageDirection::d2dDown){
+				else if(interferer->getMessageDirection()==MessageDirection::d2dDown){
 					// Interference from a MS transmitting D2D on the same down resource 
 					// block
-					interference += (*it)->getPower() 
-						* coeffDownD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][rb];
+					interference += interferer->getPower() 
+						* coeffDownD2DTable[interferer->getBsId()][receiverId][interferer->getMsId()][rb];
 				}
-				else if((*it)->getMessageDirection()==MessageDirection::d2dUp
-						|| ((*it)->getMessageDirection()==MessageDirection::up 
+				else if(interferer->getMessageDirection()==MessageDirection::d2dUp
+						|| (interferer->getMessageDirection()==MessageDirection::up 
 							&& d2dActive)){
-					interference += (*it)->getPower() 
-						* coeffUpD2DTable[(*it)->getBsId()][receiverId][(*it)->getMsId()][rb];
+					interference += interferer->getPower() 
+						* coeffUpD2DTable[interferer->getBsId()][receiverId][interferer->getMsId()][rb];
 				}
 			}
 		}
@@ -115,7 +113,7 @@ double Channel::calcUpSINR(int RB,
 		double transPower){
 	double received = 0;
 	double interference = calcInterference(transInfo.first[RB],
-			RB,-1,MessageDirection::up);
+			RB,-1);
 	received = transPower * coeffUpTable[bsId][0][msId][RB];
 	// Convert to db scale
 	return 10 * log10( received / interference );
@@ -126,7 +124,7 @@ double Channel::calcDownSINR(int RB,
 		double transPower){
 	double received = 0;
 	double interference = calcInterference(transInfo.second[RB],
-			RB,msId,MessageDirection::down);
+			RB,msId);
 	received = transPower * coeffDownTable[msId][bsId][RB];
 	// Convert to db scale
 	return 10 * log10( received / interference );
@@ -160,12 +158,12 @@ double Channel::calcD2DSINR(int RB,
 	if(direction==MessageDirection::d2dDown){
 		received = transPower * coeffDownD2DTable[bsId][receiveMsId][sendMsID][RB];
 		interference = calcInterference(transInfo.second[RB],
-				RB,receiveMsId,MessageDirection::down);
+				RB,receiveMsId);
 	}
 	else{
 		received = transPower * coeffUpD2DTable[bsId][receiveMsId][sendMsID][RB];
 		interference = calcInterference(transInfo.first[RB],
-				RB,receiveMsId,MessageDirection::up);
+				RB,receiveMsId);
 	}
 	// Convert to db scale
 	return 10 * log10( received / interference );
@@ -219,17 +217,13 @@ double Channel::calcAvgD2DDownSINR(int RB,
 }
 
 void Channel::clearTransInfo(){
-	for(auto iterRb = transInfo.first.begin(); iterRb!=transInfo.first.end();
-			++iterRb){
-		forward_list<TransInfo*>& currList(*iterRb);
+	for(auto& currList:transInfo.first){
 		for(auto inf:currList){
 			delete inf;
 		}
 		currList.clear();
 	}
-	for(auto iterRb = transInfo.second.begin(); iterRb!=transInfo.second.end();
-			++iterRb){
-		forward_list<TransInfo*>& currList(*iterRb);
+	for(auto& currList:transInfo.second){
 		for(auto inf:currList){
 			delete inf;
 		}

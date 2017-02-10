@@ -344,7 +344,7 @@ class METISChannel : public Channel{
 		//! Initialize the METIS channel through ini access via OMNeT++ module pointer.
 		bool init(cSimpleModule* module,
 				const vector<vector<Position>>& msPositions, 
-				std::map<int,Position>& neighbourPositions);
+				const std::map<int,Position>& neighbourPositions);
 
 		//! Allows the OMNeT++ module to pass messages to this METIS channel class.
 		void handleMessage(cMessage* msg);

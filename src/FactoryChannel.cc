@@ -15,7 +15,7 @@ using std::vector;
 
 bool FactoryChannel::init(cSimpleModule* module,
 		const std::vector<std::vector<Position>>& msPositions, 
-		std::map<int,Position>& neighbourPositions){
+		const std::map<int,Position>& neighbourPositions){
 	// First, execute the parent init method of the Channel class
 	Channel::init(module,msPositions,neighbourPositions);
 	plExp = module->par("plExp");
@@ -115,11 +115,6 @@ void FactoryChannel::recomputeCoefficients(
 	// NEXT TTI, not the current one.
 	int tti = std::floor(val);
 	int numBs = msPositions.size();
-	// If the mobile station positions have not yet been stored locally, do so 
-	// now.
-	if(msPos.empty()){
-		this->msPos = msPositions;
-	}
 	// Compute DOWN RB coefficients
 	coeffDownTable.resize(numberOfMobileStations,
 			VectorNd<double,2>(numBs,

@@ -31,7 +31,6 @@ class FactoryChannel: public Channel{
 		simtime_t initOffset;
 		std::ofstream downValues;
 		std::ofstream upValues;
-		std::vector<std::vector<Position>> msPos;
 		boost::random::mt19937 randEng;
 		boost::random::exponential_distribution<double> distExp;
 		boost::random::normal_distribution<double> distNorm;
@@ -65,7 +64,7 @@ class FactoryChannel: public Channel{
 		void handleMessage(cMessage* msg);
 		bool init(cSimpleModule* module,
 				const std::vector<std::vector<Position>>& msPositions, 
-				std::map<int,Position>& neighbourPositions);
+				const std::map<int,Position>& neighbourPositions);
 
 		void recomputePerTTIValues();
 		void updateChannel(const std::vector<std::vector<Position>>& msPos);

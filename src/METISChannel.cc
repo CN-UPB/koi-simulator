@@ -93,7 +93,7 @@ VectorNd<array<double,3>,2> METISChannel::computeAntennaPos(
 */
 bool METISChannel::init(cSimpleModule* module,
 		const vector<vector<Position>>& msPositions, 
-		std::map <int,Position>& neighbourPositions){
+		const std::map <int,Position>& neighbourPositions){
 	// First, call the parent init method
 	Channel::init(module,msPositions,neighbourPositions);
 	// Basic Initialization
@@ -116,9 +116,7 @@ bool METISChannel::init(cSimpleModule* module,
 	velocity = module->par("msVel");
 	// Wavenumber k_0
 	k_0 = (2 * pi) / (speedOfLight / freq_c);
-	this->msPos = msPositions;
-    
-    
+
 	// Actually, this counts the own BS as well, so substract 1 
 	numOfInterferers = neighbourIdMatching->numberOfNeighbours() - 1;
 
@@ -129,7 +127,7 @@ bool METISChannel::init(cSimpleModule* module,
 	wavelength = speedOfLight / freq_c;
 	bsPositions = vector<Position>(neighbourPositions.size());
 	for(size_t i = 0; i<neighbourPositions.size(); i++){
-		bsPositions[i] = neighbourPositions[i];
+		bsPositions[i] = neighbourPositions.at(i);
 	}
 	bsAntennaPositions = computeAntennaPos(bsPositions,NumBsAntenna,
 			heightBS);
