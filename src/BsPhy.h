@@ -14,7 +14,7 @@ class BsPhy : public cSimpleModule  {
         int numberOfMobileStations;
 
     protected:
-        virtual void initialize();
-        virtual void handleMessage(cMessage *msg);
+        void initialize() override;
+        void handleMessage(cMessage *msg) override;
 };
 

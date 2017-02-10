@@ -7,7 +7,6 @@
 
 #include "BsPhy.h"
 #include "KoiData_m.h"
-#include "MessageTypes.h"
 
 Define_Module(BsPhy);
 
@@ -23,9 +22,6 @@ void BsPhy::handleMessage(cMessage *msg)  {
 		}
 		delete msg;
 	}
-	else if(msg->isName("CHANNEL_INFO")){
-		send(msg, "toMac");
-	}
 	else if(msg->isName("SINR")){
 		std::cout << "rev sinr" << std::endl;
 		delete msg;
@@ -39,7 +35,7 @@ void BsPhy::handleMessage(cMessage *msg)  {
 	}
 	else if(msg->arrivedOn("fromMac"))  {
 		//forward the packet to the channel of the ms
-		KoiData *packet = (KoiData *) msg;
+		KoiData *packet = dynamic_cast<KoiData*>(msg);
 		send(packet, "toChannel", packet->getDest());
 	}
 	else if(msg->arrivedOn("fromChannel"))  {
