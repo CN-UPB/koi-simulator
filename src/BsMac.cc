@@ -24,7 +24,6 @@
 #include <fstream>
 #include <set>
 
-using namespace itpp;
 using std::set;
 
 Define_Module(BsMac);
@@ -35,7 +34,6 @@ void BsMac::initialize()  {
     bsId = par("bsId");
     maxNumberOfNeighbours = par("maxNumberOfNeighbours");
     numberOfMobileStations = par("numberOfMobileStations");
-    sinr_est = 0;
     transmissionPower = par("transmissionPower");
     initOffset = par("initOffset");
     tti = par("tti");
@@ -47,22 +45,11 @@ void BsMac::initialize()  {
     cModule *cell = getParentModule()->getParentModule();
     neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
 
-    /*ev << "Neigbour map---------------" << endl;
-    NeighbourIdMap *map = neighbourIdMatching->getNeighbourIdMap();
-    for(NeighbourIdMap::iterator i = map->begin(); i != map->end(); i++)  {
-        ev << "BS " << i->first << ": Real pos " << i->second << endl;
-    }
-    ev << "-------------------------------------------------------" << endl;*/
-
-    ownDataStrId = neighbourIdMatching->getDataStrId(bsId);
-
     //stores the pos of the own ms
-    msPositions = new Position[numberOfMobileStations]; //TODO change to dynamic size per bs
+		msPositions.reserve(numberOfMobileStations);
 
     //only send the ms positions to the other cells when all have arrived
-    msPosUpdateArrived = new vector<bool>(numberOfMobileStations);
-    for(int i = 0; i < numberOfMobileStations; ++i)
-        msPosUpdateArrived->at(i) = false;
+		msPosUpdateArrived.resize(numberOfMobileStations,false);
 
     //exchange the bs positions one time at the sim begin
     scheduleAt(simTime(), new cMessage("BS_POSITION_INIT"));
@@ -90,12 +77,12 @@ void BsMac::sendToNeighbourCells(cMessage *msg)  {
 }
 
 /* important: this method does not delete the msg! */
-void BsMac::sendDelayedToNeighbourCells(cMessage *msg, simtime_t delay)  {
+void BsMac::sendDelayedToNeighbourCells(cMessage *msg, const simtime_t& delay){
     //send the msg to the connected neighbour cells
     NeighbourMap *map = neighbourIdMatching->getNeighbourMap();
-    for(NeighbourMap::iterator i = map->begin(); i != map->end(); i++)  {
-        if(i->first != bsId)  { //skip the own cell
-            sendDelayed(msg->dup(), delay, "toCell", (i->second).second);
+    for(auto& i:*map)  {
+        if(i.first != bsId)  { //skip the own cell
+            sendDelayed(msg->dup(), delay, "toCell", (i.second).second);
         }
     }
 }
@@ -150,9 +137,8 @@ void BsMac::handleMessage(cMessage *msg)  {
 		set<int> infos;
 		int rate = 0;
 		simtime_t delay = 0.0;
-		for(auto streamIter = streamQueues.begin();
-				streamIter!=streamQueues.end(); ++streamIter){
-			list<KoiData*>& currList = streamIter->second;
+		for(auto& stream:streamQueues){
+			list<KoiData*>& currList = stream.second;
 			for(auto packetIter = currList.begin(); packetIter!=currList.end();){
 				currPacket = *packetIter;
 				if(currPacket->getScheduled()){
@@ -202,19 +188,14 @@ void BsMac::handleMessage(cMessage *msg)  {
 	}
 	else if(msg->isName("MS_POS_UPDATE"))  {
 		//save the position update of the mobile stations
-		PositionExchange *posEx = (PositionExchange *) msg;
+		PositionExchange *posEx = dynamic_cast<PositionExchange*>(msg);
 		msPositions[posEx->getId()] = posEx->getPosition();
-		msPosUpdateArrived->at(posEx->getId()) = true;
+		msPosUpdateArrived[posEx->getId()] = true;
 
 		//if all ms positions arrived; send the positions to the other cells
-		bool allArrived = true;
-		for(int i = 0; i < numberOfMobileStations; i++)  {
-			if(!msPosUpdateArrived->at(i))
-				allArrived = false;
-		}
+		bool allArrived = std::all_of(msPosUpdateArrived.cbegin(),
+				msPosUpdateArrived.cend(),[](bool val) -> bool{return val;});
 		if(allArrived)  {
-			//ev << "BS " << bsId << " all ms positions arrived!" << endl;
-
 			BsMsPositions *msPos = new BsMsPositions("BS_MS_POSITIONS");
 			msPos->setBsId(bsId);
 			msPos->setPositionsArraySize(numberOfMobileStations);
@@ -228,10 +209,8 @@ void BsMac::handleMessage(cMessage *msg)  {
 				send(msPos->dup(), "toBsChannel", i);
 			}
 			delete msPos;
-
 			//reset the arrived vector
-			for(int i = 0; i < numberOfMobileStations; ++i)
-				msPosUpdateArrived->at(i) = false;
+			std::fill(msPosUpdateArrived.begin(),msPosUpdateArrived.end(),false);
 			writePositions();
 		}
 
@@ -339,7 +318,5 @@ void BsMac::writePositions(){
 }
 
 BsMac::~BsMac()  {
-    delete[] msPositions;
-    delete msPosUpdateArrived;
     delete neighbourIdMatching;
 }
