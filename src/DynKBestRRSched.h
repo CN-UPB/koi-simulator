@@ -32,10 +32,10 @@ class DynKBestRRSched: public KBestRRStreamScheduler{
 
 	protected:
 		std::set<int>::iterator scheduleKBest(std::set<int>::iterator iter,
-				std::vector<int>& blocks,MessageDirection dir,int k);
+				std::vector<int>& blocks,MessageDirection dir,unsigned k) override;
 		std::set<int>::iterator scheduleKBestStatic(
 				std::set<int>::iterator iter,
-				std::vector<int> blocks,MessageDirection dir,int k,
-				std::unordered_map<int,std::vector<int>>& schedule);
-    virtual void initialize();
+				std::vector<int> blocks,MessageDirection dir,unsigned k,
+				std::unordered_map<int,std::vector<int>>& schedule) override;
+    void initialize() override;
 };

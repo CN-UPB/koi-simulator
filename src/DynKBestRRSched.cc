@@ -18,7 +18,6 @@
 #include <numeric>
 #include <vector>
 
-using std::forward_list;
 using std::ofstream;
 using std::set;
 using std::unordered_map;
@@ -33,9 +32,9 @@ void DynKBestRRSched::initialize(){
 
 std::set<int>::iterator DynKBestRRSched::scheduleKBest(
 		std::set<int>::iterator iter,std::vector<int>& blocks,
-		MessageDirection dir,int k){
+		MessageDirection dir,unsigned k){
 	bool assigned = true;
-	while(blocks.size()>=1){
+	while(!blocks.empty()){
 		if(iter==allOrigins.end()){
 			// We're at the end of the set of senders, start at the beginning
 			iter = allOrigins.begin();
@@ -43,7 +42,7 @@ std::set<int>::iterator DynKBestRRSched::scheduleKBest(
 			// set assigned to false and start another run. If there were no 
 			// assignments in the previous run, break the loop. No sender needs 
 			// resource blocks.
-			if(assigned==true){
+			if(assigned){
 				assigned = false;
 			}
 			else{
@@ -105,9 +104,9 @@ std::set<int>::iterator DynKBestRRSched::scheduleKBest(
 
 std::set<int>::iterator DynKBestRRSched::scheduleKBestStatic(
 		std::set<int>::iterator iter,
-		std::vector<int> blocks,MessageDirection dir,int k,
+		std::vector<int> blocks,MessageDirection dir,unsigned k,
 		std::unordered_map<int,std::vector<int>>& schedule){
-	while(blocks.size()>=1){
+	while(!blocks.empty()){
 		if(iter==allOrigins.end()){
 			// We're at the end of the set of senders, start at the beginning
 			iter = allOrigins.begin();
