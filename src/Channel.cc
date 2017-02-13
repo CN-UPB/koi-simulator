@@ -35,7 +35,7 @@ bool Channel::init(cSimpleModule* module,
 	numberOfMobileStations = module->par("numberOfMobileStations");
 	tti = module->par("tti");
 	upRBs = module->par("upResourceBlocks");
-	msPos = msPositions;
+	msPos = VectorNd<Position,2>(msPositions);
 
 	// Find the neighbours and store the pair (bsId, position in data structures) in a map
 	cModule *cell = module->getParentModule()->getParentModule();

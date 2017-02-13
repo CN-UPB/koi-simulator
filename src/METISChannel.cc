@@ -133,7 +133,7 @@ bool METISChannel::init(cSimpleModule* module,
 			heightBS);
 
 	//Precompute cluster ray sum components and delay values
-	precomputeMETISValues(msPositions);
+	precomputeMETISValues();
 	// Compute first set of coefficients
 	recomputePerTTIValues();
 
@@ -1375,18 +1375,7 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 	}
 }
 
-void METISChannel::precomputeMETISValues(const vector<vector<Position>>& msPositions){
-	int numMs;
-	vector<vector<Position>> msPos(neighbourPositions.size(),
-			vector<Position>());
-	for(size_t j=0; j<neighbourPositions.size(); j++){
-		numMs = neighbourIdMatching->getNumberOfMS(j);
-		msPos[j].resize(numMs);
-		for(int i=0; i<numMs; i++){
-			msPos[j][i].x = msPositions[j][i].x;
-			msPos[j][i].y = msPositions[j][i].y;
-		}
-	}
+void METISChannel::precomputeMETISValues(){
 	precomputeDownValues(msPos[bsId],bsPositions);
 	precomputeUpValues(msPos,bsPositions);
 	if(d2dActive){

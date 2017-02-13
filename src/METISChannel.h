@@ -59,7 +59,6 @@ class METISChannel : public Channel{
 		unsigned NumMsAntenna;					/*!< Number of Mobile Station Antenna */
 		vector<vector<array<double,3>>> bsAntennaPositions;				/*!< Position vector of Base Station antenna */
 		int numOfInterferers;					/*!< Number of actual interferers, based on network layout and neighbour distance */
-		VectorNd<Position,2> msPos;
 		double pl0;
 		double plExp;
 		VectorNd<RayCluster,5> precompDownTable;
@@ -129,7 +128,7 @@ class METISChannel : public Channel{
 		 * at the start of each simulation, instead of being recomputed for each 
 		 * TTI.
 		 */
-		void precomputeMETISValues(const vector<vector<Position>>& msPositions);
+		void precomputeMETISValues();
 
 		//! Generate the spatial correlation between the MS for LOS links.
 		void generateAutoCorrelation_LOS(const vector<Position>& senders,

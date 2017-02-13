@@ -47,14 +47,6 @@ parameters:
 	double initBsXPos;
 	// The Y position of the local BaseStation.
 	double initBsYPos;
-	// The quadrant for initial positioning by sector.
-	int initQuadrant;
-	// The alpha angle for initial positioning by sector.
-	double initPosAlpha;
-	// The beta angle for initial positioning by sector.
-	double initPosBeta;
-	// The gamma angle for initial positioning by sector.
-	double initPosGamma;
 	// The radius of the local cell
 	double radius;
 	// Bandwidth available to each resource block
@@ -108,10 +100,6 @@ submodules:
 					 radius = radius;
 					 initBsXPos = initBsXPos;
 					 initBsYPos = initBsYPos;
-					 initQuadrant = initQuadrant;
-					 initPosAlpha = initPosAlpha;
-					 initPosBeta = initPosBeta;
-					 initPosGamma = initPosGamma;
 					 tti = tti;
 					 @display("p=50,120");
 	}
