@@ -25,6 +25,7 @@
 #include <set>
 
 using std::set;
+using namespace omnetpp;
 
 Define_Module(BsMac);
 

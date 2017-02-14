@@ -28,6 +28,7 @@
 #include <set>
 #include <utility>
 
+using namespace omnetpp;
 using std::set;
 
 Define_Module(MsMac);

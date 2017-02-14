@@ -19,7 +19,7 @@ using std::forward_list;
 
 const double Channel::speedOfLight = 299792458.0;
 
-bool Channel::init(cSimpleModule* module,
+bool Channel::init(omnetpp::cSimpleModule* module,
 		const std::vector<std::vector<Position>>& msPositions, 
 		const std::map<int,Position>& neighbourPositions){
 	chnBandwidth = module->par("chnBandwidth");
@@ -38,7 +38,7 @@ bool Channel::init(cSimpleModule* module,
 	msPos = VectorNd<Position,2>(msPositions);
 
 	// Find the neighbours and store the pair (bsId, position in data structures) in a map
-	cModule *cell = module->getParentModule()->getParentModule();
+	omnetpp::cModule *cell = module->getParentModule()->getParentModule();
 	neighbourIdMatching = new NeighbourIdMatching(bsId, maxNumberOfNeighbours, cell);
 	// Get Playground size from cell module:
 	sizeX = cell->par("playgroundSizeX");

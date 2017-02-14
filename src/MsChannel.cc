@@ -15,6 +15,7 @@
 #include <cmath>
 #include <itpp/itbase.h>
 
+using namespace omnetpp;
 using std::vector;
 using std::forward_list;
 

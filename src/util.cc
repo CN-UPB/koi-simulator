@@ -168,7 +168,7 @@ double getEffectiveSINR(vector<double> sinrValues, vec eesm_beta_values){
 	return effective_sinr;
 }
 
-double getBler(int cqi, double sinr, cSimpleModule* module){
+double getBler(int cqi, double sinr, omnetpp::cSimpleModule* module){
 	
 	static string blerIn = module->par("bler_table");
 	static mat blerTable = mat(blerIn);
@@ -275,7 +275,7 @@ int lcmSequence(const vector<int>& elems){
 }
 
 std::ofstream getResultFile(std::string& fname){
-	int run = std::stoi(ev.getConfig()->substituteVariables("${runnumber}"));
+	int run = std::stoi(omnetpp::getEnvir()->getConfig()->substituteVariables("${runnumber}"));
 	fname = "./results/"+fname+"_run-"+std::to_string(run)+".dat";
 	struct stat info;
 	if(stat("./results",&info)!=0){

@@ -28,7 +28,7 @@ class FactoryChannel: public Channel{
 		double bsGain;
 		double msGain;
 		double transPower;
-		simtime_t initOffset;
+		omnetpp::simtime_t initOffset;
 		std::ofstream downValues;
 		std::ofstream upValues;
 		boost::random::mt19937 randEng;
@@ -61,8 +61,8 @@ class FactoryChannel: public Channel{
 				const std::vector<std::vector<Position>>& msPositions);
 	
 	public:
-		void handleMessage(cMessage* msg);
-		bool init(cSimpleModule* module,
+		void handleMessage(omnetpp::cMessage* msg);
+		bool init(omnetpp::cSimpleModule* module,
 				const std::vector<std::vector<Position>>& msPositions, 
 				const std::map<int,Position>& neighbourPositions);
 

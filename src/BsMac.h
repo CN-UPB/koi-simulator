@@ -19,7 +19,7 @@
 #include <unordered_map>
 #include <vector>
 
-class BsMac : public cSimpleModule  {
+class BsMac : public omnetpp::cSimpleModule  {
     private:
 				std::function<bool(const KoiData*, const KoiData*)> comparator;
         int numberOfMobileStations;
@@ -32,8 +32,8 @@ class BsMac : public cSimpleModule  {
 				std::vector<Position> msPositions;
         NeighbourIdMatching *neighbourIdMatching; //matching for bsId <-> dataStrPos
 				double transmissionPower;
-        simtime_t tti;
-        simtime_t epsilon;
+				omnetpp::simtime_t tti;
+				omnetpp::simtime_t epsilon;
 				unordered_map<unsigned long,std::list<KoiData*>> streamQueues;
 				ofstream delays_file;
 				ofstream rate_file;
@@ -42,11 +42,12 @@ class BsMac : public cSimpleModule  {
     protected:
         void initialize() override;
 				void finish() override;
-        void handleMessage(cMessage *msg) override;
+        void handleMessage(omnetpp::cMessage *msg) override;
         
         //important: these methods doesn't delete the msg!
-        virtual void sendToNeighbourCells(cMessage *msg);
-        virtual void sendDelayedToNeighbourCells(cMessage *msg, const simtime_t& delay);
+        virtual void sendToNeighbourCells(omnetpp::cMessage *msg);
+        virtual void sendDelayedToNeighbourCells(omnetpp::cMessage *msg, 
+						const omnetpp::simtime_t& delay);
 
     public:
         ~BsMac() override;

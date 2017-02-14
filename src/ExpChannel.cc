@@ -13,6 +13,7 @@
 #include <fstream>
 #include <vector>
 
+using namespace omnetpp;
 using std::vector;
 
 bool ExpChannel::init(cSimpleModule* module,

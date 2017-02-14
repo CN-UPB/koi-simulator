@@ -78,7 +78,7 @@ class Channel{
 		/**
 		 * Pointer to OMNeT module for intermodule communication
 		 */
-		cSimpleModule *initModule;
+		omnetpp::cSimpleModule *initModule;
 		/**
 		 * Positions of all MS positions in the simulation
 		 */
@@ -196,12 +196,12 @@ class Channel{
 		 * @brief It may be necessary for the Channel to receive Messages
 		 * 
 		 */
-		virtual void handleMessage(cMessage* msg) = 0;
+		virtual void handleMessage(omnetpp::cMessage* msg) = 0;
 
 		/**
 		 * @brief Initialize the channel model with the given positions
 		 */
-		virtual bool init(cSimpleModule* module,
+		virtual bool init(omnetpp::cSimpleModule* module,
 				const std::vector<std::vector<Position>>& msPositions, 
 				const std::map<int,Position>& neighbourPositions) = 0;
 

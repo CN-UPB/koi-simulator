@@ -18,7 +18,7 @@
 #include <vector>
 #include <forward_list>
 
-class MsChannel : public cSimpleModule  {
+class MsChannel : public omnetpp::cSimpleModule  {
     private:
 				Coding coding;
         int maxNumberOfNeighbours;
@@ -28,9 +28,9 @@ class MsChannel : public cSimpleModule  {
 				int numBSAntenna;
 				int numMSAntenna;
 				std::ofstream sinrFile;
-        simtime_t epsilon;
-        simtime_t tti;
-        simtime_t initOffset;
+				omnetpp::simtime_t epsilon;
+				omnetpp::simtime_t tti;
+				omnetpp::simtime_t initOffset;
         int bsId;
         int msId;
 				itpp::vec eesm_beta_values;
@@ -41,7 +41,7 @@ class MsChannel : public cSimpleModule  {
     protected:
         virtual void initialize();
 				virtual void finish();
-        virtual void handleMessage(cMessage *msg);
+        virtual void handleMessage(omnetpp::cMessage *msg);
 
     public:
         ~MsChannel();

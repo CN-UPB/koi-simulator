@@ -14,7 +14,7 @@ class ExpChannel: public Channel{
 	private:
 		double expMean;
 		double plExp;
-		simtime_t initOffset;
+		omnetpp::simtime_t initOffset;
 		std::ofstream downValues;
 		std::ofstream upValues;
 
@@ -23,8 +23,8 @@ class ExpChannel: public Channel{
 				const std::vector<std::vector<Position>>& msPositions);
 	
 	public:
-		void handleMessage(cMessage* msg);
-		bool init(cSimpleModule* module,
+		void handleMessage(omnetpp::cMessage* msg);
+		bool init(omnetpp::cSimpleModule* module,
 				const std::vector<std::vector<Position>>& msPositions, 
 				const std::map<int,Position>& neighbourPositions);
 

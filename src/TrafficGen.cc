@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <vector>
 
+using namespace omnetpp;
 using std::vector;
 using std::string;
 

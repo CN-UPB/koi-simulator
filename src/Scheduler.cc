@@ -7,6 +7,8 @@
  
 #include "Scheduler.h"
 
+using namespace omnetpp;
+
 void Scheduler::init(cModule *module){}
 void Scheduler::setSINR(mat sinr){}
 Schedule* Scheduler::calcUpSchedule(cQueue *packetQueue, std::vector<int> *transmitRequests){

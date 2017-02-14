@@ -17,6 +17,7 @@
 #include <numeric>
 #include <vector>
 
+using namespace omnetpp;
 using std::forward_list;
 using std::ofstream;
 using std::set;

@@ -11,6 +11,7 @@
 #include <cmath>
 #include <vector>
 
+using namespace omnetpp;
 using std::vector;
 
 bool FactoryChannel::init(cSimpleModule* module,

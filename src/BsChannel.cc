@@ -25,6 +25,8 @@
 #include <fstream>
 #include <stdexcept>
 
+using namespace omnetpp;
+
 Define_Module(BsChannel);
 
 void BsChannel::initialize()  {

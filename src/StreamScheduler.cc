@@ -17,6 +17,7 @@
 #include <stdexcept>
 #include <string>
 
+using namespace omnetpp;
 using std::string;
 using std::vector;
 using std::unordered_map;

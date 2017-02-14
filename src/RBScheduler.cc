@@ -26,7 +26,7 @@ void RBScheduler::initialize(){
 	this->numSubcarriers = par("numSubcarriers");
 	ScheduleInfo *s = new ScheduleInfo();
 	s->setSortfn(comparator);
-	scheduleAt(simTime(),s);
+	scheduleAt(omnetpp::simTime(),s);
 }
 
 StreamTransSched *RBScheduler::getSchedule(
@@ -167,7 +167,7 @@ StreamTransSched *RBScheduler::getSchedule(
 	}
 }
 
-void RBScheduler::handleMessage(cMessage *msg){
+void RBScheduler::handleMessage(omnetpp::cMessage *msg){
 	if(msg->getKind()==MessageType::transReqList){
 		TransReqList *req = dynamic_cast<TransReqList*>(msg);
 		StreamTransSched *sched = this->getSchedule(req->getRequests(),

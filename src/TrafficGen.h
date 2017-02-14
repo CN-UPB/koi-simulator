@@ -16,7 +16,7 @@
 #include <mutex>
 #include <unordered_map>
 
-class TrafficGen: public cSimpleModule{
+class TrafficGen: public omnetpp::cSimpleModule{
 	private:
 		struct StreamDef{
 			StreamDef(unsigned long streamId,
@@ -52,14 +52,14 @@ class TrafficGen: public cSimpleModule{
 		 * Flag signaling that comm table loading should only be conducted once
 		 */
 		static std::once_flag tFlag;
-		static cXMLElement* commTable;
+		static omnetpp::cXMLElement* commTable;
 		bool d2dActive;
 		static std::vector<StreamDef> parseCommTable(int bsId, int msId);
 		static void loadComTable(const std::string& fpath);
 	
 	protected:
 		virtual void initialize();
-		virtual void handleMessage(cMessage *msg);
+		virtual void handleMessage(omnetpp::cMessage *msg);
 	
 	public:
 		~TrafficGen();

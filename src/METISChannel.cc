@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+using namespace omnetpp;
 using itpp::pi;
 using itpp::vec;
 using std::complex;

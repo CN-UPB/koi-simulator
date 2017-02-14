@@ -22,7 +22,7 @@ double getSpectralEfficiency(int CQI);
 
 double getChannelCapacity(const vector<double>& sinrValues, int subcarriers);
 
-double getBler(int cqi, double sinr, cSimpleModule* module);
+double getBler(int cqi, double sinr, omnetpp::cSimpleModule* module);
 
 double getEffectiveSINR(vector<double> sinrValues, vec eesm_beta_values);
 
