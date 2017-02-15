@@ -52,7 +52,6 @@ class FactoryChannel: public Channel{
 		VectorNd<double,3> shD2DUp;
 
 		double pathgain(Position sender, Position receiver);
-		double fadingRicean(double pl, double gainTx, double gainRx);
 		double fadingExponential();
 		double shadowing();
 		void recomputeCoefficients(

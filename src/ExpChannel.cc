@@ -24,6 +24,8 @@ bool ExpChannel::init(cSimpleModule* module,
 	expMean = module->par("expMean");
 	plExp = module->par("plExp");
 	initOffset = module->par("initOffset");
+	randEng = boost::random::mt19937(module->getRNG(0)->intRand());
+	distExp = boost::random::exponential_distribution<double>(expMean);
 	std::string fname("coeff_table_down-"+std::to_string(bsId));
 	downValues = std::move(getResultFile(fname));
 	downValues << "TTI\t" << "BS\t" << "MS\t" << "RB\t" << "PL\t" << "Exp\t" << "Coeff" << "\n"; 
@@ -59,7 +61,7 @@ void ExpChannel::recomputeCoefficients(
 		for(int bsIds=0; bsIds<numBs; ++bsIds){
 			pg = pathgain(neighbourPositions[bsIds],msPositions[bsId][msIds]);
 			for(size_t rb=0; rb<downRBs; ++rb){
-				exp = exponential(expMean);
+				exp = distExp(randEng);
 				coeffDownTable[msIds][bsIds][rb] = pg * exp;
 			}
 			if(simTime()>initOffset){
@@ -85,7 +87,7 @@ void ExpChannel::recomputeCoefficients(
 		for(int msIds=0; msIds<numMs; ++msIds){
 			pg = pathgain(msPositions[bsIds][msIds],neighbourPositions[bsId]);
 			for(size_t rb=0; rb<upRBs; ++rb){
-				exp = exponential(expMean);
+				exp = distExp(randEng);
 				coeffUpTable[bsIds][0][msIds][rb] = pg * exp;
 			}
 			if(simTime()>initOffset){
@@ -114,7 +116,7 @@ void ExpChannel::recomputeCoefficients(
 				for(int msIds=0; msIds<numMs; ++msIds){
 					for(size_t rb=0; rb<upRBs; ++rb){
 						pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
-						coeffUpD2DTable[bsIds][recMsId][msIds][rb] = pg * exponential(expMean);
+						coeffUpD2DTable[bsIds][recMsId][msIds][rb] = pg * distExp(randEng);
 					}
 				}
 			}
@@ -129,7 +131,7 @@ void ExpChannel::recomputeCoefficients(
 				for(int msIds=0; msIds<numMs; ++msIds){
 					for(size_t rb=0; rb<downRBs; ++rb){
 						pg = pathgain(msPositions[bsIds][msIds],msPositions[bsId][recMsId]);
-						coeffDownD2DTable[bsIds][recMsId][msIds][rb] = pg * exponential(expMean);
+						coeffDownD2DTable[bsIds][recMsId][msIds][rb] = pg * distExp(randEng);
 					}
 				}
 			}

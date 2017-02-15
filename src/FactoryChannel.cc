@@ -212,15 +212,6 @@ void FactoryChannel::recomputePerTTIValues(){
 	recomputeCoefficients(msPos);
 }
 
-double FactoryChannel::fadingRicean(double pl, double gainTx, double gainRx){
-	// Doesn't work properly when K is negative!
-	double K = normal(kMean,kSigma);
-	double omega = (transPower*gainTx*gainRx)/pl;
-	double v = std::sqrt(K*omega/(K+1.0));
-	double sigma = std::sqrt(omega/(2*(K+1)));
-	return normal(v,sigma);
-}
-
 double FactoryChannel::fadingExponential(){
 	// Draw 16 values and take the best one
 	double choosen = distExp(randEng);
