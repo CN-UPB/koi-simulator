@@ -77,7 +77,8 @@ StreamTransSched *RBScheduler::getSchedule(
 		// First, remove all requests from other BS/MS
 		auto delIter(reqs.begin());
 		while(delIter!=reqs.end()){
-			if((*delIter)->getRequestOrigin()!=bestReq->getRequestOrigin()){
+			if((*delIter)->getRequestOrigin()!=bestReq->getRequestOrigin()
+					|| (*delIter)->getDest()!=bestReq->getDest()){
 				delIter = reqs.erase(delIter);
 			}
 			else{
