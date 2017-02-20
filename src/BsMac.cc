@@ -278,11 +278,11 @@ void BsMac::handleMessage(cMessage *msg)  {
 			ResultFileExchange *delays = new ResultFileExchange("DELAYS_FILE");
 			ResultFileExchange *rates = new ResultFileExchange("RATES_FILE");
 			std::string fname("delays-cell-"+std::to_string(bsId));
-			delays_file = std::move(getResultFile(fname));
+			delays_file = getResultFile(fname);
 			delays_file << "MS\t" << "Delay" << std::endl;
 			delays->setPtr(&delays_file);
 			fname = "rates-cell-"+std::to_string(bsId);
-			rate_file = std::move(getResultFile(fname));
+			rate_file = getResultFile(fname);
 			rate_file << "MS\t" << "Rate" << std::endl;
 			rates->setPtr(&rate_file);
 			for(int i = 0; i<numberOfMobileStations; i++){

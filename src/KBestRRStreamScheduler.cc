@@ -46,11 +46,11 @@ void KBestRRStreamScheduler::initialize(){
 	if(debug){
 		// Prepare result files for schedules
 		std::string fname("schedule-up-cell-"+std::to_string(bsId));
-		upSchedule = std::move(getResultFile(fname));
+		upSchedule = getResultFile(fname);
 		upSchedule << "TTI\t" << "Cell\t" 
 			<< "MS\t" << "RB\t" << "SINR" << std::endl;
 		fname = "schedule-down-cell-"+std::to_string(bsId);
-		downSchedule = std::move(getResultFile(fname));
+		downSchedule = getResultFile(fname);
 		downSchedule << "TTI\t" << "Cell\t"
 			<< "MS\t" << "RB\t" << "SINR" << std::endl;
 	}

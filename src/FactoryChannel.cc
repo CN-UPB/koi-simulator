@@ -39,11 +39,11 @@ bool FactoryChannel::init(cSimpleModule* module,
 
 	if(debug){
 		std::string fname("coeff_table_down-"+std::to_string(bsId));
-		downValues = std::move(getResultFile(fname));
+		downValues = getResultFile(fname);
 		downValues << "TTI\t" << "BS\t" << "MS\t" << "RB\t" << "PL\t" 
 			<< "Fade\t" << "Coeff" << "\n"; 
 		fname = "coeff_table_up-"+std::to_string(bsId);
-		upValues = std::move(getResultFile(fname));
+		upValues = getResultFile(fname);
 		upValues << "TTI\t" << "Cell\t" << "MS\t" << "BS\t" << "RB\t" << "PL\t" 
 			<< "Fade\t" << "Coeff" << "\n"; 
 	}

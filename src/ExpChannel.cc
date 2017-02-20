@@ -27,10 +27,10 @@ bool ExpChannel::init(cSimpleModule* module,
 	randEng = boost::random::mt19937(module->getRNG(0)->intRand());
 	distExp = boost::random::exponential_distribution<double>(expMean);
 	std::string fname("coeff_table_down-"+std::to_string(bsId));
-	downValues = std::move(getResultFile(fname));
+	downValues = getResultFile(fname);
 	downValues << "TTI\t" << "BS\t" << "MS\t" << "RB\t" << "PL\t" << "Exp\t" << "Coeff" << "\n"; 
 	fname = "coeff_table_up-"+std::to_string(bsId);
-	upValues = std::move(getResultFile(fname));
+	upValues = getResultFile(fname);
 	upValues << "TTI\t" << "Cell\t" << "MS\t" << "BS\t" << "RB\t" << "PL\t" << "Exp\t" << "Coeff" << "\n"; 
 	recomputeCoefficients(msPositions);
 	return true;
