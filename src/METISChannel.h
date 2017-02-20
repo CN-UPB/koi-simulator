@@ -65,6 +65,12 @@ class METISChannel : public Channel{
 		VectorNd<RayCluster,6> precompUpTable;
 		VectorNd<RayCluster,6> precompD2DTable;
 		/**
+		 * The random number generator to be used.
+		 *
+		 * Initialized with getRNG(0).
+		 */
+		omnetpp::cRNG* rng;
+		/**
 		 * MS velocity in m/s
 		 */
 		double velocity;
