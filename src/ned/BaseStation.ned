@@ -48,7 +48,7 @@ module BaseStation
 		// Bandwidth available to each resource block
 		double bandwidthPerRB @unit(Hz);
 
-		@display("bgb=300,300;i=device/antennatower");
+		@display("p=$xPos,$yPos;i=device/antennatower");
 
 	gates:
 		// For simulation traffic packet transmissions with local MobileStations.
