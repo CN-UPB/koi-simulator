@@ -49,4 +49,7 @@ class KBestRRStreamScheduler: public StreamScheduler{
 		virtual void handleMessage(omnetpp::cMessage *msg);
     virtual void scheduleDynStreams();
 		virtual std::unordered_map<int,ScheduleList> scheduleStatStreams();
+		
+	public:
+		~KBestRRStreamScheduler();
 };

@@ -351,3 +351,16 @@ void KBestRRStreamScheduler::handleMessage(cMessage *msg){
 			StreamScheduler::handleMessage(msg);
 	}
 }
+
+KBestRRStreamScheduler::~KBestRRStreamScheduler(){
+	// Clean up remaining requests
+	for(auto& direction:this->requests){
+		for(auto& rb:direction.second){
+			for(auto& req:rb.second){
+				delete req;
+			}
+			rb.second.clear();
+		}
+		direction.second.clear();
+	}
+}

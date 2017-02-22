@@ -323,4 +323,11 @@ void BsMac::writePositions(){
 
 BsMac::~BsMac()  {
     delete neighbourIdMatching;
+		// Clean up packets still in queues
+		for(auto& queue:this->streamQueues){
+			for(auto p:queue.second){
+				delete p;
+			}
+			queue.second.clear();
+		}
 }

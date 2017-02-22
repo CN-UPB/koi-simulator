@@ -61,5 +61,5 @@ class StreamScheduler: public omnetpp::cSimpleModule{
 		virtual std::unordered_map<int,ScheduleList> scheduleStatStreams();
 	
 	public:
-		~StreamScheduler() = default;
+		virtual ~StreamScheduler();
 };
