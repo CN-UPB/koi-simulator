@@ -1875,7 +1875,7 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 			}
 		}
 	}
-		
+
 	// Filter in X direction
 	// Forall Large scale parameters
 	for(int i = 0; i < 6; i++){
@@ -1900,7 +1900,7 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 			for(int k = 10; k < (int) sizeY+10; k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
-					tmpY[i][k][j] += tmpX[i][k - l][j] * filter[i][l];
+					tmpY[i][j][k] += tmpX[i][j][k - l] * filter[i][l];
 				}
 			}
 		}
