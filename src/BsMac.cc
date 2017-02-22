@@ -239,6 +239,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 			//send the bs position to the other cells
 			send(bsPos->dup(), "toBsChannel", 0);
 			sendToNeighbourCells(bsPos);
+			delete bsPos;
 			delete msg;
 		}
 		else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
@@ -289,13 +290,15 @@ void BsMac::handleMessage(cMessage *msg)  {
 				send(delays->dup(),"toMsMac",i);
 				send(rates->dup(),"toMsMac",i);
 			}
+			delete delays;
+			delete rates;
 			delete msg;
 		}
 	}
 	else if(msg->isName("BS_POSITION_MSG"))  {
 		// send the BS position messages BS Channel 0, where it is needed for 
 		// channel model initialization.
-		send(msg->dup(), "toBsChannel", 0);
+		send(msg, "toBsChannel", 0);
 	}
 	//data packet
 	else if(msg->arrivedOn("fromPhy"))  {

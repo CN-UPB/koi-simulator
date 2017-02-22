@@ -344,6 +344,7 @@ void KBestRRStreamScheduler::handleMessage(cMessage *msg){
 			for(auto ptr:d2dReqs){
 				delete ptr;
 			}
+			delete msg;
 		} break;
 		default:
 			// Message type is handled by StreamScheduler class

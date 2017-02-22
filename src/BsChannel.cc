@@ -184,6 +184,7 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		// Recompute all channel values specific to each TTI, e.g. time dependent
 		// ones.
 		channel->recomputePerTTIValues();
+		delete msg;
 	}
 	else if(msg->arrivedOn("fromMs"))  {
 		if(msg->getKind()==MessageType::koidata){
