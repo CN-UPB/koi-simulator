@@ -7,27 +7,13 @@ Simulator.
 Prerequisites
 -------------
 
-The KOI Simulator is based on the OMNET++ fork HORIZON, which adds parallel 
-execution of simulations. 
+The KOI Simulator is based on the OMNET++ framework. 
 
-To install HORIZON, a C++ compiler (like GCC or CLANG) is necessary.
+To install OMNET++, a C++ compiler (like GCC or CLANG) is necessary.
 
-Follow these steps to install HORIZON:
-
-	1) Clone the Horizon repository: 
-		git clone https://code.comsys.rwth-aachen.de/git/horizon-4-public horizon
-	2) change to horizon dir: cd horizon
-	3) set environment: . setenv (note the dot!)
-	4) Uncomment CFLAGS_DEBUG/CFLAGS_RELEASE lines in configure.user and add 
-		"-std=c++11" to the ends of both lines
-	5) Download OMNeT++ 4.6, configure and build it
-		copy "omnetpp-4.6/src/common/matchexpression.tab.cc" to "horizon/src/common"
-	6) Run configuration: ./configure
-		This might throw a few errors about missing libraries. If so, 
-		install those libraries with your distribution's package manager.
-	7) Run make
-		For faster compilation, run "make -jN", where N is your number 
-		of processor cores.
+Follow the steps described in the 
+[Omnet installation manual](https://omnetpp.org/doc/omnetpp/InstallGuide.pdf)
+to install OMNET++ from [here](https://omnetpp.org/omnetpp).
 
 The KOI simulation also requires the IT++ library. Install it via your 
 distribution's package manager. The library is probably named "itpp" or 
@@ -38,8 +24,8 @@ In addition, the BOOST random library is needed.
 Compilation
 -----------
 
-Before compiling the Simulator, make sure that the HORIZON binaries are in your 
-PATH. Change into your HORIZON directory and enter ". setenv".
+Before compiling the Simulator, make sure that the OMNET++ binaries are in your 
+PATH. Change into your OMNET++ directory and enter ". setenv".
 
 After having added the binaries to your PATH, change back into the KOI 
 Simulator root directory and execute "make". This will generate the necessary 
@@ -47,9 +33,3 @@ make files and compile the Simulator proper.
 
 You will find the executable in the out/ directory, as well as a softlink in 
 the src/ directory.
-
-Troubleshooting
----------------
-
-Should you encounter a compile error complaining about "getcwd not defined", 
-you need to add "#include <unistd.h>" to the imports in "src/utils/abspath.cc".

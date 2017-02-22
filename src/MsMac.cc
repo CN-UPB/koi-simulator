@@ -28,6 +28,7 @@
 #include <set>
 #include <utility>
 
+using namespace omnetpp;
 using std::set;
 
 Define_Module(MsMac);
@@ -362,7 +363,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 	else if(msg->getKind()==MessageType::sinrEst)  {
 		SINR* est = dynamic_cast<SINR*>(msg);
 		// Forward estimates to BS Mac
-		send(est->dup(),"toBsMac");
+		send(est,"toBsMac");
 	}
 	else if(msg->getKind()==MessageType::longTermSinrEst)  {
 		// Store long term SINR estimate
@@ -383,7 +384,7 @@ void MsMac::handleMessage(cMessage *msg)  {
 				this->streamQueues[tmp->getStreamId()];
 				send(tmp->dup(),"toScheduler");
 				send(tmp->dup(),"toBsMac");
-				delete msg;
+				delete tmp;
 			} break;
 			case MessageType::koidata:{
 				KoiData *data = dynamic_cast<KoiData*>(msg);

@@ -9,12 +9,12 @@
 
 #include "includes.h"
 
-class BsPhy : public cSimpleModule  {
+class BsPhy : public omnetpp::cSimpleModule  {
     private:
         int numberOfMobileStations;
 
     protected:
         void initialize() override;
-        void handleMessage(cMessage *msg) override;
+        void handleMessage(omnetpp::cMessage *msg) override;
 };
 

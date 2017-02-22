@@ -9,10 +9,10 @@
 
 #include "includes.h"
 
-class MsPhy : public cSimpleModule  {
+class MsPhy : public omnetpp::cSimpleModule  {
     private:
 
     protected:
         virtual void initialize();
-        virtual void handleMessage(cMessage *msg);
+        virtual void handleMessage(omnetpp::cMessage *msg);
 };

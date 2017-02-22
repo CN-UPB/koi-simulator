@@ -60,7 +60,7 @@ Ray Ray::initialize(
 	complex<double> pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase));
 
 	// Precomputable part of the doppler component
-	array<double,3> velVec = {cos(moveAngle),sin(moveAngle),0};
+	array<double,3> velVec = {{cos(moveAngle),sin(moveAngle),0}};
 	double velComp = k_0*(AoA[0]*velVec[0]+AoA[1]*velVec[1]+AoA[2]*velVec[2])*velocity;
 	return Ray(velComp,expArrival*expDeparture*pol);
 }
@@ -101,7 +101,7 @@ LOSRay LOSRay::initialize(
 	complex<double> pol = receiverGain * senderGain * exp(complex<double>(0, randomPhase));
 
 	// Precomputable part of the doppler component
-	array<double,3> velVec = {cos(moveAngle),sin(moveAngle),0};
+	array<double,3> velVec = {{cos(moveAngle),sin(moveAngle),0}};
 	double velComp = k_0*(AoA[0]*velVec[0]+AoA[1]*velVec[1]+AoA[2]*velVec[2])*velocity;
 	
 	return LOSRay(velComp,expArrival*expDeparture*pol);

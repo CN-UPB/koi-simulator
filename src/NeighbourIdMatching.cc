@@ -7,6 +7,8 @@
 
 #include "NeighbourIdMatching.h"
 
+using namespace omnetpp;
+
 NeighbourIdMatching::NeighbourIdMatching(int ownBsId, int maxNumberOfNeighbours, cModule *cell)  {
     setupNeighbours(ownBsId, maxNumberOfNeighbours, cell);
     this->cell = cell;
@@ -61,6 +63,6 @@ int NeighbourIdMatching::numberOfNeighbours()  {
 
 void NeighbourIdMatching::showMatching()  {
     for(NeighbourMap::iterator i = matching.begin(); i != matching.end(); i++)
-        ev << "BsId " << i->first << ": DataStrId " << (i->second).first <<
+        EV << "BsId " << i->first << ": DataStrId " << (i->second).first <<
               " GateId " << (i->second).second << endl;
 }

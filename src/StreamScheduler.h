@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-class StreamScheduler: public cSimpleModule{
+class StreamScheduler: public omnetpp::cSimpleModule{
 
 	private:
 		using ResAssign = std::pair<MessageDirection,int>;
@@ -32,8 +32,8 @@ class StreamScheduler: public cSimpleModule{
 		std::function<bool(const KoiData*,const KoiData*)> defaultPacketSorter;
 
 	protected:
-		simtime_t initOffset;
-		simtime_t epsilon;
+		omnetpp::simtime_t initOffset;
+		omnetpp::simtime_t epsilon;
 		bool debug;
 		int numberOfMs;
 		int upRB;
@@ -43,9 +43,9 @@ class StreamScheduler: public cSimpleModule{
 		int staticSchedLength;
 		bool upStatic;
 		bool downStatic;
-		simtime_t streamSchedPeriod;
+		omnetpp::simtime_t streamSchedPeriod;
 		std::set<int> scheduledStations;
-		simtime_t tti;
+		omnetpp::simtime_t tti;
 		std::vector<StreamInfo*> infos;		
 		std::vector<SINR*> sinrEstimate;
 		SINR *estimateBS;
@@ -53,7 +53,7 @@ class StreamScheduler: public cSimpleModule{
 		SINR *longtermEstimateBS;
 		std::unordered_map<unsigned long,std::unordered_map<int,ResAssign>> rbAssignments;
 		virtual void initialize();
-		virtual void handleMessage(cMessage *msg);
+		virtual void handleMessage(omnetpp::cMessage *msg);
 		virtual void handleSINREstimate(SINR *msg);
 		virtual void printAssignment();
 		virtual void scheduleDynStreams();
@@ -61,5 +61,5 @@ class StreamScheduler: public cSimpleModule{
 		virtual std::unordered_map<int,ScheduleList> scheduleStatStreams();
 	
 	public:
-		~StreamScheduler() = default;
+		virtual ~StreamScheduler();
 };

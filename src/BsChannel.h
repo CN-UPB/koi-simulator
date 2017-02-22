@@ -21,7 +21,7 @@
 #include <ostream>
 #include <vector>
 
-class BsChannel : public cSimpleModule  {
+class BsChannel : public omnetpp::cSimpleModule  {
     private:
 				Coding coding;
         int maxNumberOfNeighbours;
@@ -33,16 +33,16 @@ class BsChannel : public cSimpleModule  {
         int bsId;
         int init_counter;
         Position bsPosition;
-        simtime_t tti;
-        simtime_t epsilon;
-				simtime_t initOffset;
+				omnetpp::simtime_t tti;
+				omnetpp::simtime_t epsilon;
+				omnetpp::simtime_t initOffset;
         std::vector<std::vector<Position>> msPositions;
         std::map <int,Position> neighbourPositions;
         Channel* channel;
 
     protected:
         void initialize() override;
-        void handleMessage(cMessage *msg) override;
+        void handleMessage(omnetpp::cMessage *msg) override;
 
     public:
         ~BsChannel() override;

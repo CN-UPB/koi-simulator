@@ -14,7 +14,7 @@ Define_Module(MsPhy);
 void MsPhy::initialize()  {
 }
 
-void MsPhy::handleMessage(cMessage *msg)  {
+void MsPhy::handleMessage(omnetpp::cMessage *msg)  {
 	//currently it only forward the packets
 	if(msg->arrivedOn("fromMac"))  {
 		switch(msg->getKind()){

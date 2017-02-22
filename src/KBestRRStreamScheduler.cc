@@ -18,6 +18,7 @@
 #include <numeric>
 #include <vector>
 
+using namespace omnetpp;
 using std::forward_list;
 using std::ofstream;
 using std::set;
@@ -45,11 +46,11 @@ void KBestRRStreamScheduler::initialize(){
 	if(debug){
 		// Prepare result files for schedules
 		std::string fname("schedule-up-cell-"+std::to_string(bsId));
-		upSchedule = std::move(getResultFile(fname));
+		upSchedule = getResultFile(fname);
 		upSchedule << "TTI\t" << "Cell\t" 
 			<< "MS\t" << "RB\t" << "SINR" << std::endl;
 		fname = "schedule-down-cell-"+std::to_string(bsId);
-		downSchedule = std::move(getResultFile(fname));
+		downSchedule = getResultFile(fname);
 		downSchedule << "TTI\t" << "Cell\t"
 			<< "MS\t" << "RB\t" << "SINR" << std::endl;
 	}
@@ -343,9 +344,23 @@ void KBestRRStreamScheduler::handleMessage(cMessage *msg){
 			for(auto ptr:d2dReqs){
 				delete ptr;
 			}
+			delete msg;
 		} break;
 		default:
 			// Message type is handled by StreamScheduler class
 			StreamScheduler::handleMessage(msg);
+	}
+}
+
+KBestRRStreamScheduler::~KBestRRStreamScheduler(){
+	// Clean up remaining requests
+	for(auto& direction:this->requests){
+		for(auto& rb:direction.second){
+			for(auto& req:rb.second){
+				delete req;
+			}
+			rb.second.clear();
+		}
+		direction.second.clear();
 	}
 }

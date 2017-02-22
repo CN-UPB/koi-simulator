@@ -7,6 +7,8 @@
 
 #include "Position.h"
 
+using omnetpp::cCommBuffer;
+
 void doPacking(cCommBuffer *buffer, Position &pos) {
     buffer->pack(pos.x);
     buffer->pack(pos.y);

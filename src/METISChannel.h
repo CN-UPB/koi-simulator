@@ -65,6 +65,12 @@ class METISChannel : public Channel{
 		VectorNd<RayCluster,6> precompUpTable;
 		VectorNd<RayCluster,6> precompD2DTable;
 		/**
+		 * The random number generator to be used.
+		 *
+		 * Initialized with getRNG(0).
+		 */
+		omnetpp::cRNG* rng;
+		/**
 		 * MS velocity in m/s
 		 */
 		double velocity;
@@ -341,12 +347,12 @@ class METISChannel : public Channel{
 
 	public:
 		//! Initialize the METIS channel through ini access via OMNeT++ module pointer.
-		bool init(cSimpleModule* module,
+		bool init(omnetpp::cSimpleModule* module,
 				const vector<vector<Position>>& msPositions, 
 				const std::map<int,Position>& neighbourPositions);
 
 		//! Allows the OMNeT++ module to pass messages to this METIS channel class.
-		void handleMessage(cMessage* msg);
+		void handleMessage(omnetpp::cMessage* msg);
 		
 		//! Updates the MS position if velocity > 0. The interval in which the postion is updated can be set within omnet.ini
 		void updateChannel(const vector<vector<Position>>& msPos);

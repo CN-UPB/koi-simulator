@@ -54,7 +54,7 @@ parameters:
 	// The transmission time interval
 	double tti @unit(s);
 
-	@display("bgb=200,300;i=device/cellphone");
+	@display("i=device/cellphone");
 
 gates:
 	// Incoming DataPacketBundle from the local BaseStation. This is the 

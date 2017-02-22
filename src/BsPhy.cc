@@ -14,7 +14,7 @@ void BsPhy::initialize()  {
     numberOfMobileStations = par("numberOfMobileStations");
 }
 
-void BsPhy::handleMessage(cMessage *msg)  {
+void BsPhy::handleMessage(omnetpp::cMessage *msg)  {
 	if(msg->isName("POINTER_EXCHANGE2")){
 		send(msg->dup(), "toMac");
 		for(int i = 0; i < numberOfMobileStations; i++)  {

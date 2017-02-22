@@ -15,6 +15,7 @@
 #include <cmath>
 #include <itpp/itbase.h>
 
+using namespace omnetpp;
 using std::vector;
 using std::forward_list;
 
@@ -41,7 +42,7 @@ void MsChannel::initialize()  {
 	if(debug){
 		// File for SINR value storage
 		std::string fname("sinr-ms-"+std::to_string(bsId)+"-"+std::to_string(msId));
-		sinrFile = std::move(getResultFile(fname));
+		sinrFile = getResultFile(fname);
 		sinrFile << "TTI\t" 
 			<< "Cell\t" << "MS\t" << "RB\t" << "SINR" << std::endl;
 	}

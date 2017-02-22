@@ -21,18 +21,20 @@ typedef std::map<int, DataGateIdPair> NeighbourMap;
 class NeighbourIdMatching  {
     private:
         NeighbourMap matching;
-	cModule *cell;
-	int ownBsId;
+				omnetpp::cModule *cell;
+				int ownBsId;
 
-        void setupNeighbours(int ownBsId, int maxNumberOfNeighbours, cModule *cell);
+        void setupNeighbours(int ownBsId, int maxNumberOfNeighbours, 
+						omnetpp::cModule *cell);
 
     public:
-        NeighbourIdMatching(int ownBsId, int maxNumberOfNeighbours, cModule *cell);
+        NeighbourIdMatching(int ownBsId, int maxNumberOfNeighbours, 
+						omnetpp::cModule *cell);
         void insert(int bsId, int dataStrId, int gateId);
         int getDataStrId(int bsId);
         int getGateId(int bsId);
         NeighbourMap *getNeighbourMap();
-	int getNumberOfMS(int bsId);
+				int getNumberOfMS(int bsId);
         int numberOfNeighbours();
         void showMatching();
 };

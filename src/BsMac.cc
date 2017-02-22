@@ -25,6 +25,7 @@
 #include <set>
 
 using std::set;
+using namespace omnetpp;
 
 Define_Module(BsMac);
 
@@ -238,6 +239,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 			//send the bs position to the other cells
 			send(bsPos->dup(), "toBsChannel", 0);
 			sendToNeighbourCells(bsPos);
+			delete bsPos;
 			delete msg;
 		}
 		else if(msg->isName("GEN_TRANSMIT_REQUEST"))  {
@@ -277,24 +279,26 @@ void BsMac::handleMessage(cMessage *msg)  {
 			ResultFileExchange *delays = new ResultFileExchange("DELAYS_FILE");
 			ResultFileExchange *rates = new ResultFileExchange("RATES_FILE");
 			std::string fname("delays-cell-"+std::to_string(bsId));
-			delays_file = std::move(getResultFile(fname));
+			delays_file = getResultFile(fname);
 			delays_file << "MS\t" << "Delay" << std::endl;
 			delays->setPtr(&delays_file);
 			fname = "rates-cell-"+std::to_string(bsId);
-			rate_file = std::move(getResultFile(fname));
+			rate_file = getResultFile(fname);
 			rate_file << "MS\t" << "Rate" << std::endl;
 			rates->setPtr(&rate_file);
 			for(int i = 0; i<numberOfMobileStations; i++){
 				send(delays->dup(),"toMsMac",i);
 				send(rates->dup(),"toMsMac",i);
 			}
+			delete delays;
+			delete rates;
 			delete msg;
 		}
 	}
 	else if(msg->isName("BS_POSITION_MSG"))  {
 		// send the BS position messages BS Channel 0, where it is needed for 
 		// channel model initialization.
-		send(msg->dup(), "toBsChannel", 0);
+		send(msg, "toBsChannel", 0);
 	}
 	//data packet
 	else if(msg->arrivedOn("fromPhy"))  {
@@ -319,4 +323,11 @@ void BsMac::writePositions(){
 
 BsMac::~BsMac()  {
     delete neighbourIdMatching;
+		// Clean up packets still in queues
+		for(auto& queue:this->streamQueues){
+			for(auto p:queue.second){
+				delete p;
+			}
+			queue.second.clear();
+		}
 }

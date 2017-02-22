@@ -17,6 +17,7 @@
 #include <stdexcept>
 #include <string>
 
+using namespace omnetpp;
 using std::string;
 using std::vector;
 using std::unordered_map;
@@ -345,4 +346,32 @@ void StreamScheduler::handleSINREstimate(SINR *msg){
 			sinrEstimate[msg->getMsId()] = msg;
 		}
   }
+}
+
+StreamScheduler::~StreamScheduler(){
+	// Clean up remaining transmission requests
+	for(auto& direction:this->requests){
+		for(auto& rb:direction.second){
+			for(auto& req:rb.second){
+				delete req;
+			}
+			rb.second.clear();
+		}
+		direction.second.clear();
+	}
+	// Clean up StreamInfos
+	for(auto& inf:infos){
+		delete inf;
+	}
+	// Clean up SINR estimates
+	for(auto& est:sinrEstimate){
+		delete est;
+	}
+	sinrEstimate.clear();
+	delete estimateBS;
+	for(auto& est:longtermSinrEstimate){
+		delete est;
+	}
+	longtermSinrEstimate.clear();
+	delete longtermEstimateBS;
 }

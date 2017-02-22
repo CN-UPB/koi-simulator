@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+using namespace omnetpp;
 using itpp::pi;
 using itpp::vec;
 using std::complex;
@@ -109,6 +110,7 @@ bool METISChannel::init(cSimpleModule* module,
 	NumMsAntenna = module->par("NumMsAntenna");
 	heightUE = module->par("OutdoorHeightUE");
 	heightBS = module->par("BsHeight");
+	rng = module->getRNG(0);
 	XPR_Mean_LOS = module->par("XPR_Mean_LOS");
 	XPR_Std_LOS = module->par("XPR_Std_LOS");
 	XPR_Mean_NLOS = module->par("XPR_Mean_NLOS");
@@ -297,7 +299,7 @@ VectorNd<double,3> METISChannel::precomputeClusterDelays(
 			}
 			clusterDelays[i][j].resize(n_clusters,0.0);
 			for(int k = 0; k < n_clusters; k++){
-				clusterDelays[i][j][k] = -1.0*delayScaling*sigma_ds*log(uniform(0,1));
+				clusterDelays[i][j][k] = -1.0*delayScaling*sigma_ds*log(uniform(rng,0,1));
 			}
 			min_delay = *std::min_element(clusterDelays[i][j].cbegin(), clusterDelays[i][j].cbegin() + n_clusters);
 			// Normalize the delays (7.39)
@@ -309,7 +311,7 @@ VectorNd<double,3> METISChannel::precomputeClusterDelays(
 			if(LOSCondition[i][j]){
 				// Apply LOS Peak compensation factor
 				// Compute LOS Peak compensation factor (7.41)
-				double K = 10.0 * log10(abs(sigmaKF_LOS[i][j]));
+				double K = 10.0 * log10(std::abs(sigmaKF_LOS[i][j]));
 				double C_DS = 0.7705 - 0.0433 * K + 0.0002 * pow(K,2) + 0.000017 * pow(K,3);
 
 				// Apply LOS compensation factor
@@ -404,7 +406,7 @@ VectorNd<double,3> METISChannel::genClusterPowers(
 			cluster_shadowing = pow(temp_CS,2); //METIS
 			for(int k = 0; k < n_clusters; k++){
 				// Formula 7.42
-				clusterPowers[i][j][k] = pow(10,-1.0*normal(0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][j][k] * ((delayScaling - 1) / (delayScaling * sigma_ds)) );
+				clusterPowers[i][j][k] = pow(10,-1.0*normal(rng,0,cluster_shadowing)/10) * exp(-1.0 * clusterDelays[i][j][k] * ((delayScaling - 1) / (delayScaling * sigma_ds)) );
 				sum += clusterPowers[i][j][k];
 			}
 			if(LOSCondition[i][j]){
@@ -560,14 +562,14 @@ VectorNd<double,4> METISChannel::recomputeAzimuthAngles(
 			azimuthRays[i][j].resize(n_clusters,vector<double>(
 						n_rays));
 			azimuthCluster[i].resize(n_clusters);
-			X_1 = uniform(-1.0,1.0);
-			Y_1 = normal(0.0, (pow(sigma_angleSpread / 7.0,2)));
+			X_1 = uniform(rng,-1.0,1.0);
+			Y_1 = normal(rng,0.0, (pow(sigma_angleSpread / 7.0,2)));
 			for(int k = 0; k < n_clusters; k++){
 		
 				//Formula 7.47
 				azimuthCluster[i][k] = (sigma_angleSpread / (0.7 * C_AS(n_clusters, LOSCondition[i][j], i, sigma_kf))) * sqrt( -1.0 * log(clusterPowers[i][j][k] / *(std::max_element(clusterPowers[i][j].cbegin(), clusterPowers[i][j].cbegin() + n_clusters))) );
-				X_N = uniform(-1.0,1.0);
-				Y_N = normal(0.0, (pow(sigma_angleSpread / 7.0,2)));
+				X_N = uniform(rng,-1.0,1.0);
+				Y_N = normal(rng,0.0, (pow(sigma_angleSpread / 7.0,2)));
 		
 				// First Ray has geometric LOS direction?!
 				if(LOSCondition[i][j]){
@@ -653,12 +655,12 @@ METISChannel::genRandomPhases(
 			}
 			phases[i][j].resize(n_clusters,
 					vector<double>(n_rays));
-			phases_LOS[i][j] = uniform(-1.0*pi, pi);
+			phases_LOS[i][j] = uniform(rng,-1.0*pi, pi);
 			for(int k = 0; k < n_clusters; k++){
 				for(int r = 0; r < n_rays; r++){
 					// for the random phases of NLOS component in equation 7-61 of 
 					// METIS 1.2
-					phases[i][j][k][r] = uniform(-1.0*pi, pi);			
+					phases[i][j][k][r] = uniform(rng,-1.0*pi, pi);			
 				}
 			}
 		}
@@ -688,7 +690,7 @@ VectorNd<double,4> METISChannel::genCrossPolarization(
 			xpv[i][j].resize(n_clusters,vector<double>(n_rays));
 			for(int k = 0; k < n_clusters; k++){
 				for(int r = 0; r < n_rays; r++){
-					xpv[i][j][k][r] = normal(XPR_Mean_LOS, pow(XPR_Std_LOS,2) );
+					xpv[i][j][k][r] = normal(rng,XPR_Mean_LOS, pow(XPR_Std_LOS,2) );
 				}
 			}
 		}
@@ -936,7 +938,7 @@ void METISChannel::recomputePerTTIValues(){
 	int numSenderAntenna = NumBsAntenna;
 	VectorNd<array<double,3>,2> receiverAntennaPos(computeAntennaPos(
 				msPos[bsId],numReceiverAntenna,heightUE));
-	coeffDownTable = std::move(computeCoeffs(
+	coeffDownTable = computeCoeffs(
 				losDownTable,
 				this->msPos[bsId],
 				bsPositions,
@@ -948,7 +950,7 @@ void METISChannel::recomputePerTTIValues(){
 				numSenderAntenna,
 				precompDownTable,
 				delayDownTable
-				));
+				);
 	// Compute UP coefficients for the current TTI
 	numReceiverAntenna = NumBsAntenna;
 	numSenderAntenna = NumMsAntenna;
@@ -958,7 +960,7 @@ void METISChannel::recomputePerTTIValues(){
 		VectorNd<array<double,3>,2> senderAntennaPos(computeAntennaPos(
 					vector<Position>{neighbourPositions[bsId]},numSenderAntenna,heightUE));
 
-		coeffUpTable[j] = std::move(computeCoeffs(
+		coeffUpTable[j] = computeCoeffs(
 					losUpTable[j],
 					vector<Position>{neighbourPositions[bsId]},
 					msPos[j],
@@ -970,7 +972,7 @@ void METISChannel::recomputePerTTIValues(){
 					numSenderAntenna,
 					precompUpTable[j],
 					delayUpTable[j]
-					));
+					);
 	}
 	if(d2dActive){
 		numReceiverAntenna = NumMsAntenna;
@@ -985,7 +987,7 @@ void METISChannel::recomputePerTTIValues(){
 		for(size_t j=0; j<msPos.size(); j++){
 			VectorNd<array<double,3>,2> senderAntennaPos(computeAntennaPos(
 						msPos[j],numSenderAntenna,heightUE));
-			coeffUpD2DTable[j] = std::move(computeCoeffs(
+			coeffUpD2DTable[j] = computeCoeffs(
 						losD2DTable[j],
 						msPos[bsId],
 						msPos[j],
@@ -997,8 +999,8 @@ void METISChannel::recomputePerTTIValues(){
 						numSenderAntenna,
 						precompD2DTable[j],
 						delayD2DUpTable[j]
-						));
-			coeffDownD2DTable[j] = std::move(computeCoeffs(
+						);
+			coeffDownD2DTable[j] = computeCoeffs(
 						losD2DTable[j],
 						msPos[bsId],
 						msPos[j],
@@ -1010,7 +1012,7 @@ void METISChannel::recomputePerTTIValues(){
 						numSenderAntenna,
 						precompD2DTable[j],
 						delayD2DDownTable[j]
-						));
+						);
 		}
 	
 	}
@@ -1044,11 +1046,11 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 	
 	//Assign LOS Conditions:
 	losDownTable.resize(receiverPos.size(),vector<bool>(senderPos.size()));
-	losDownTable = std::move(genLosCond(senderPos,receiverPos));
+	losDownTable = genLosCond(senderPos,receiverPos);
 
 	// Assign move angles
 	VectorNd<double,2> moveDirTable(receiverPos.size(),vector<double>(senderPos.size()));
-	auto gen = []() -> double{return uniform(0,360);};
+	auto gen = [this]() -> double{return uniform(rng,0,360);};
 	for(auto& v:moveDirTable){
 		std::generate(v.begin(),v.end(),gen);
 	}
@@ -1167,7 +1169,7 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 	// Generate cross polarization values
 	VectorNd<double,4> Xn_m(genCrossPolarization(losDownTable));
 
-	precompDownTable = std::move(precomputeRayValues(losDownTable,
+	precompDownTable = precomputeRayValues(losDownTable,
 			sigma_kf_LOS,
 			numReceiverAntenna,
 			numSenderAntenna,
@@ -1185,9 +1187,9 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 			AoD_LOS_dir,
 			ZoD_LOS_dir,
 			moveDirTable
-			));
+			);
 
-	delayDownTable = std::move(addClusterDelayOffsets(delays,false,downRBs));
+	delayDownTable = addClusterDelayOffsets(delays,false,downRBs);
 }
 
 void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPositions,
@@ -1225,10 +1227,10 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 
 		//Assign LOS Conditions:
 		losUpTable[j].resize(receiverPos.size(),vector<bool>(senderPos.size()));
-		losUpTable[j] = std::move(genLosCond(senderPos,receiverPos));
+		losUpTable[j] = genLosCond(senderPos,receiverPos);
 		// Generate move directions
 		VectorNd<double,2> moveDirTable(receiverPos.size(),vector<double>(senderPos.size()));
-		auto gen = []() -> double{return uniform(0,360);};
+		auto gen = [this]() -> double{return uniform(rng,0,360);};
 		for(auto& v:moveDirTable){
 			std::generate(v.begin(),v.end(),gen);
 		}
@@ -1278,12 +1280,12 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 		// Begin small scale parameter generation.
 
 		// Generate delays for each cluster according to Formula: 7:38 (METIS Document)
-		VectorNd<double,3> delays = std::move(precomputeClusterDelays(
+		VectorNd<double,3> delays = precomputeClusterDelays(
 				losUpTable[j],
 				sigma_ds_LOS,
 				sigma_ds_NLOS,
 				sigma_kf_LOS
-				));
+				);
 
 		VectorNd<double,3> clusterPowers(genClusterPowers(losUpTable[j],
 					delays,
@@ -1371,7 +1373,7 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 				moveDirTable
 				);
 
-		delayUpTable[j] = std::move(addClusterDelayOffsets(delays,true,upRBs));
+		delayUpTable[j] = addClusterDelayOffsets(delays,true,upRBs);
 	}
 }
 
@@ -1418,10 +1420,10 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 
 		//Assign LOS Conditions:
 		losD2DTable[j].resize(receiverPos.size(),vector<bool>(senderPos.size()));
-		losD2DTable[j] = std::move(genLosCond(senderPos,receiverPos));
+		losD2DTable[j] = genLosCond(senderPos,receiverPos);
 		// Generate move directions
 		VectorNd<double,2> moveDirTable(receiverPos.size(),vector<double>(senderPos.size()));
-		auto gen = []() -> double{return uniform(0,360);};
+		auto gen = [this]() -> double{return uniform(rng,0,360);};
 		for(auto& v:moveDirTable){
 			std::generate(v.begin(),v.end(),gen);
 		}
@@ -1543,7 +1545,7 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 		VectorNd<double,4> Xn_m(genCrossPolarization(
 					losD2DTable[j]));
 
-		precompD2DTable[j] = std::move(precomputeRayValues(losD2DTable[j],
+		precompD2DTable[j] = precomputeRayValues(losD2DTable[j],
 				sigma_kf_LOS,
 				numReceiverAntenna,
 				numSenderAntenna,
@@ -1561,10 +1563,10 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 				AoD_LOS_dir,
 				ZoD_LOS_dir,
 				moveDirTable
-				));
+				);
 
-		delayD2DUpTable[j] = std::move(addClusterDelayOffsets(delays,true,upRBs));
-		delayD2DDownTable[j] = std::move(addClusterDelayOffsets(delays,false,downRBs));
+		delayD2DUpTable[j] = addClusterDelayOffsets(delays,true,upRBs);
+		delayD2DDownTable[j] = addClusterDelayOffsets(delays,false,downRBs);
 	}
 }
 
@@ -1577,7 +1579,7 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 double METISChannel::C_AS(int numCluster, bool LOS, int i,
 		vector<vector<double>> sigma_kf_LOS){
 	if(LOS){
-		double K = 10.0 * log10(abs(sigma_kf_LOS[i][0]));
+		double K = 10.0 * log10(std::abs(sigma_kf_LOS[i][0]));
 		double k_factor_LOS = 1.1035 - 0.028 * K - 0.002 * pow(K,2) + 0.0001 * pow(K,3);
 		
 		return C_AS(numCluster, false, i,sigma_kf_LOS) * k_factor_LOS;
@@ -1622,7 +1624,7 @@ double METISChannel::C_ZS(int numCluster, bool LOS,
 		VectorNd<double,2> sigma_kf_LOS){
 	int i = 0;
 	if(LOS){
-		double K = 10.0 * log10(abs(sigma_kf_LOS[i][0]));
+		double K = 10.0 * log10(std::abs(sigma_kf_LOS[i][0]));
 		double k_factor_LOS = 1.3086 - 0.0339 * K - 0.0077 * pow(K,2) + 0.0002 * pow(K,3);
 		
 		return C_ZS(numCluster, false,sigma_kf_LOS) * k_factor_LOS;
@@ -1721,7 +1723,7 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 	for(int i = 0; i < 7; i++){
 		for(int j = 0; j < (int) sizeX+10; j++){
 			for(int k = 0; k < (int) sizeY+10; k++){
-				grid[i][j][k] = normal(0,1);
+				grid[i][j][k] = normal(rng,0,1);
 				tmpX[i][j][k] = 0;
 				tmpY[i][j][k] = 0;
 			}
@@ -1867,13 +1869,13 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 	for(int i = 0; i < 6; i++){
 		for(int j = 0; j < (int) sizeX+10; j++){
 			for(int k = 0; k < (int) sizeY+10; k++){
-				grid[i][j][k] = normal(0,1);
+				grid[i][j][k] = normal(rng,0,1);
 				tmpX[i][j][k] = 0;
 				tmpY[i][j][k] = 0;
 			}
 		}
 	}
-		
+
 	// Filter in X direction
 	// Forall Large scale parameters
 	for(int i = 0; i < 6; i++){
@@ -1898,7 +1900,7 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 			for(int k = 10; k < (int) sizeY+10; k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
-					tmpY[i][k][j] += tmpX[i][k - l][j] * filter[i][l];
+					tmpY[i][j][k] += tmpX[i][j][k - l] * filter[i][l];
 				}
 			}
 		}
@@ -1999,7 +2001,7 @@ bool METISChannel::LineOfSight(double dist2D){
 	}else{
 		prob = 	(18 / dist2D) + (1 - ( 18/dist2D )) * exp(-1.0 * dist2D/36);
 	}
-	double coin = uniform(0,1);
+	double coin = uniform(rng,0,1);
 	return (coin <= prob); // check for the value of coin when running simulation
 }
 
@@ -2030,11 +2032,11 @@ double METISChannel::sigma_ZSD(double meanZSD, bool LOS){
 	if (LOS){
 		double epsilon_ZSD = 0.4;
 		double sigma;
-		return sigma = normal(meanZSD, pow(epsilon_ZSD,2) );
+		return sigma = normal(rng,meanZSD, pow(epsilon_ZSD,2) );
 	}else{
 		double epsilon_ZSD = 0.49;
 		double sigma;
-		return sigma = normal(meanZSD, pow(epsilon_ZSD,2) );
+		return sigma = normal(rng,meanZSD, pow(epsilon_ZSD,2) );
 	}
 }
 

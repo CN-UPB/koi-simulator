@@ -18,6 +18,7 @@
 #include <numeric>
 #include <vector>
 
+using namespace omnetpp;
 using std::ofstream;
 using std::set;
 using std::unordered_map;

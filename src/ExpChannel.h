@@ -10,21 +10,26 @@
 #include <fstream>
 #include <vector>
 
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/exponential_distribution.hpp>
+
 class ExpChannel: public Channel{
 	private:
 		double expMean;
 		double plExp;
-		simtime_t initOffset;
+		omnetpp::simtime_t initOffset;
 		std::ofstream downValues;
 		std::ofstream upValues;
+		boost::random::mt19937 randEng;
+		boost::random::exponential_distribution<double> distExp;
 
 		double pathgain(Position sender, Position receiver);
 		void recomputeCoefficients(
 				const std::vector<std::vector<Position>>& msPositions);
 	
 	public:
-		void handleMessage(cMessage* msg);
-		bool init(cSimpleModule* module,
+		void handleMessage(omnetpp::cMessage* msg);
+		bool init(omnetpp::cSimpleModule* module,
 				const std::vector<std::vector<Position>>& msPositions, 
 				const std::map<int,Position>& neighbourPositions);
 

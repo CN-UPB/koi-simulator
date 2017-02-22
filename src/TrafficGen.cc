@@ -18,6 +18,7 @@
 #include <stdexcept>
 #include <vector>
 
+using namespace omnetpp;
 using std::vector;
 using std::string;
 
@@ -131,7 +132,7 @@ vector<TrafficGen::StreamDef> TrafficGen::parseCommTable(int bsId, int msId){
 	unsigned long sId;
 	for(cXMLElement *curr=msNode->getFirstChild();curr!=nullptr;
 			curr=curr->getNextSibling()){
-		sId = simulation.getUniqueNumber();
+		sId = omnetpp::getSimulation()->getUniqueNumber();
 		parsedStreams.emplace_back(
 			sId,
 			std::stoi(curr->getAttribute("cell")),
@@ -144,7 +145,7 @@ vector<TrafficGen::StreamDef> TrafficGen::parseCommTable(int bsId, int msId){
 }
 
 void TrafficGen::loadComTable(const std::string& fpath){
-	commTable = ev.getXMLDocument(fpath.c_str(),nullptr);
+	commTable = omnetpp::getEnvir()->getXMLDocument(fpath.c_str(),nullptr);
 }
 
 TrafficGen::~TrafficGen(){

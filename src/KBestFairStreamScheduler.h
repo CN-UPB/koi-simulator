@@ -42,6 +42,6 @@ class KBestFairStreamScheduler: public StreamScheduler{
 	protected:
     virtual void initialize();
 		virtual void finish();
-		virtual void handleMessage(cMessage *msg);
+		virtual void handleMessage(omnetpp::cMessage *msg);
     virtual void scheduleDynStreams();
 };

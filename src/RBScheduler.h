@@ -28,7 +28,7 @@
 #include <unordered_map>
 #include <vector>
 
-class RBScheduler: public cSimpleModule{
+class RBScheduler: public omnetpp::cSimpleModule{
 	private:
 		int rbNumber;
 		int numSubcarriers;
@@ -44,7 +44,7 @@ class RBScheduler: public cSimpleModule{
 
 	protected:
 		virtual void initialize();
-		virtual void handleMessage(cMessage *msg);
+		virtual void handleMessage(omnetpp::cMessage *msg);
 	
 	public:
 		~RBScheduler() = default;

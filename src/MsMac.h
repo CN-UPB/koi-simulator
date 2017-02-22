@@ -29,7 +29,7 @@ using namespace std;
 using TTISchedule = std::pair<int,std::vector<int>>;
 using ScheduleList = std::vector<TTISchedule>;
 
-class MsMac : public cSimpleModule  {
+class MsMac : public omnetpp::cSimpleModule  {
     private:
 			unordered_map<unsigned long,list<KoiData*>> streamQueues;
 			std::function<bool(const KoiData*, const KoiData*)> comparator;
@@ -45,18 +45,18 @@ class MsMac : public cSimpleModule  {
 			int numberOfMobileStations;
 			int positionResendInterval;
 			int packetLength;
-			simtime_t initOffset;
-			simtime_t epsilon;
-			simtime_t tti;
+			omnetpp::simtime_t initOffset;
+			omnetpp::simtime_t epsilon;
+			omnetpp::simtime_t tti;
 			double radius;
 			vector<double> velocity;
 			Position initBsPos; //just used for position centering in Tkenv ms pos calc in init
 			double transmissionPower;
-			inline simtime_t positionResendTime();
+			inline omnetpp::simtime_t positionResendTime();
 			Position initMsPositionLinear();
 			Position initMsPositionRand();
 			Position initMsPositionLine();
-			void scheduleStatic(cMessage* msg);
+			void scheduleStatic(omnetpp::cMessage* msg);
 			/**
 			 * @enum Placement
 			 * All possible methods to determine initial Mobile Station placement
@@ -85,7 +85,7 @@ class MsMac : public cSimpleModule  {
 
     protected:
         virtual void initialize();
-        virtual void handleMessage(cMessage *msg);
+        virtual void handleMessage(omnetpp::cMessage *msg);
 				virtual void finish();
 
     public:

@@ -50,7 +50,7 @@ bool EDFStreamScheduler::schedulabilityTest(const EDFRb& rb,
     const EDFStream& newStream){
   // Currently, any packet needs only a single TTI to transmit, so all 
   // streams have an execution time e equal to the length of a tti.
-  simtime_t e(tti);
+	omnetpp::simtime_t e(tti);
   double newStreamLoad = e.dbl()/std::min(newStream.period,
       newStream.deadline);
   return rb.utilization+newStreamLoad <= 1.0;
@@ -104,7 +104,7 @@ void EDFStreamScheduler::scheduleDynStreams(){
       -> bool {return first.viableStreams.size() > second.viableStreams.size();};
     std::sort(blocks.begin(),blocks.end(),compareRbsStreamNum);
 
-    simtime_t e(tti);
+		omnetpp::simtime_t e(tti);
     // Schedule the streams on the resource blocks
     bool scheduled;
     int unscheduledStreams = 0;
