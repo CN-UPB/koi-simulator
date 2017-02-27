@@ -257,12 +257,9 @@ void METISChannel::recomputeLargeScaleParameters(const vector<Position>& senders
 VectorNd<bool,2> METISChannel::genLosCond(const vector<Position>& sendPos,
 		const vector<Position>& receivePos){
 	VectorNd<bool,2> losCond(receivePos.size(),vector<bool>(sendPos.size()));
-	double dist;
 	for(size_t i = 0; i < receivePos.size(); i++){
 		for(size_t j=0; j<sendPos.size(); j++){
-			dist = sqrt(pow(sendPos[j].x - receivePos[i].x,2) 
-					+ pow(sendPos[j].y - receivePos[i].y,2));
-			losCond[i][j] = LineOfSight(dist);
+			losCond[i][j] = LineOfSight(sendPos[j],receivePos[i]);
 		}
 	}
 	return losCond;
@@ -477,6 +474,7 @@ METISChannel::recomputeAngleDirection(
 			vector<double>(numSenders));
 	double x_dir;
 	double y_dir;
+	double z_dir;
 	vec cartLOS_RecToSend_Angle = itpp::zeros(3);
 	vec cartLOS_SendToRec_Angle = itpp::zeros(3);
 	vec sphLOSAngle;
@@ -487,10 +485,11 @@ METISChannel::recomputeAngleDirection(
 				// Angles of Arrival
 				x_dir = receivers[i].x - senders[j].x;
 				y_dir = receivers[i].y - senders[j].y;
+				z_dir = receivers[i].z - senders[j].z;
 
 				cartLOS_RecToSend_Angle.set(0,x_dir);
 				cartLOS_RecToSend_Angle.set(1,y_dir);
-				cartLOS_RecToSend_Angle.set(2,heightReceivers);
+				cartLOS_RecToSend_Angle.set(2,z_dir+heightReceivers);
 				
 				sphLOSAngle = Cart_to_Sph(cartLOS_RecToSend_Angle);
 				AoADir[i][j] = sphLOSAngle.get(0);
@@ -499,10 +498,11 @@ METISChannel::recomputeAngleDirection(
 				// Angles of Departure
 				x_dir = senders[j].x - receivers[i].x;
 				y_dir = senders[j].y - receivers[i].y;
+				z_dir = senders[j].z - receivers[i].z;
 
 				cartLOS_SendToRec_Angle.set(0,x_dir);
 				cartLOS_SendToRec_Angle.set(1,y_dir);
-				cartLOS_SendToRec_Angle.set(2,heightSenders);
+				cartLOS_SendToRec_Angle.set(2,z_dir+heightSenders);
 				
 				sphLOSAngle = Cart_to_Sph(cartLOS_SendToRec_Angle);
 				AoDDir[i][j] = sphLOSAngle.get(0);
@@ -893,6 +893,7 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 		for(size_t idIdx = 0; idIdx<numSenders; idIdx++){
 			dist2D = sqrt(pow((senderPos[idIdx].x - receiverPos[i].x),2) + pow((senderPos[idIdx].y - receiverPos[i].y),2));
 			dist3D = sqrt(pow(dist2D,2) + pow((heightSenders - heightReceivers),2));
+			dist3D = senderPos[idIdx].distance(receiverPos[i]);
 			complex<double> res = complex<double>(0.0,0.0);
 			pathloss = CalcPathlossTanghe(dist3D);
 			if(LOSCondition[i][idIdx]){
@@ -1993,13 +1994,17 @@ double METISChannel::CalcPathlossTanghe(double dist3D){
 * @param dist2D Distance in horizontal plane between BS and MS of the link.
 * @return true iff LOS link, false otherwise
 */
-bool METISChannel::LineOfSight(double dist2D){
-	//double prob = std::min(18 / dist2D,1.0) * (1 - exp( -1.0*dist2D/36 )) + exp(-1.0 * dist2D/36);
+bool METISChannel::LineOfSight(const Position& sender, const Position& receiver){
+	// If sender/receiver are not on the same floor, they can't have a LOS.
+	if(sender.z != receiver.z){
+		return false;
+	}
 	double prob;
-	if (dist2D < 18.0){
+	double dist = sender.distance(receiver);
+	if (dist < 18.0){
 		prob = 1.0;
 	}else{
-		prob = 	(18 / dist2D) + (1 - ( 18/dist2D )) * exp(-1.0 * dist2D/36);
+		prob = 	(18 / dist) + (1 - ( 18/dist )) * exp(-1.0 * dist/36);
 	}
 	double coin = uniform(rng,0,1);
 	return (coin <= prob); // check for the value of coin when running simulation

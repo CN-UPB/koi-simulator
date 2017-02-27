@@ -37,9 +37,7 @@ bool ExpChannel::init(cSimpleModule* module,
 }
 
 double ExpChannel::pathgain(Position sender, Position receiver){
-	double distX = pow(sender.x-receiver.x,2);
-	double distY = pow(sender.y-receiver.y,2);
-	double dist = sqrt(distX+distY);
+	double dist = sender.distance(receiver);
 	double pl = (10*plExp*log10(dist));
 	// Convert pathloss to linear scale and return gain instead of loss
 	return std::pow(10,-pl/10);

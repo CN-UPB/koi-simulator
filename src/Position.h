@@ -13,6 +13,11 @@ struct Position  {
     double x;
     double y;
 		double z;
+		double distance(const Position& other) const;
+
+	private:
+		double dist2d(const Position& other) const;
+		double dist3d(const Position& other) const;
 };
 
 void doPacking(omnetpp::cCommBuffer *buffer, Position &pos);

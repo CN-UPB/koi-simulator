@@ -102,7 +102,7 @@ class METISChannel : public Channel{
 				VectorNd<double,2> sigma_kf_LOS);
 		
 		//! Calculates the probability of a link being a LOS link.
-		bool LineOfSight(double dist2D);
+		bool LineOfSight(const Position& sender, const Position& receiver);
 		
 		//! Calculate the mean of Zenith spread of departure.
 		double mean_ZSD(double dist2D, double heightUE, bool LOS);
