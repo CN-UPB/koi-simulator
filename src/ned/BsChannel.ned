@@ -187,6 +187,20 @@ simple BsChannel  {
 		bool d2dActive = default(true);
 		// Velocity of the mobile stations in m/s
 		double msVel;
+		// Fitting parameter A for METIS PL Model
+		double plFittingA_LOS = default(1);
+		// Intercept parameter B for METIS PL Model
+		double plInterceptB_LOS = default(1);
+		// Frequency Dependency parameter C for METIS PL Model
+		double plFreqDepC_LOS = default(0);
+		// Fitting parameter A for METIS PL Model
+		double plFittingA_NLOS = default(1);
+		// Intercept parameter B for METIS PL Model
+		double plInterceptB_NLOS = default(1);
+		// Frequency Dependency parameter C for METIS PL Model
+		double plFreqDepC_NLOS = default(0);
+		// Height of floors in the Sim
+		double heightFloor = default(3m) @unit(m);
 		@display("i=block/rxtx");
 		
 	gates:

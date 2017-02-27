@@ -102,14 +102,18 @@ bool METISChannel::init(cSimpleModule* module,
 	N_cluster_NLOS = module->par("NumberOfClusters_NLOS");
 	numOfRays_LOS = module->par("NumberOfRays_LOS");
 	numOfRays_NLOS = module->par("NumberOfRays_NLOS");
-	plExp = module->par("plExp");
-	pl0 = module->par("pl0");
-	d0 = module->par("d0");
+	plFittingA_LOS = module->par("plFittingA_LOS");
+	plInterceptB_LOS = module->par("plInterceptB_LOS");
+	plFreqDepC_LOS = module->par("plFreqDepC_LOS");
+	plFittingA_NLOS = module->par("plFittingA_NLOS");
+	plInterceptB_NLOS = module->par("plInterceptB_NLOS");
+	plFreqDepC_NLOS = module->par("plFreqDepC_NLOS");
 	freq_c = module->par("CarrierFrequency");
 	NumBsAntenna = module->par("NumBsAntenna");
 	NumMsAntenna = module->par("NumMsAntenna");
 	heightUE = module->par("OutdoorHeightUE");
 	heightBS = module->par("BsHeight");
+	heightFloor = module->par("heightFloor");
 	rng = module->getRNG(0);
 	XPR_Mean_LOS = module->par("XPR_Mean_LOS");
 	XPR_Std_LOS = module->par("XPR_Std_LOS");
@@ -879,7 +883,7 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 	size_t numSenders = senderPos.size();
 	VectorNd<double,3> coeffs(numReceivers,
 			VectorNd<double,2>(numSenders,vector<double>(numRBs)));
-	double pathloss, dist3D, dist2D;
+	double pathloss;
 	int n_clusters;
 	
 	// Store current simulation time
@@ -891,11 +895,9 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 	for(size_t i = 0; i < numReceivers; i++){
 		//Fourier Transform for interferers:
 		for(size_t idIdx = 0; idIdx<numSenders; idIdx++){
-			dist2D = sqrt(pow((senderPos[idIdx].x - receiverPos[i].x),2) + pow((senderPos[idIdx].y - receiverPos[i].y),2));
-			dist3D = sqrt(pow(dist2D,2) + pow((heightSenders - heightReceivers),2));
-			dist3D = senderPos[idIdx].distance(receiverPos[i]);
 			complex<double> res = complex<double>(0.0,0.0);
-			pathloss = CalcPathlossTanghe(dist3D);
+			pathloss = CalcParameterizedPathloss(senderPos[idIdx],receiverPos[i],
+					LOSCondition[i][idIdx]);
 			if(LOSCondition[i][idIdx]){
 				n_clusters = N_cluster_LOS;
 			}
@@ -1983,9 +1985,20 @@ double METISChannel::CalcPathlossMETIS(double dist2D, double dist3D, bool LOS){
 	//return 1/pow(10, (22*log10(dist2D) + 28 + 20*log10(freq_c / 1000000000)) /10);
 }
 
-double METISChannel::CalcPathlossTanghe(double dist3D){
-	double pl = (pl0+10*plExp*log10(dist3D/d0));
-	// Convert pathloss to linear scale and return gain instead of loss
+double METISChannel::CalcParameterizedPathloss(const Position& sender,
+		const Position& receiver,bool los){
+	double a = los ? plFittingA_LOS : plFittingA_NLOS;
+	double b = los ? plInterceptB_LOS : plInterceptB_NLOS;
+	double c = los ? plFreqDepC_LOS : plFreqDepC_NLOS;
+	double dist = sender.distance(receiver);
+	double distZ = std::fabs(sender.z-receiver.z);
+	double pl = a*log10(dist)+b+c*log10(freq_c/5e9);
+	if(distZ>0){
+		int nFloors = std::floor(distZ/heightFloor);
+		if(nFloors>0){
+			pl += 17+4*(nFloors-1);
+		}
+	}
 	return std::pow(10,-pl/10);
 }
 
