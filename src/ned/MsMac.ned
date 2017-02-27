@@ -42,10 +42,14 @@ simple MsMac  {
 			double initBsXPos;
 			// The Y position of the local BaseStation.
 			double initBsYPos;
+			// The Z position of the local BaseStation.
+			double initBsZPos;
 			// The X position of the MobileStation. 
 			double initMsXPos = default(0.0);
 			// The Y position of the MobileStation. 
 			double initMsYPos = default(0.0);
+			// The Z position of the MobileStation. 
+			double initMsZPos = default(0.0);
 			// Offset from the simulation start reserved for initialization messages.
 			// No traffic is generated/send before it.
 			double initOffset @unit(s);

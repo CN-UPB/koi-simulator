@@ -68,6 +68,7 @@ void BsChannel::initialize()  {
 	//the position of the base stations
 	bsPosition.x = par("xPos");
 	bsPosition.y = par("yPos");
+	bsPosition.z = par("zPos");
 
 	if(this->getIndex() == 0){
 		PointerExchange *PtrMessage = new PointerExchange("POINTER_EXCHANGE2");

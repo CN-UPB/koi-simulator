@@ -12,6 +12,7 @@
 struct Position  {
     double x;
     double y;
+		double z;
 };
 
 void doPacking(omnetpp::cCommBuffer *buffer, Position &pos);

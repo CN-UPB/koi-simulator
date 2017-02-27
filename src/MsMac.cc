@@ -51,10 +51,10 @@ Position MsMac::initMsPositionLinear()  { //for MS Position along a straight roa
 	velocity.push_back(0); //velocity in y-direction in m/s
 
 	msPos.x = 6;
-        msPos.y = radius - 9; //for movement of the MS on a straight road
+	msPos.y = radius - 9; //for movement of the MS on a straight road
+	msPos.z = 0; // MS on road are all the same height
 	P_MS << msPos.x << " " << msPos.y << "\n" << std::endl;
-	
-        P_MS.close();
+	P_MS.close();
 	return msPos;
 }
 
@@ -66,6 +66,7 @@ Position MsMac::initMsPositionRand(){
 	Position initPos;
 	initPos.x = initBsPos.x+distToBs*std::cos(angle);
 	initPos.y = initBsPos.y+distToBs*std::sin(angle);
+	initPos.z = initBsPos.z;
 	return initPos;
 }
 
@@ -74,6 +75,7 @@ Position MsMac::initMsPositionLine(){
 	double msDists = (radius-1.01)/numberOfMobileStations;
 	initPos.x = initBsPos.x+1.01+(msId*msDists);
 	initPos.y = initBsPos.y;
+	initPos.z = initBsPos.z;
 	return initPos;
 }
 
@@ -86,6 +88,7 @@ void MsMac::initialize()  {
 	radius = par("radius");
 	initBsPos.x = par("initBsXPos");
 	initBsPos.y = par("initBsYPos");
+	initBsPos.z = par("initBsZPos");
 	initOffset = par("initOffset");
 	tti = par("tti");
 	packetLength = par("packetLength");
@@ -97,6 +100,7 @@ void MsMac::initialize()  {
 		case MsMac::Placement::params:
 			msPosition.x = par("initMsXPos");
 			msPosition.y = par("initMsYPos");
+			msPosition.z = par("initMsZPos");
 			break;
 		case MsMac::Placement::linear:
 			msPosition = initMsPositionLinear(); //for MS position along a straight road

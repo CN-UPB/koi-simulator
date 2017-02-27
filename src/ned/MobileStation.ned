@@ -47,6 +47,8 @@ parameters:
 	double initBsXPos;
 	// The Y position of the local BaseStation.
 	double initBsYPos;
+	// The Z position of the local BaseStation.
+	double initBsZPos;
 	// The radius of the local cell
 	double radius;
 	// Bandwidth available to each resource block
@@ -100,6 +102,7 @@ submodules:
 					 radius = radius;
 					 initBsXPos = initBsXPos;
 					 initBsYPos = initBsYPos;
+					 initBsZPos = initBsZPos;
 					 tti = tti;
 					 @display("p=50,120");
 	}

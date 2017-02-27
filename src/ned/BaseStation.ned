@@ -37,6 +37,8 @@ module BaseStation
 		double xPos;
 		// Y coordinate of the BaseStation's position
 		double yPos;
+		// Z coordinate of the BaseStation's position
+		double zPos = default(0);
 		// The number of MobileStations in the local cell
 		int numberOfMobileStations;
 		// The number of neighbouring LteCells
@@ -84,6 +86,7 @@ module BaseStation
    			parameters:
    				xPos = xPos;
    				yPos = yPos;
+   				zPos = zPos;
    				tti = tti;
    				bsId = bsId;
 					numberOfMobileStations = numberOfMobileStations;
@@ -107,6 +110,7 @@ module BaseStation
    			parameters:
    				xPos = xPos;
    				yPos = yPos;
+   				zPos = zPos;
    				bsId = bsId;
    				numberOfMobileStations = numberOfMobileStations;
 					upResourceBlocks = upResourceBlocks;

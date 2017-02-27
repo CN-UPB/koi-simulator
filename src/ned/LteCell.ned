@@ -55,6 +55,8 @@ module LteCell
 		double xPos;
 		// Y coordinate of the LteCell's center position
 		double yPos;
+		// Z coordinate of the LteCell's center position
+		double zPos;
 		// Size of the simulation are in X direction
 		double playgroundSizeX;
 		// Size of the simulation are in Y direction
@@ -85,6 +87,7 @@ module LteCell
             parameters:
                 xPos = xPos;
                 yPos = yPos;
+                zPos = zPos;
                 bsId = bsId;
                 numberOfMobileStations = numberOfMobileStations;
 								upResourceBlocks = upResourceBlocks;
@@ -108,6 +111,7 @@ module LteCell
                 msId = index;
                 initBsXPos = xPos;
                 initBsYPos = yPos;
+                initBsZPos = zPos;
                 radius = radius;
 								upResourceBlocks = upResourceBlocks;
 								downResourceBlocks = downResourceBlocks;

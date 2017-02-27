@@ -32,6 +32,7 @@ Define_Module(BsMac);
 void BsMac::initialize()  {
     pos.x = par("xPos");
     pos.y = par("yPos");
+    pos.z = par("zPos");
     bsId = par("bsId");
     maxNumberOfNeighbours = par("maxNumberOfNeighbours");
     numberOfMobileStations = par("numberOfMobileStations");
@@ -313,10 +314,12 @@ void BsMac::handleMessage(cMessage *msg)  {
 void BsMac::writePositions(){
 	std::string fname("pos-cell-"+std::to_string(bsId));
 	std::ofstream fout(getResultFile(fname));
-	fout << "Station\t" << "PosX\t" << "PosY" << std::endl; 
-	fout << "-1" << "\t" << pos.x << "\t" << pos.y << std::endl;
+	fout << "Station\t" << "PosX\t" << "PosY\t" << "PosZ" << std::endl; 
+	fout << "-1" << "\t" << pos.x << "\t" << pos.y << "\t" << pos.z << std::endl;
 	for(int i = 0; i<numberOfMobileStations; i++){
-		fout << i << "\t" << msPositions[i].x << "\t" << msPositions[i].y << std::endl;
+		fout << i << "\t" << msPositions[i].x << "\t" << msPositions[i].y << "\t"
+			<< msPositions[i].z
+			<< std::endl;
 	}
 	fout.close();
 }
