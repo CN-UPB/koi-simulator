@@ -71,6 +71,7 @@ void BsMac::initialize()  {
 void BsMac::finish(){
 	delays_file.close();
 	rate_file.close();
+	mcs_file.close();
 }
 
 /* important: this method does not delete the msg! */
@@ -279,6 +280,7 @@ void BsMac::handleMessage(cMessage *msg)  {
 			
 			ResultFileExchange *delays = new ResultFileExchange("DELAYS_FILE");
 			ResultFileExchange *rates = new ResultFileExchange("RATES_FILE");
+			ResultFileExchange *mcs = new ResultFileExchange("MCS_FILE");
 			std::string fname("delays-cell-"+std::to_string(bsId));
 			delays_file = getResultFile(fname);
 			delays_file << "MS\t" << "Delay" << std::endl;
@@ -287,12 +289,19 @@ void BsMac::handleMessage(cMessage *msg)  {
 			rate_file = getResultFile(fname);
 			rate_file << "MS\t" << "Rate" << std::endl;
 			rates->setPtr(&rate_file);
+			fname = "mcs-cell-"+std::to_string(bsId);
+			mcs_file = getResultFile(fname);
+			mcs_file << "From\t" << "Assigned\t" << "BestPossible" << std::endl;
+			mcs->setPtr(&mcs_file);
 			for(int i = 0; i<numberOfMobileStations; i++){
 				send(delays->dup(),"toMsMac",i);
 				send(rates->dup(),"toMsMac",i);
+				send(mcs->dup(),"toMsMac",i);
+				send(mcs->dup(),"toBsChannel",i);
 			}
 			delete delays;
 			delete rates;
+			delete mcs;
 			delete msg;
 		}
 	}

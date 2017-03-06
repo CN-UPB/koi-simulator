@@ -37,6 +37,7 @@ class BsMac : public omnetpp::cSimpleModule  {
 				unordered_map<unsigned long,std::list<KoiData*>> streamQueues;
 				ofstream delays_file;
 				ofstream rate_file;
+				ofstream mcs_file;
 				void writePositions();
 
     protected:

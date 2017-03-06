@@ -37,6 +37,9 @@ void MsPhy::handleMessage(omnetpp::cMessage *msg)  {
 				send(msg,"toMsChannel");
 				break;
 		}
+		if(msg->isName("MCS_FILE")){
+			send(msg,"toMsChannel");
+		}
 	}
 	else if(msg->arrivedOn("fromChannel"))  {
 		//ev << "Forwarding packet/packets to the mac layer" << endl;

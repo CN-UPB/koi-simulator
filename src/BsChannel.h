@@ -18,6 +18,7 @@
 #include "TransInfo_m.h"
 #include <itpp/itbase.h>
 #include <forward_list>
+#include <fstream>
 #include <ostream>
 #include <vector>
 
@@ -39,6 +40,7 @@ class BsChannel : public omnetpp::cSimpleModule  {
         std::vector<std::vector<Position>> msPositions;
         std::map <int,Position> neighbourPositions;
         Channel* channel;
+				std::ofstream* mcs_file;
 
     protected:
         void initialize() override;

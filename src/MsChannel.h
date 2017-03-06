@@ -37,6 +37,7 @@ class MsChannel : public omnetpp::cSimpleModule  {
         Channel* channel;
 				bool debug;
 				bool d2dActive;
+				std::ofstream* mcs_file;
 
     protected:
         virtual void initialize();

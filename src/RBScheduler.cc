@@ -87,11 +87,14 @@ StreamTransSched *RBScheduler::getSchedule(
 		}
 		// Determine potential channel capacity.
 		double channelCap;
+		int mcs;
 		if(direction==MessageDirection::up){
 			channelCap = estimates->at(bestReq->getRequestOrigin())->getRUp(rbNumber);
+			mcs = estimates->at(bestReq->getRequestOrigin())->getMcsUp(rbNumber);
 		}
 		else{
 			channelCap = estimates->at(bestReq->getRequestOrigin())->getRDown(rbNumber);
+			mcs = estimates->at(bestReq->getRequestOrigin())->getMcsDown(rbNumber);
 		}
 		// Schedule the best packets according to the compare method
 		// until the channel capacity is used up.
@@ -122,6 +125,7 @@ StreamTransSched *RBScheduler::getSchedule(
 			}
 			if(bestPacket!=nullptr){
 				bestPacket->setResourceBlock(rbNumber);
+				bestPacket->setMcs(mcs);
 				int dir;
 				if(bestPacket->getD2d()){
 					if(direction==MessageDirection::down){

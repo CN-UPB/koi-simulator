@@ -10,6 +10,7 @@
 #include "SINR_m.h"
 #include "PositionExchange_m.h"
 #include "PointerExchange_m.h"
+#include "ResultFileExchange_m.h"
 #include "util.h"
 #include <math.h>
 #include <cmath>
@@ -70,20 +71,30 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			// the MS don't use the DOWN RBs.
 			sinrMessage->setDownArraySize(downResourceBlocks);
 			sinrMessage->setRDownArraySize(downResourceBlocks);
+			sinrMessage->setMcsDownArraySize(downResourceBlocks);
 			for(int i = 0; i < downResourceBlocks; i++){
 				sinr = channel->calcAvgD2DDownSINR(i,msId,1.0);
+				int mcs;
+				unsigned cap;
+				std::tie(mcs,cap) = coding.getRBCapacity(sinr,numMSAntenna,
+						numMSAntenna);
+				sinrMessage->setRDown(i,cap);
+				sinrMessage->setMcsDown(i,mcs);
 				sinrMessage->setDown(i,sinr);
-				sinrMessage->setRDown(i,coding.getRBCapacity(sinr,numMSAntenna,
-							numBSAntenna));
 			}
 		}
 		sinrMessage->setUpArraySize(upResourceBlocks);
 		sinrMessage->setRUpArraySize(upResourceBlocks);
+		sinrMessage->setMcsUpArraySize(upResourceBlocks);
 		for(int i = 0; i < upResourceBlocks; i++){
 			sinr = channel->calcUpSINR(i,msId,1.0);
+			int mcs;
+			unsigned cap;
+			std::tie(mcs,cap) = coding.getRBCapacity(sinr,numMSAntenna,
+					numBSAntenna);
 			sinrMessage->setUp(i,sinr);
-			sinrMessage->setRUp(i,coding.getRBCapacity(sinr,numMSAntenna,
-						numBSAntenna));
+			sinrMessage->setRUp(i,cap);
+			sinrMessage->setMcsUp(i,mcs);
 		}
 		// Route estimate to MsMac via MsPhy
 		send(sinrMessage,"toPhy");
@@ -97,6 +108,11 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			}
 		}
 	}
+	else if(msg->isName("MCS_FILE")){
+		ResultFileExchange* mcs = dynamic_cast<ResultFileExchange*>(msg);
+		mcs_file = mcs->getPtr();
+		delete mcs;
+	}
 	else if(msg->isName("POINTER_EXCHANGE2"))  {
 		//cout << "channel arrived at MS" << endl;
 		PointerExchange *PtrMessage = (PointerExchange*) msg;
@@ -105,44 +121,19 @@ void MsChannel::handleMessage(cMessage *msg)  {
 	}
 	else if(msg->getKind()==MessageType::koidata)  {
 		KoiData *packet = (KoiData *) msg;
-                // Set Scheduled to false, as the packet now need to be
-                // scheduled anew.
-                packet->setScheduled(false);
-		// Just forward the packet for now, without error checking etc
-		/**
-		vector<double> instSINR;
-		int currentRessourceBlock = packet->getResourceBlock();
-
-		switch(packet->getMessageDirection()){
-			case MessageDirection::down:
-				instSINR.push_back(channel->calcDownSINR(currentRessourceBlock,msId,packet->getTransPower()));
-				break;
-			case MessageDirection::d2dDown:
-				instSINR.push_back(channel->calcD2DSINR(
-							currentRessourceBlock,
-							packet->getSrc(),
-							msId,MessageDirection::d2dDown,
-							packet->getTransPower()));
-				break;
-			case MessageDirection::d2dUp:
-				instSINR.push_back(channel->calcD2DSINR(
-							currentRessourceBlock,
-							packet->getSrc(),
-							msId,MessageDirection::d2dUp,
-							packet->getTransPower()));
-				break;
-		}
-		double effSINR = getEffectiveSINR(instSINR,eesm_beta_values);
-		double bler = getBler(packet->getCqi(), effSINR, this);
-		vec bler_(1);
-		bler_.set(0,bler);
-		double per = getPer(bler_);
-		if(uniform(0,1) > per){
-			sendDelayed(bundle, tti - epsilon, "toPhy");
-		}else{
-			delete bundle;
-		}
-		**/
+		// Set Scheduled to false, as the packet now need to be
+		// scheduled anew.
+		packet->setScheduled(false);
+		// Log the MCS this Packet ought to have used and the best one it could
+		// use based on the actual SINR value.
+		double sinr = channel->calcDownSINR(packet->getResourceBlock(),
+				msId,
+				packet->getTransPower());
+		unsigned cap;
+		int mcs;
+		std::tie(mcs,cap) = coding.getRBCapacity(sinr,numBSAntenna,numMSAntenna);
+		*mcs_file << -1 << "\t" << packet->getMcs() << "\t"
+			<< mcs << std::endl;
 		// For now, all packets are received successfully
 		sendDelayed(packet, epsilon, "toPhy");
 	}
@@ -159,20 +150,30 @@ void MsChannel::handleMessage(cMessage *msg)  {
 			// the MS don't use the DOWN RBs.
 			longtermEst->setDownArraySize(downResourceBlocks);
 			longtermEst->setRDownArraySize(downResourceBlocks);
+			longtermEst->setMcsDownArraySize(downResourceBlocks);
 			for(int i = 0; i < downResourceBlocks; i++){
 				sinr = channel->calcLongtermDownSINR(i,msId,1.0);
+				int mcs;
+				unsigned cap;
+				std::tie(mcs,cap) = coding.getRBCapacity(sinr,numMSAntenna,
+						numMSAntenna);
+				longtermEst->setRDown(i,cap);
+				longtermEst->setMcsDown(i,mcs);
 				longtermEst->setDown(i,sinr);
-				longtermEst->setRDown(i,coding.getRBCapacity(sinr,numMSAntenna,
-							numBSAntenna));
 			}
 		}
 		longtermEst->setUpArraySize(upResourceBlocks);
 		longtermEst->setRUpArraySize(upResourceBlocks);
+		longtermEst->setMcsUpArraySize(upResourceBlocks);
 		for(int i = 0; i < upResourceBlocks; i++){
 			sinr = channel->calcLongtermUpSINR(i,msId,1.0);
+			int mcs;
+			unsigned cap;
+			std::tie(mcs,cap) = coding.getRBCapacity(sinr,numMSAntenna,
+					numBSAntenna);
 			longtermEst->setUp(i,sinr);
-			longtermEst->setRUp(i,coding.getRBCapacity(sinr,numMSAntenna,
-						numBSAntenna));
+			longtermEst->setRUp(i,cap);
+			longtermEst->setMcsUp(i,mcs);
 		}
 		// Route estimate to MsMac via MsPhy
 		send(longtermEst,"toPhy");

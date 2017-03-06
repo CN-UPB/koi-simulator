@@ -25,5 +25,6 @@ packet KoiData {
 	bool scheduled = false; // This packet is scheduled to be send in the current TTI
 	simtime_t latestQueueEntry; // Most recent entry time into a queue
 	simtime_t totalQueueDelay; // Total timew spend in Queues
+	int mcs; // The MCS used in the most recent transmission of this packet
 	kind = MessageType::koidata;
 }

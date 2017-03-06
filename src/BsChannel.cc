@@ -17,6 +17,7 @@
 #include "SINR_m.h"
 #include "PositionExchange_m.h"
 #include "PointerExchange_m.h"
+#include "ResultFileExchange_m.h"
 #include "Schedule_m.h"
 #include "util.h"
 
@@ -92,6 +93,11 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		}
 		delete msg;
 	}
+	else if(msg->isName("MCS_FILE")){
+		ResultFileExchange* mcs = dynamic_cast<ResultFileExchange*>(msg);
+		mcs_file = mcs->getPtr();
+		delete mcs;
+	}
 	else if(msg->isName("BS_POSITION_MSG")) {
 		PositionExchange *bsPos = dynamic_cast<PositionExchange*>(msg);
 		neighbourPositions[bsPos->getId()] = bsPos->getPosition();
@@ -133,12 +139,17 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		// base station only ever uses DOWN resource blocks.
 		bsSINREst->setDownArraySize(downResBlocks);
 		bsSINREst->setRDownArraySize(downResBlocks);
+		bsSINREst->setMcsDownArraySize(downResBlocks);
 		double sinr;
 		for(int i = 0; i < downResBlocks; i++){
 			sinr = channel->calcAvgDownSINR(i,1.0);
 			bsSINREst->setDown(i,sinr);
-			bsSINREst->setRDown(i,coding.getRBCapacity(sinr,numBSAntenna,
-						numMSAntenna));
+			int mcs;
+			unsigned cap;
+			std::tie(mcs,cap) = coding.getRBCapacity(sinr,numBSAntenna,
+						numMSAntenna);
+			bsSINREst->setRDown(i,cap);
+			bsSINREst->setMcsDown(i,mcs);
 		}
 		// Route message to BS via MsPhy and MsMac
 		send(bsSINREst,"toPhy");
@@ -154,12 +165,16 @@ void BsChannel::handleMessage(cMessage *msg)  {
 		// base station only ever uses DOWN resource blocks.
 		longtermEst->setDownArraySize(downResBlocks);
 		longtermEst->setRDownArraySize(downResBlocks);
+		longtermEst->setMcsDownArraySize(downResBlocks);
 		double sinr;
 		for(int i = 0; i < downResBlocks; i++){
 			sinr = channel->calcLongtermDownSINR(i,0,1.0);
-			longtermEst->setDown(i,sinr);
-			longtermEst->setRDown(i,coding.getRBCapacity(sinr,numBSAntenna,
-						numMSAntenna));
+			int mcs;
+			unsigned cap;
+			std::tie(mcs,cap) = coding.getRBCapacity(sinr,numBSAntenna,
+						numMSAntenna);
+			longtermEst->setRDown(i,cap);
+			longtermEst->setMcsDown(i,mcs);
 		}
 		// Route message to BS via MsPhy and MsMac
 		send(longtermEst,"toPhy");
@@ -194,11 +209,16 @@ void BsChannel::handleMessage(cMessage *msg)  {
 			// and now needs to be scheduled anew for the next transmission leg.
 			packet->setScheduled(false);
 
-			vector<double> instSINR;
-			int currentRessourceBlock = packet->getResourceBlock();
-			instSINR.push_back(channel->calcUpSINR(currentRessourceBlock,
-						packet->getSrc(),
-						packet->getTransPower()));
+			// Log the MCS this Packet ought to have used and the best one it could
+			// use based on the actual SINR value.
+			double sinr = channel->calcUpSINR(packet->getResourceBlock(),
+					packet->getSrc(),
+					packet->getTransPower());
+			unsigned cap;
+			int mcs;
+			std::tie(mcs,cap) = coding.getRBCapacity(sinr,numMSAntenna,numBSAntenna);
+			*mcs_file << packet->getSrc() << "\t" << packet->getMcs() << "\t"
+				<< mcs << std::endl;
 
 			//For now, all packets are send successfully
 			sendDelayed(packet, epsilon, "toPhy");

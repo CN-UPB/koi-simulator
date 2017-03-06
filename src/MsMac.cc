@@ -379,6 +379,9 @@ void MsMac::handleMessage(cMessage *msg)  {
 		// Forward long term estimate to scheduler
 		send(est->dup(),"toScheduler");
 	}
+	else if(msg->isName("MCS_FILE")){
+		send(msg,"toPhy");
+	}
 	else if(msg->arrivedOn("fromApp"))  {
 		// Packet arrived for sending from traffic generator
 		switch(msg->getKind()){

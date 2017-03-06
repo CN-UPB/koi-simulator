@@ -69,15 +69,18 @@ unsigned Coding::getNumBits(double bwMCS){
 	return (rbBW/bwMCS)*(tti/reftti)*refBits;
 }
 
-unsigned Coding::getRBCapacity(double sinr,int numTx,int numRx){
+std::tuple<int,unsigned> Coding::getRBCapacity(double sinr,int numTx,int numRx){
 	// Determine which MCS to use
 	map<int,std::tuple<double,double>>& schemes = tMCS[numTx][numRx];
 	double mcsBw = 0.0;
+	int mcs = 0;
 	for(auto it = schemes.rbegin(); it!=schemes.rend(); ++it){
-		if(sinr>=std::get<0>(it->second)){
+		if(sinr>=std::get<0>(it->second) && it->first>mcs){
 			mcsBw = std::get<1>(it->second);
+			mcs = it->first;
 			break;
 		}
 	}
-	return getNumBits(mcsBw);
+	unsigned numBits = mcs>0 ? getNumBits(mcsBw) : 0;
+	return std::make_tuple(mcs,numBits);
 }

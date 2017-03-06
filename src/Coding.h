@@ -48,6 +48,6 @@ class Coding{
 	public:
 		Coding() = default;
 		void init(const std::string& tpath,double ptti, double prbBW);
-		unsigned getRBCapacity(double sinr,int numTx,int numRx);
+		std::tuple<int,unsigned> getRBCapacity(double sinr,int numTx,int numRx);
 
 };

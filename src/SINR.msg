@@ -13,5 +13,7 @@ message SINR  {
 	double down[]; // Expected SINR values for each DOWN resource block
 	int rUp[]; // Expected rate in bit/tti values for each UP resource block
 	int rDown[]; // Expected bit/tti values for each DOWN resource block
+	int mcsUp[]; // Best possible MCS for each UP resource block
+	int mcsDown[]; // Best possible MCS for each DOWN resource block
 	kind = MessageType::sinrEst;
 }
