@@ -43,18 +43,22 @@ void TrafficGen::initialize(){
 	vector<StreamDef> parsedStreams(parseCommTable(bsId,msId));
 	for(StreamDef& stream:parsedStreams){
 		this->streams[stream.streamId] = stream;
+		Traffic *msg = new Traffic();
+		msg->setPartner(stream.destMsId);
+		msg->setStreamId(stream.streamId);
 		if(this->periodicTraffic){
-			Traffic *msg = new Traffic();
-			msg->setPartner(stream.destMsId);
 			msg->setTrafficType(TrafficType::periodic);
-			msg->setStreamId(stream.streamId);
-			// schedule initial events randomly in 
-			// [initOffset,initOffset+4*tti]
 			scheduleAt(initOffset-(2*tti),msg);
-			if(stream.d2d && !d2dActive){
-				// D2D needs to be active if we have D2D streams!
-				throw std::runtime_error("The Option d2dActive needs to be true when there are D2D streams!");
-			}
+		}
+		else{
+			msg->setTrafficType(TrafficType::gaussian);
+			randEng = boost::random::mt19937(getRNG(0)->intRand());
+			normExp = boost::random::normal_distribution<double>(stream.period,0.001);
+			scheduleAt(initOffset-(2*tti)+normExp(randEng),msg);
+		}
+		if(stream.d2d && !d2dActive){
+			// D2D needs to be active if we have D2D streams!
+			throw std::runtime_error("The Option d2dActive needs to be true when there are D2D streams!");
 		}
 		// Send stream notification message, which will inform the 
 		// mobile station's MAC, the base station's MAC and the 
@@ -83,20 +87,25 @@ void TrafficGen::handleMessage(cMessage *msg){
 				pack->setDeadline(currTime+stream.deadline);
 				pack->setSrc(this->msId);
 				pack->setDest(stream.destMsId);
-				pack->setTrafficType(TrafficType::periodic);
 				pack->setBitLength(this->packetLength);
 				pack->setInterarrival(stream.period);
 				pack->setStreamId(stream.streamId);
 				pack->setD2d(stream.d2d);
+				simtime_t sendTime;
+				if(genMsg->getTrafficType()==TrafficType::periodic){
+					pack->setTrafficType(TrafficType::periodic);
+					sendTime = currTime+stream.period;
+				}
+				else{
+					pack->setTrafficType(TrafficType::gaussian);
+					do{
+						double rand = normExp(randEng);
+						sendTime = currTime+rand;
+					}
+					while(sendTime<currTime);
+				}
 				send(pack,"toMac");
-				scheduleAt(currTime+stream.period,msg);
-				/**
-				std::cout << "Stream " << stream.streamId << ": " 
-					<< "MS " << this->msId 
-					<< " Generated Msg " << pack->getId() 
-					<< " to " << pack->getDest() 
-					<< std::endl;
-				*/
+				scheduleAt(sendTime,msg);
 				break;
 			
 		}

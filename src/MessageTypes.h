@@ -7,7 +7,7 @@
 
 enum TrafficType {
 	periodic, /**< This is a message from a process with a fixed period*/
-	event /**< This is a message from a process with event based generation*/
+	gaussian /**< This is a message from a process with normal distributed intervals*/
 };
 
 enum MessageType: short {
