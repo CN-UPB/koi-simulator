@@ -66,9 +66,6 @@ simple MsMac  {
 			double epsilon @unit(s);
 			// The radius of the local cell.
 			double radius;
-			// This is the length in Bits for all packets generated at this 
-			// mobile station
-			int packetLength = default(1500b) @unit(b);
 			// The power setting used for transmissions.
 			double transmissionPower = default(1.0);
 			// The positioning algorithm for MobileStations inside their cell

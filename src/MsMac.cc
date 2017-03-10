@@ -91,7 +91,6 @@ void MsMac::initialize()  {
 	initBsPos.z = par("initBsZPos");
 	initOffset = par("initOffset");
 	tti = par("tti");
-	packetLength = par("packetLength");
 	transmissionPower = par("transmissionPower");
 	longTermEst = nullptr;
 	chn = nullptr;

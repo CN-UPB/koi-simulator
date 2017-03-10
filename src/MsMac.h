@@ -44,7 +44,6 @@ class MsMac : public omnetpp::cSimpleModule  {
 			int bsId;
 			int numberOfMobileStations;
 			int positionResendInterval;
-			int packetLength;
 			omnetpp::simtime_t initOffset;
 			omnetpp::simtime_t epsilon;
 			omnetpp::simtime_t tti;
