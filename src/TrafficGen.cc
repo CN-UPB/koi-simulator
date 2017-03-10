@@ -32,9 +32,15 @@ void TrafficGen::initialize(){
 	this->initOffset = par("initOffset");
 	this->msId = par("msId");
 	this->packetLength = par("packetLength");
+	this->fixedPacketSizes = par("fixedPacketSizes");
 	this->periodicTraffic = par("periodicTraffic");
 	this->tti = par("tti");
 	this->d2dActive = par("d2dActive");
+	randEng = boost::random::mt19937(getRNG(0)->intRand());
+	if(!fixedPacketSizes){
+		// Initialize the random distribution for packet sizes
+		packetSizeDist = boost::random::normal_distribution<double>(packetLength,25);
+	}
 
 	string xmlPath = par("commTable");
 	// Only load the table once!
@@ -52,9 +58,8 @@ void TrafficGen::initialize(){
 		}
 		else{
 			msg->setTrafficType(TrafficType::gaussian);
-			randEng = boost::random::mt19937(getRNG(0)->intRand());
-			normExp = boost::random::normal_distribution<double>(stream.period,0.001);
-			scheduleAt(initOffset-(2*tti)+normExp(randEng),msg);
+			periodDist = boost::random::normal_distribution<double>(stream.period,0.001);
+			scheduleAt(initOffset-(2*tti)+periodDist(randEng),msg);
 		}
 		if(stream.d2d && !d2dActive){
 			// D2D needs to be active if we have D2D streams!
@@ -87,7 +92,17 @@ void TrafficGen::handleMessage(cMessage *msg){
 				pack->setDeadline(currTime+stream.deadline);
 				pack->setSrc(this->msId);
 				pack->setDest(stream.destMsId);
-				pack->setBitLength(this->packetLength);
+				if(fixedPacketSizes){
+					pack->setBitLength(this->packetLength);
+				}
+				else{
+					double rand;
+					do{
+						rand = packetSizeDist(randEng);
+					}
+					while(rand<1);
+					pack->setBitLength(floor(rand));
+				}
 				pack->setInterarrival(stream.period);
 				pack->setStreamId(stream.streamId);
 				pack->setD2d(stream.d2d);
@@ -99,7 +114,7 @@ void TrafficGen::handleMessage(cMessage *msg){
 				else{
 					pack->setTrafficType(TrafficType::gaussian);
 					do{
-						double rand = normExp(randEng);
+						double rand = periodDist(randEng);
 						sendTime = currTime+rand;
 					}
 					while(sendTime<currTime);

@@ -51,6 +51,7 @@ class TrafficGen: public omnetpp::cSimpleModule{
 		int msId;
 		int packetLength;
 		bool periodicTraffic;
+		bool fixedPacketSizes;
 		std::ofstream* delays;
 		/**
 		 * Flag signaling that comm table loading should only be conducted once
@@ -59,7 +60,8 @@ class TrafficGen: public omnetpp::cSimpleModule{
 		static omnetpp::cXMLElement* commTable;
 		bool d2dActive;
 		boost::random::mt19937 randEng;
-		boost::random::normal_distribution<double> normExp;
+		boost::random::normal_distribution<double> periodDist;
+		boost::random::normal_distribution<double> packetSizeDist;
 		static std::vector<StreamDef> parseCommTable(int bsId, int msId);
 		static void loadComTable(const std::string& fpath);
 	

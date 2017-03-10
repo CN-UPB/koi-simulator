@@ -38,6 +38,8 @@ simple TrafficGen {
 		// traffic. This is only used to set the correct information 
 		// flags on generated packets.
 		bool periodicTraffic = default(true);
+		// Are packet sizes fixed or randomly generated?
+		bool fixedPacketSizes = default(true);
 		// The transmission time interval
 		double tti @unit(s);
 		// Should D2D values be computed?
