@@ -37,34 +37,38 @@
 module Scheduler
 {
     parameters:
-	// Offset from the simulation start reserved for initialization messages.
-	// No traffic is generated/send before it.
+				// Offset from the simulation start reserved for initialization messages.
+				// No traffic is generated/send before it.
         double initOffset @unit(s);
-	// The number of resource blocks for uplink transmissions
+				// The number of resource blocks for uplink transmissions
         int upResourceBlocks;
-	// The number of resource blocks for downlink transmissions
+				// The number of resource blocks for downlink transmissions
         int downResourceBlocks;
-	// The number of MobileStations in the local cell
+				// The number of MobileStations in the local cell
         int numberOfMobileStations;
-	// The period after which assignments of streams to resource blocks 
-	// are recomputed.
+				// The period after which assignments of streams to resource blocks 
+				// are recomputed.
         double streamSchedPeriod @unit(s);
-	// Length of single transmission time interval
+				// Length of single transmission time interval
         double tti @unit(s);
-	// The module implementation to use for the StreamScheduler.
+				// The module implementation to use for the StreamScheduler.
         string streamSchedType = default("RoundRobinStreamSched");
-	// The module implementation to use for the RBScheduler.
+				// The module implementation to use for the RBScheduler.
         string rbSchedType = default("RoundRobinRBSched");
 				int bsId;
+				// Enumeration of all UP RB this scheduler may assign
+				string assignedUpRB = default("");
+				// Enumeration of all DOWN RB this scheduler may assign
+				string assignedDownRB = default("");
         @display("i=block/classifier;bgb=366,173");
     gates:
-	// For Scheduling communication with the local BaseStation.
+				// For Scheduling communication with the local BaseStation.
         input fromBs;
-	// For Scheduling communication with the local MobileStations.
+				// For Scheduling communication with the local MobileStations.
         input fromMs[numberOfMobileStations];
-	// For Scheduling communication with the local BaseStation.
+				// For Scheduling communication with the local BaseStation.
         output toBs;
-	// For Scheduling communication with the local MobileStations.
+				// For Scheduling communication with the local MobileStations.
         output toMs[numberOfMobileStations];
     submodules:
         streamSched: <streamSchedType> like StreamScheduler {
@@ -74,6 +78,8 @@ module Scheduler
 						bsId = bsId;
 						upResourceBlocks = upResourceBlocks;
 						downResourceBlocks = downResourceBlocks;
+						assignedUpRB = assignedUpRB;
+						assignedDownRB = assignedDownRB;
             @display("p=69,79");
         }
         rbSchedulersUp[upResourceBlocks]: <rbSchedType> like RBScheduler {
