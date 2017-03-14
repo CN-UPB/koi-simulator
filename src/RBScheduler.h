@@ -40,12 +40,12 @@ class RBScheduler: public omnetpp::cSimpleModule{
 		virtual StreamTransSched *getSchedule(
 				std::vector<StreamTransReq*>& reqs,
 				int direction,
-				const std::shared_ptr<std::unordered_map<int,SINR*>> estimates);
+				const std::shared_ptr<std::unordered_map<int,SINR*>>& estimates);
 
 	protected:
-		virtual void initialize();
-		virtual void handleMessage(omnetpp::cMessage *msg);
+		void initialize() override;
+		void handleMessage(omnetpp::cMessage *msg) override;
 	
 	public:
-		~RBScheduler() = default;
+		~RBScheduler() override = default;
 };

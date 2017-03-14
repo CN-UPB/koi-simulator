@@ -253,18 +253,14 @@ void StreamScheduler::handleMessage(cMessage *msg){
 				// At this point, all requests for the current TTI have been handled, 
 				// and the messages can be deleted.
         // Iterate over all message directions (up/down)
-        for(auto iterDir=this->requests.begin();
-            iterDir!=requests.end();
-            ++iterDir){
+        for(auto& iterDir:this->requests){
           // Iterate over all Resource blocks in the current 
           // transmission direction
-          for(auto iterRb=iterDir->second.begin();
-              iterRb!=iterDir->second.end();
-              ++iterRb){
-            for(auto& req:iterRb->second){
+          for(auto& iterRb:iterDir.second){
+            for(auto& req:iterRb.second){
 							delete req;
             }
-            iterRb->second.clear();
+            iterRb.second.clear();
           }
         }
 			} break;
@@ -302,15 +298,11 @@ void StreamScheduler::handleMessage(cMessage *msg){
 
 void StreamScheduler::printAssignment(){
   std::cout << "Stream" << "\t" << "Band" << "\t" << "RB" << std::endl;
-  for(auto iterStream=this->rbAssignments.begin();
-      iterStream!=this->rbAssignments.end();
-      ++iterStream){
-    for(auto iterDir=iterStream->second.begin();
-        iterDir!=iterStream->second.end();
-        ++iterDir){
-      std::cout << iterStream->first << "\t"
-        << iterDir->second.first << "\t"
-        << iterDir->second.second << std::endl;
+  for(auto& iterStream:this->rbAssignments){
+    for(auto& iterDir:iterStream.second){
+      std::cout << iterStream.first << "\t"
+        << iterDir.second.first << "\t"
+        << iterDir.second.second << std::endl;
     }
   }
 }

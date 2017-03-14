@@ -12,13 +12,10 @@
 #include "PointerExchange_m.h"
 #include "ResultFileExchange_m.h"
 #include "util.h"
-#include <math.h>
 #include <cmath>
 #include <itpp/itbase.h>
 
 using namespace omnetpp;
-using std::vector;
-using std::forward_list;
 
 Define_Module(MsChannel);
 
@@ -115,12 +112,12 @@ void MsChannel::handleMessage(cMessage *msg)  {
 	}
 	else if(msg->isName("POINTER_EXCHANGE2"))  {
 		//cout << "channel arrived at MS" << endl;
-		PointerExchange *PtrMessage = (PointerExchange*) msg;
+		PointerExchange *PtrMessage = dynamic_cast<PointerExchange*>(msg);
 		channel = PtrMessage->getPtr();
 		delete msg;
 	}
 	else if(msg->getKind()==MessageType::koidata)  {
-		KoiData *packet = (KoiData *) msg;
+		KoiData *packet = dynamic_cast<KoiData*>(msg);
 		// Set Scheduled to false, as the packet now need to be
 		// scheduled anew.
 		packet->setScheduled(false);
@@ -178,7 +175,4 @@ void MsChannel::handleMessage(cMessage *msg)  {
 		// Route estimate to MsMac via MsPhy
 		send(longtermEst,"toPhy");
 	}
-}
-
-MsChannel::~MsChannel()  {
 }

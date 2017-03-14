@@ -22,7 +22,7 @@
 #include "util.h"
 
 #include <algorithm>
-#include <stdlib.h>
+#include <cstdlib>
 #include <cmath>
 #include <random>
 #include <set>
@@ -43,7 +43,7 @@ inline simtime_t MsMac::positionResendTime()  {
 }
 
 Position MsMac::initMsPositionLinear()  { //for MS Position along a straight road
-	Position msPos;
+	Position msPos{};
 	ofstream P_MS;
 	P_MS.open ("MS_Positions.txt", fstream::app);
 
@@ -63,7 +63,7 @@ Position MsMac::initMsPositionRand(){
 	double distToBs = uniform(1.1,radius);
 	// Convert angle to radians for math library functions
 	angle = angle * (M_PI/180);
-	Position initPos;
+	Position initPos{};
 	initPos.x = initBsPos.x+distToBs*std::cos(angle);
 	initPos.y = initBsPos.y+distToBs*std::sin(angle);
 	initPos.z = initBsPos.z;
@@ -71,7 +71,7 @@ Position MsMac::initMsPositionRand(){
 }
 
 Position MsMac::initMsPositionLine(){
-	Position initPos;
+	Position initPos{};
 	double msDists = (radius-1.01)/numberOfMobileStations;
 	initPos.x = initBsPos.x+1.01+(msId*msDists);
 	initPos.y = initBsPos.y;
@@ -149,9 +149,8 @@ void MsMac::scheduleStatic(cMessage* msg){
 				// find the best packet
 				bestStream = nullptr;
 				assigned = false;
-				for(auto streamIter = streamQueues.begin(); 
-						streamIter!=streamQueues.end(); ++streamIter){
-					list<KoiData*>& currList = streamIter->second;
+				for(auto& streamIter: streamQueues){
+					list<KoiData*>& currList = streamIter.second;
 					if(!currList.empty() && (bestStream==nullptr 
 								|| comparator(currList.front(),bestStream->front()))){
 						bestStream = &currList;
@@ -238,9 +237,8 @@ void MsMac::handleMessage(cMessage *msg)  {
 			KoiData *currPacket = nullptr;
 			int rate = 0;
 			simtime_t delay = 0.0;
-			for(auto streamIter = streamQueues.begin();
-					streamIter!=streamQueues.end(); ++streamIter){
-				list<KoiData*>& currList = streamIter->second;
+			for(auto& streamIter: streamQueues){
+				list<KoiData*>& currList = streamIter.second;
 				for(auto packetIter = currList.begin(); 
 						packetIter!=currList.end();){
 					currPacket = *packetIter;
@@ -410,7 +408,4 @@ void MsMac::handleMessage(cMessage *msg)  {
 	else{
 		std::cout << "Received unhandled message: " << msg->getKind() << std::endl;
 	}
-}
-
-MsMac::~MsMac()  {
 }

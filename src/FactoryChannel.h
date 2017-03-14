@@ -60,14 +60,14 @@ class FactoryChannel: public Channel{
 				const std::vector<std::vector<Position>>& msPositions);
 	
 	public:
-		void handleMessage(omnetpp::cMessage* msg);
+		void handleMessage(omnetpp::cMessage* msg) override;
 		bool init(omnetpp::cSimpleModule* module,
 				const std::vector<std::vector<Position>>& msPositions, 
-				const std::map<int,Position>& neighbourPositions);
+				const std::map<int,Position>& neighbourPositions) override;
 
-		void recomputePerTTIValues();
-		void updateChannel(const std::vector<std::vector<Position>>& msPos);
-		double calcLongtermUpSINR(int rb, int msId, double transPower);
-		double calcLongtermDownSINR(int rb, int msId, double transPower);
-		virtual ~FactoryChannel();
+		void recomputePerTTIValues() override;
+		void updateChannel(const std::vector<std::vector<Position>>& msPos) override;
+		double calcLongtermUpSINR(int rb, int msId, double transPower) override;
+		double calcLongtermDownSINR(int rb, int msId, double transPower) override;
+		~FactoryChannel() override;
 };

@@ -32,25 +32,18 @@ void RBScheduler::initialize(){
 StreamTransSched *RBScheduler::getSchedule(
 		std::vector<StreamTransReq*>& reqs,
 		int direction,
-		const std::shared_ptr<std::unordered_map<int,SINR*>> estimates){
+		const std::shared_ptr<std::unordered_map<int,SINR*>>& estimates){
 	if(!reqs.empty()){
 		StreamTransReq *bestReq = nullptr;
 		KoiData *bestPacket = nullptr;
 		// The following code iterates over all transmission requests and finds 
 		// the rquest with the best packet, according to the scheduler's "compare" 
 		// member.
-		StreamTransReq *currReq;
-		for(auto iter=reqs.begin(); iter!=reqs.end(); iter++){
-			currReq = *iter;
+		for(auto& currReq:reqs){
 			// Iterate over all packets in the queue for the current stream
 			// and find the which has the lowest value according to the 
 			// scheduler's compare method.
-			KoiData *currPacket;
-			for(auto iterQueue = (currReq->getPackets())->begin();
-					iterQueue!=(currReq->getPackets())->end();
-					++iterQueue
-				 ){
-				currPacket = *iterQueue;
+			for(auto& currPacket: *(currReq->getPackets())){
 				if(!currPacket->getScheduled() 
 						&& (bestPacket==nullptr || comparator(currPacket,bestPacket))){
 					// The current packet is better than 

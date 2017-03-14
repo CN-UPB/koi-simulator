@@ -20,7 +20,6 @@
 using namespace omnetpp;
 using std::forward_list;
 using std::ofstream;
-using std::set;
 using std::unordered_map;
 using std::vector;
 
@@ -74,7 +73,7 @@ void KBestFairStreamScheduler::scheduleKBest(
 			// set assigned to false and start another run. If there were no 
 			// assignments in the previous run, break the loop. No sender needs 
 			// resource blocks.
-			if(assigned==true){
+			if(assigned){
 				assigned = false;
 			}
 			else{
@@ -195,7 +194,7 @@ void KBestFairStreamScheduler::scheduleDynStreams(){
 void KBestFairStreamScheduler::handleMessage(cMessage *msg){
 	switch(msg->getKind()){
     case MessageType::scheduleStreams:{
-			if(currOrigins.size()>0){
+			if(!currOrigins.empty()){
 				// Only compute a schedule if there actually are any requests which 
 				// would make use of the schedule.
 				this->scheduleDynStreams();
@@ -271,15 +270,11 @@ void KBestFairStreamScheduler::handleMessage(cMessage *msg){
 			// At this point, all requests for the current TTI have been handled, 
 			// and the messages can be deleted.
 			forward_list<StreamTransReq*> d2dReqs;
-			for(auto iterOrig=this->requests.begin();
-				 iterOrig!=requests.end();
-				 ++iterOrig){
+			for(auto& iterOrig:this->requests){
 				// Iterate over both UP/DOWN transmission bands
-				for(auto iterDir=iterOrig->second.begin();
-					 iterDir!=iterOrig->second.end();
-					 ++iterDir){
-					for(StreamTransReq* req:iterDir->second){
-						if(iterDir->first==MessageDirection::up 
+				for(auto& iterDir:iterOrig.second){
+					for(StreamTransReq* req:iterDir.second){
+						if(iterDir.first==MessageDirection::up 
 								&& req->getMessageDirection()==MessageDirection::d2d){
 							// Special handling for d2d requests, because they are added to
 							// the request lists for both transmission bands. But delete 
@@ -293,9 +288,9 @@ void KBestFairStreamScheduler::handleMessage(cMessage *msg){
 							delete req;
 						}
 					}
-					iterDir->second.clear();
+					iterDir.second.clear();
 				}
-				iterOrig->second.clear();
+				iterOrig.second.clear();
 			}
 			requests.clear();
 			// Now delete all the D2D requests

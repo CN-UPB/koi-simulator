@@ -22,7 +22,6 @@ class MsChannel : public omnetpp::cSimpleModule  {
     private:
 				Coding coding;
         int maxNumberOfNeighbours;
-        Position *bsPositions;
         int downResourceBlocks;
         int upResourceBlocks;
 				int numBSAntenna;
@@ -40,10 +39,10 @@ class MsChannel : public omnetpp::cSimpleModule  {
 				std::ofstream* mcs_file;
 
     protected:
-        virtual void initialize();
-				virtual void finish();
-        virtual void handleMessage(omnetpp::cMessage *msg);
+        void initialize() override;
+				void finish() override;
+        void handleMessage(omnetpp::cMessage *msg) override;
 
     public:
-        ~MsChannel();
+        ~MsChannel() override = default;
 };

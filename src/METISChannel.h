@@ -224,15 +224,8 @@ class METISChannel : public Channel{
 		 * of departure, depending on which angle spread and angle 
 		 * direction values are provided.
 		 */
-		VectorNd<double,4> recomputeZenithAngles(
-				const VectorNd<bool,2>& LOSCondition,
-				const VectorNd<double,2>& sigma_zs_LOS,
-				const VectorNd<double,2>& sigma_zs_NLOS,
-				const VectorNd<double,2>& sigma_kf,
-				const VectorNd<double,3>& clusterPowers,
-				const VectorNd<double,2>& angleDir,
-				const bool arrival
-				);
+		VectorNd<double,4> recomputeZenithAngles( 
+				const VectorNd<bool,2>& LOSCondition);
 
 		/**
 		 * @brief Generate random phases
@@ -314,9 +307,6 @@ class METISChannel : public Channel{
 				const VectorNd<bool,2>& LOSCondition,
 				const vector<Position>& receiverPos,
 				const vector<Position>& senderPos,
-				double heightReceivers,
-				double heightSenders,
-				bool up,
 				unsigned numRBs,
 				unsigned numReceiverAntenna,
 				unsigned numSenderAntenna,
@@ -357,16 +347,16 @@ class METISChannel : public Channel{
 		//! Initialize the METIS channel through ini access via OMNeT++ module pointer.
 		bool init(omnetpp::cSimpleModule* module,
 				const vector<vector<Position>>& msPositions, 
-				const std::map<int,Position>& neighbourPositions);
+				const std::map<int,Position>& neighbourPositions) override;
 
 		//! Allows the OMNeT++ module to pass messages to this METIS channel class.
-		void handleMessage(omnetpp::cMessage* msg);
+		void handleMessage(omnetpp::cMessage* msg) override;
 		
 		//! Updates the MS position if velocity > 0. The interval in which the postion is updated can be set within omnet.ini
-		void updateChannel(const vector<vector<Position>>& msPos);
+		void updateChannel(const vector<vector<Position>>& msPos) override;
 
 		//! Destructor of METIS Channel subclass.
-		virtual ~METISChannel(){}
+		~METISChannel() override = default;
 		/**
 		 * @brief Compute per-TTI coefficients for the current time
 		 *
@@ -376,5 +366,5 @@ class METISChannel : public Channel{
 		 * This means: The precomputeMETISValues method needs to be called before
 		 * this method is called.
 		 */
-		void recomputePerTTIValues();
+		void recomputePerTTIValues() override;
 };

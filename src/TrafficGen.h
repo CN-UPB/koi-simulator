@@ -66,9 +66,9 @@ class TrafficGen: public omnetpp::cSimpleModule{
 		static void loadComTable(const std::string& fpath);
 	
 	protected:
-		virtual void initialize();
-		virtual void handleMessage(omnetpp::cMessage *msg);
+		void initialize() override;
+		void handleMessage(omnetpp::cMessage *msg) override;
 	
 	public:
-		~TrafficGen();
+		~TrafficGen() override;
 };

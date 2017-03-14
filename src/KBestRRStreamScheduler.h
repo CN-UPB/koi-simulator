@@ -44,12 +44,12 @@ class KBestRRStreamScheduler: public StreamScheduler{
 				std::set<int>::iterator iter,
 				std::vector<int> blocks,MessageDirection dir,unsigned k,
 				std::unordered_map<int,std::vector<int>>& schedule);
-    virtual void initialize();
-		virtual void finish();
-		virtual void handleMessage(omnetpp::cMessage *msg);
-    virtual void scheduleDynStreams();
-		virtual std::unordered_map<int,ScheduleList> scheduleStatStreams();
+    void initialize() override;
+		void finish() override;
+		void handleMessage(omnetpp::cMessage *msg) override;
+    void scheduleDynStreams() override;
+		std::unordered_map<int,ScheduleList> scheduleStatStreams() override;
 		
 	public:
-		~KBestRRStreamScheduler();
+		~KBestRRStreamScheduler() override;
 };

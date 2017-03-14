@@ -40,8 +40,8 @@ class KBestFairStreamScheduler: public StreamScheduler{
 		void scheduleKBest(std::vector<int>& blocks,MessageDirection dir,unsigned k);
 	
 	protected:
-    virtual void initialize();
-		virtual void finish();
-		virtual void handleMessage(omnetpp::cMessage *msg);
-    virtual void scheduleDynStreams();
+    void initialize() override;
+		void finish() override;
+		void handleMessage(omnetpp::cMessage *msg) override;
+    void scheduleDynStreams() override;
 };

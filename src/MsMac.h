@@ -83,10 +83,10 @@ class MsMac : public omnetpp::cSimpleModule  {
 				
 
     protected:
-        virtual void initialize();
-        virtual void handleMessage(omnetpp::cMessage *msg);
-				virtual void finish();
+        void initialize() override;
+        void handleMessage(omnetpp::cMessage *msg) override;
+				void finish() override;
 
     public:
-        ~MsMac();
+        ~MsMac() override = default;
 };

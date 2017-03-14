@@ -13,6 +13,6 @@ class MsPhy : public omnetpp::cSimpleModule  {
     private:
 
     protected:
-        virtual void initialize();
-        virtual void handleMessage(omnetpp::cMessage *msg);
+        void initialize() override;
+        void handleMessage(omnetpp::cMessage *msg) override;
 };

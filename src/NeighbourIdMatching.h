@@ -15,8 +15,8 @@ struct Matching {
     int gateId;
 };
 
-typedef std::pair<int, int> DataGateIdPair;
-typedef std::map<int, DataGateIdPair> NeighbourMap;
+using DataGateIdPair = std::pair<int, int>;
+using NeighbourMap = std::map<int, DataGateIdPair>;
 
 class NeighbourIdMatching  {
     private:

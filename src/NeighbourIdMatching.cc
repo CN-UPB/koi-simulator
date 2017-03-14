@@ -62,7 +62,8 @@ int NeighbourIdMatching::numberOfNeighbours()  {
 }
 
 void NeighbourIdMatching::showMatching()  {
-    for(NeighbourMap::iterator i = matching.begin(); i != matching.end(); i++)
-        EV << "BsId " << i->first << ": DataStrId " << (i->second).first <<
-              " GateId " << (i->second).second << endl;
+    for(auto& i:matching){
+			EV << "BsId " << i.first << ": DataStrId " << (i.second).first <<
+				" GateId " << (i.second).second << endl;
+		}
 }

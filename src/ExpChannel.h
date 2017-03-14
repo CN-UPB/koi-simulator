@@ -28,13 +28,13 @@ class ExpChannel: public Channel{
 				const std::vector<std::vector<Position>>& msPositions);
 	
 	public:
-		void handleMessage(omnetpp::cMessage* msg);
+		void handleMessage(omnetpp::cMessage* msg) override;
 		bool init(omnetpp::cSimpleModule* module,
 				const std::vector<std::vector<Position>>& msPositions, 
-				const std::map<int,Position>& neighbourPositions);
+				const std::map<int,Position>& neighbourPositions) override;
 
-		void recomputePerTTIValues();
-		void updateChannel(const std::vector<std::vector<Position>>& msPos);
+		void recomputePerTTIValues() override;
+		void updateChannel(const std::vector<std::vector<Position>>& msPos) override;
 
-		virtual ~ExpChannel();
+		~ExpChannel() override;
 };

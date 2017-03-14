@@ -52,8 +52,8 @@ class StreamScheduler: public omnetpp::cSimpleModule{
 		std::vector<SINR*> longtermSinrEstimate;
 		SINR *longtermEstimateBS;
 		std::unordered_map<unsigned long,std::unordered_map<int,ResAssign>> rbAssignments;
-		virtual void initialize();
-		virtual void handleMessage(omnetpp::cMessage *msg);
+		void initialize() override;
+		void handleMessage(omnetpp::cMessage *msg) override;
 		virtual void handleSINREstimate(SINR *msg);
 		virtual void printAssignment();
 		virtual void scheduleDynStreams();
@@ -61,5 +61,5 @@ class StreamScheduler: public omnetpp::cSimpleModule{
 		virtual std::unordered_map<int,ScheduleList> scheduleStatStreams();
 	
 	public:
-		virtual ~StreamScheduler();
+		~StreamScheduler() override;
 };

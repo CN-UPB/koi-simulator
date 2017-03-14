@@ -20,9 +20,9 @@
 #include <fstream>
 #include <iostream>
 #include <iomanip>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
 
 using namespace omnetpp;
 using itpp::pi;
@@ -601,13 +601,7 @@ VectorNd<double,4> METISChannel::recomputeAzimuthAngles(
  * implemented!
  */
 VectorNd<double,4> METISChannel::recomputeZenithAngles(
-		const VectorNd<bool,2>& LOSCondition,
-		const VectorNd<double,2>& sigma_zs_LOS,
-		const VectorNd<double,2>& sigma_zs_NLOS,
-		const VectorNd<double,2>& sigma_kf,
-		const VectorNd<double,3>& clusterPowers,
-		const VectorNd<double,2>& angleDir,
-		const bool arrival
+		const VectorNd<bool,2>& LOSCondition
 		){
 	size_t numReceivers = LOSCondition.size();
 	size_t numSenders = LOSCondition[0].size();
@@ -870,9 +864,6 @@ VectorNd<double,3> METISChannel::computeCoeffs(
 		const VectorNd<bool,2>& LOSCondition,
 		const vector<Position>& receiverPos,
 		const vector<Position>& senderPos,
-		double heightReceivers,
-		double heightSenders,
-		bool up,
 		unsigned numRBs,
 		unsigned numReceiverAntenna,
 		unsigned numSenderAntenna,
@@ -945,9 +936,6 @@ void METISChannel::recomputePerTTIValues(){
 				losDownTable,
 				this->msPos[bsId],
 				bsPositions,
-				heightUE,
-				heightBS,
-				false,
 				downRBs,
 				numReceiverAntenna,
 				numSenderAntenna,
@@ -967,9 +955,6 @@ void METISChannel::recomputePerTTIValues(){
 					losUpTable[j],
 					vector<Position>{neighbourPositions[bsId]},
 					msPos[j],
-					heightBS,
-					heightUE,
-					true,
 					upRBs,
 					numReceiverAntenna,
 					numSenderAntenna,
@@ -994,9 +979,6 @@ void METISChannel::recomputePerTTIValues(){
 						losD2DTable[j],
 						msPos[bsId],
 						msPos[j],
-						heightUE,
-						heightUE,
-						true,
 						upRBs,
 						numReceiverAntenna,
 						numSenderAntenna,
@@ -1007,9 +989,6 @@ void METISChannel::recomputePerTTIValues(){
 						losD2DTable[j],
 						msPos[bsId],
 						msPos[j],
-						heightUE,
-						heightUE,
-						false,
 						downRBs,
 						numReceiverAntenna,
 						numSenderAntenna,
@@ -1028,9 +1007,9 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 	int numSenderAntenna = NumBsAntenna;
     
 	// Copy MS Positions
-	vector<Position> receiverPos(msPositions);
+	const vector<Position>& receiverPos(msPositions);
 	// Copy BS Positions
-	vector<Position> senderPos(bsPositions);
+	const vector<Position>& senderPos(bsPositions);
 
 	VectorNd<array<double,3>,2> receiverAntennaPos(computeAntennaPos(
 				receiverPos,numReceiverAntenna,heightUE));
@@ -1147,22 +1126,12 @@ void METISChannel::precomputeDownValues(const vector<Position>& msPositions,
 
 	// Generate Zenith angles 
 	VectorNd<double,4> elevation_ASA(recomputeZenithAngles(
-				losDownTable,
-				sigma_zsA_LOS,
-				sigma_zsA_NLOS,
-				sigma_kf_LOS,
-				clusterPowers,
-				ZoA_LOS_dir,
-				true));
+				losDownTable
+				));
 
 	VectorNd<double,4> elevation_ASD(recomputeZenithAngles(
-				losDownTable,
-				sigma_zsD_LOS,
-				sigma_zsD_NLOS,
-				sigma_kf_LOS,
-				clusterPowers,
-				ZoD_LOS_dir,
-				false));
+				losDownTable
+				));
 
 	// Generate random phases (7.3.17)
 	VectorNd<double,4> randomPhase;
@@ -1329,22 +1298,12 @@ void METISChannel::precomputeUpValues(const vector<vector<Position>>& msPosition
 
 		// Generate Zenith angles 
 		VectorNd<double,4> elevation_ASA(recomputeZenithAngles(
-					losUpTable[j],
-					sigma_zsA_LOS,
-					sigma_zsA_NLOS,
-					sigma_kf_LOS,
-					clusterPowers,
-					ZoA_LOS_dir,
-					true));
+					losUpTable[j]
+					));
 
 		VectorNd<double,4> elevation_ASD(recomputeZenithAngles(
-					losUpTable[j],
-					sigma_zsD_LOS,
-					sigma_zsD_NLOS,
-					sigma_kf_LOS,
-					clusterPowers,
-					ZoD_LOS_dir,
-					false));
+					losUpTable[j]
+					));
 
 		// Generate random phases (7.3.17)
 		VectorNd<double,4> randomPhase;
@@ -1522,22 +1481,12 @@ void METISChannel::precomputeD2DValues(const vector<vector<Position>>& msPositio
 
 		// Generate Zenith angles 
 		VectorNd<double,4> elevation_ASA(recomputeZenithAngles(
-					losD2DTable[j],
-					sigma_zsA_LOS,
-					sigma_zsA_NLOS,
-					sigma_kf_LOS,
-					clusterPowers,
-					ZoA_LOS_dir,
-					true));
+					losD2DTable[j]
+					));
 
 		VectorNd<double,4> elevation_ASD(recomputeZenithAngles(
-					losD2DTable[j],
-					sigma_zsD_LOS,
-					sigma_zsD_NLOS,
-					sigma_kf_LOS,
-					clusterPowers,
-					ZoD_LOS_dir,
-					false));
+					losD2DTable[j]
+					));
 
 		// Generate random phases (7.3.17)
 		VectorNd<double,4> randomPhase;
@@ -1685,13 +1634,13 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 	}
 	
 	for(int i = 0; i < 7; i++){
-		grid[i] = new double*[(int) sizeX+10];
-		tmpX[i] = new double*[(int) sizeX+10];
-		tmpY[i] = new double*[(int) sizeX+10];
-		for(int j = 0; j < (int) sizeX+10; j++){
-			grid[i][j] = new double[(int) sizeY+10];
-			tmpX[i][j] = new double[(int) sizeY+10];
-			tmpY[i][j] = new double[(int) sizeY+10];
+		grid[i] = new double*[static_cast<int>(sizeX+10)];
+		tmpX[i] = new double*[static_cast<int>(sizeX+10)];
+		tmpY[i] = new double*[static_cast<int>(sizeX+10)];
+		for(int j = 0; j < static_cast<int>(sizeX+10); j++){
+			grid[i][j] = new double[static_cast<int>(sizeY+10)];
+			tmpX[i][j] = new double[static_cast<int>(sizeY+10)];
+			tmpY[i][j] = new double[static_cast<int>(sizeY+10)];
 		}
 	}
 		
@@ -1724,8 +1673,8 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 		
 	// Generate grid of (2*r+200)*(2*r+200) iid gaussian random numbers
 	for(int i = 0; i < 7; i++){
-		for(int j = 0; j < (int) sizeX+10; j++){
-			for(int k = 0; k < (int) sizeY+10; k++){
+		for(int j = 0; j < static_cast<int>(sizeX+10); j++){
+			for(int k = 0; k < static_cast<int>(sizeY+10); k++){
 				grid[i][j][k] = normal(rng,0,1);
 				tmpX[i][j][k] = 0;
 				tmpY[i][j][k] = 0;
@@ -1737,9 +1686,9 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 	// For all Large scale parameters
 	for(int i = 0; i < 7; i++){
 		// Forall x points except offset
-		for(int j = 10; j < (int) sizeX+10; j++){
+		for(int j = 10; j < static_cast<int>(sizeX+10); j++){
 			// Forall y points except offset
-			for(int k = 10; k < (int) sizeY+10; k++){
+			for(int k = 10; k < static_cast<int>(sizeY+10); k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
 					tmpX[i][j][k] += grid[i][j][k - l] * filter[i][l];
@@ -1752,9 +1701,9 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 	// For all Large scale parameters
 	for(int i = 0; i < 7; i++){
 		// For all x points except offset
-		for(int j = 10; j < (int) sizeY+10; j++){
+		for(int j = 10; j < static_cast<int>(sizeY+10); j++){
 			// For all y points except offset
-			for(int k = 10; k < (int) sizeX+10; k++){
+			for(int k = 10; k < static_cast<int>(sizeX+10); k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
 					tmpY[i][k][j] += tmpX[i][k - l][j] * filter[i][l];
@@ -1767,7 +1716,7 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 	for(size_t l = 0; l < receivers.size(); l++){
 		for(size_t i=0; i<senders.size(); i++){
 			for(int j=0; j<7; j++){
-				correlation[l][i][j] = tmpY[j][(int) receivers[l].x ][(int) receivers[l].y];
+				correlation[l][i][j] = tmpY[j][static_cast<int>(receivers[l].x)][static_cast<int>(receivers[l].y)];
 			}
 		}
 	}
@@ -1776,7 +1725,7 @@ void METISChannel::generateAutoCorrelation_LOS(const vector<Position>& senders,
 	// directly on the stack, instead of using entirely unnecessary 
 	// dynamic memory allocation
 	for(int i = 0; i < 7; i++){
-		for(int j = 0; j < (int) sizeX+10; j++){
+		for(int j = 0; j < static_cast<int>(sizeX+10); j++){
 			delete[] grid[i][j];
 			delete[] tmpX[i][j];
 			delete[] tmpY[i][j];
@@ -1834,13 +1783,13 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 	}
 	
 	for(int i = 0; i < 6; i++){
-		grid[i] = new double*[(int) sizeX+10];
-		tmpX[i] = new double*[(int) sizeX+10];
-		tmpY[i] = new double*[(int) sizeX+10];
-		for(int j = 0; j < (int) sizeX+10; j++){
-			grid[i][j] = new double[(int) sizeY+10];
-			tmpX[i][j] = new double[(int) sizeY+10];
-			tmpY[i][j] = new double[(int) sizeY+10];
+		grid[i] = new double*[static_cast<int>(sizeX+10)];
+		tmpX[i] = new double*[static_cast<int>(sizeX+10)];
+		tmpY[i] = new double*[static_cast<int>(sizeX+10)];
+		for(int j = 0; j < static_cast<int>(sizeX+10); j++){
+			grid[i][j] = new double[static_cast<int>(sizeY+10)];
+			tmpX[i][j] = new double[static_cast<int>(sizeY+10)];
+			tmpY[i][j] = new double[static_cast<int>(sizeY+10)];
 		}
 	}
 		
@@ -1870,8 +1819,8 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 		
 	// Generate grid of (2*r+200)*(2*r+200) iid gaussian random numbers
 	for(int i = 0; i < 6; i++){
-		for(int j = 0; j < (int) sizeX+10; j++){
-			for(int k = 0; k < (int) sizeY+10; k++){
+		for(int j = 0; j < static_cast<int>(sizeX+10); j++){
+			for(int k = 0; k < static_cast<int>(sizeY+10); k++){
 				grid[i][j][k] = normal(rng,0,1);
 				tmpX[i][j][k] = 0;
 				tmpY[i][j][k] = 0;
@@ -1883,9 +1832,9 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 	// Forall Large scale parameters
 	for(int i = 0; i < 6; i++){
 		// Forall x points except offset
-		for(int j = 10; j < (int) sizeX+10; j++){
+		for(int j = 10; j < static_cast<int>(sizeX+10); j++){
 			// Forall y points except offset
-			for(int k = 10; k < (int) sizeY+10; k++){
+			for(int k = 10; k <static_cast<int>(sizeY+10); k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
 					tmpX[i][j][k] += grid[i][j][k - l] * filter[i][l];
@@ -1898,9 +1847,9 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 	// Forall Large scale parameters
 	for(int i = 0; i < 6; i++){
 		// Forall x points except offset
-		for(int j = 10; j < (int) sizeX+10; j++){
+		for(int j = 10; j < static_cast<int>(sizeX+10); j++){
 			// Forall y points except offset
-			for(int k = 10; k < (int) sizeY+10; k++){
+			for(int k = 10; k < static_cast<int>(sizeY+10); k++){
 				// Filter 100 points
 				for(int l = 0; l < 10; l++){
 					tmpY[i][j][k] += tmpX[i][j][k - l] * filter[i][l];
@@ -1913,7 +1862,7 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 	for(size_t l = 0; l < receivers.size(); l++){
 		for(size_t i=0; i<senders.size(); i++){
 			for(int j=0; j<6; j++){
-				correlation[l][i][j] = tmpY[j][(int) receivers[l].x ][(int) receivers[l].y];
+				correlation[l][i][j] = tmpY[j][static_cast<int>(receivers[l].x)][static_cast<int>(receivers[l].y)];
 			}
 		}
 	}
@@ -1922,7 +1871,7 @@ void METISChannel::generateAutoCorrelation_NLOS(const vector<Position>& senders,
 	// directly on the stack, instead of using entirely unnecessary 
 	// dynamic memory allocation
 	for(int i = 0; i < 6; i++){
-		for(int j = 0; j < (int) sizeX+10; j++){
+		for(int j = 0; j < static_cast<int>(sizeX+10); j++){
 			delete[] grid[i][j];
 			delete[] tmpX[i][j];
 			delete[] tmpY[i][j];

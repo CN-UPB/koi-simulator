@@ -83,7 +83,7 @@ class RayCluster{
 				k(k),
 				rays(rays),
 				sq_P_over_M(sq_P_over_M),
-				losRay(losRay){}
+				losRay(std::move(losRay)){}
 		RayCluster(std::vector<Ray>&& rays, double sq_P_over_M)
 				: los(false),rays(rays),sq_P_over_M(sq_P_over_M){}
 		RayCluster():los(false){}
