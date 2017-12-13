@@ -1,0 +1,30 @@
+#
+# This makefile was generated with the following command:
+# /home/michael/fgrn/omnetpp-5.0/bin/opp_runall --export Runfile ../../src/koisim -r 0-6 -n "../../src/ned/;./"
+#
+
+.PHONY:  r0 r1 r2 r3 r4 r5 r6
+
+all:  r0 r1 r2 r3 r4 r5 r6
+
+r0:
+	../../src/koisim -r 0 -n "../../src/ned/;./"
+
+r1:
+	../../src/koisim -r 1 -n "../../src/ned/;./"
+
+r2:
+	../../src/koisim -r 2 -n "../../src/ned/;./"
+
+r3:
+	../../src/koisim -r 3 -n "../../src/ned/;./"
+
+r4:
+	../../src/koisim -r 4 -n "../../src/ned/;./"
+
+r5:
+	../../src/koisim -r 5 -n "../../src/ned/;./"
+
+r6:
+	../../src/koisim -r 6 -n "../../src/ned/;./"
+

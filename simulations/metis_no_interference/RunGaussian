@@ -1,0 +1,93 @@
+#
+# This makefile was generated with the following command:
+# /home/michael/fgrn/omnetpp-5.0/bin/opp_runall --export RunGaussian ../../src/koisim -c Gaussian -r 0-27 -n "../../src/ned/;./"
+#
+
+.PHONY:  r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27
+
+all:  r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27
+
+r0:
+	../../src/koisim -c Gaussian -r 0 -n "../../src/ned/;./"
+
+r1:
+	../../src/koisim -c Gaussian -r 1 -n "../../src/ned/;./"
+
+r2:
+	../../src/koisim -c Gaussian -r 2 -n "../../src/ned/;./"
+
+r3:
+	../../src/koisim -c Gaussian -r 3 -n "../../src/ned/;./"
+
+r4:
+	../../src/koisim -c Gaussian -r 4 -n "../../src/ned/;./"
+
+r5:
+	../../src/koisim -c Gaussian -r 5 -n "../../src/ned/;./"
+
+r6:
+	../../src/koisim -c Gaussian -r 6 -n "../../src/ned/;./"
+
+r7:
+	../../src/koisim -c Gaussian -r 7 -n "../../src/ned/;./"
+
+r8:
+	../../src/koisim -c Gaussian -r 8 -n "../../src/ned/;./"
+
+r9:
+	../../src/koisim -c Gaussian -r 9 -n "../../src/ned/;./"
+
+r10:
+	../../src/koisim -c Gaussian -r 10 -n "../../src/ned/;./"
+
+r11:
+	../../src/koisim -c Gaussian -r 11 -n "../../src/ned/;./"
+
+r12:
+	../../src/koisim -c Gaussian -r 12 -n "../../src/ned/;./"
+
+r13:
+	../../src/koisim -c Gaussian -r 13 -n "../../src/ned/;./"
+
+r14:
+	../../src/koisim -c Gaussian -r 14 -n "../../src/ned/;./"
+
+r15:
+	../../src/koisim -c Gaussian -r 15 -n "../../src/ned/;./"
+
+r16:
+	../../src/koisim -c Gaussian -r 16 -n "../../src/ned/;./"
+
+r17:
+	../../src/koisim -c Gaussian -r 17 -n "../../src/ned/;./"
+
+r18:
+	../../src/koisim -c Gaussian -r 18 -n "../../src/ned/;./"
+
+r19:
+	../../src/koisim -c Gaussian -r 19 -n "../../src/ned/;./"
+
+r20:
+	../../src/koisim -c Gaussian -r 20 -n "../../src/ned/;./"
+
+r21:
+	../../src/koisim -c Gaussian -r 21 -n "../../src/ned/;./"
+
+r22:
+	../../src/koisim -c Gaussian -r 22 -n "../../src/ned/;./"
+
+r23:
+	../../src/koisim -c Gaussian -r 23 -n "../../src/ned/;./"
+
+r24:
+	../../src/koisim -c Gaussian -r 24 -n "../../src/ned/;./"
+
+r25:
+	../../src/koisim -c Gaussian -r 25 -n "../../src/ned/;./"
+
+r26:
+	../../src/koisim -c Gaussian -r 26 -n "../../src/ned/;./"
+
+r27:
+	../../src/koisim -c Gaussian -r 27 -n "../../src/ned/;./"
+

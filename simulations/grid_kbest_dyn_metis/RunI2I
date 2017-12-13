@@ -1,0 +1,219 @@
+#
+# This makefile was generated with the following command:
+# /home/michael/fgrn/koi/horizon/bin/opp_runall --export RunI2I ../../src/koisim -c I2I -r 0-69 -n "../../src/ned/;./"
+#
+
+.PHONY:  r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31 r32 r33 r34 r35 r36 r37 r38 r39 r40 r41 r42 r43 r44 r45 r46 r47 r48 r49 r50 r51 r52 r53 r54 r55 r56 r57 r58 r59 r60 r61 r62 r63 r64 r65 r66 r67 r68 r69
+
+all:  r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20 r21 r22 r23 r24 r25 r26 r27 r28 r29 r30 r31 r32 r33 r34 r35 r36 r37 r38 r39 r40 r41 r42 r43 r44 r45 r46 r47 r48 r49 r50 r51 r52 r53 r54 r55 r56 r57 r58 r59 r60 r61 r62 r63 r64 r65 r66 r67 r68 r69
+
+r0:
+	../../src/koisim -c I2I -r 0 -n "../../src/ned/;./"
+
+r1:
+	../../src/koisim -c I2I -r 1 -n "../../src/ned/;./"
+
+r2:
+	../../src/koisim -c I2I -r 2 -n "../../src/ned/;./"
+
+r3:
+	../../src/koisim -c I2I -r 3 -n "../../src/ned/;./"
+
+r4:
+	../../src/koisim -c I2I -r 4 -n "../../src/ned/;./"
+
+r5:
+	../../src/koisim -c I2I -r 5 -n "../../src/ned/;./"
+
+r6:
+	../../src/koisim -c I2I -r 6 -n "../../src/ned/;./"
+
+r7:
+	../../src/koisim -c I2I -r 7 -n "../../src/ned/;./"
+
+r8:
+	../../src/koisim -c I2I -r 8 -n "../../src/ned/;./"
+
+r9:
+	../../src/koisim -c I2I -r 9 -n "../../src/ned/;./"
+
+r10:
+	../../src/koisim -c I2I -r 10 -n "../../src/ned/;./"
+
+r11:
+	../../src/koisim -c I2I -r 11 -n "../../src/ned/;./"
+
+r12:
+	../../src/koisim -c I2I -r 12 -n "../../src/ned/;./"
+
+r13:
+	../../src/koisim -c I2I -r 13 -n "../../src/ned/;./"
+
+r14:
+	../../src/koisim -c I2I -r 14 -n "../../src/ned/;./"
+
+r15:
+	../../src/koisim -c I2I -r 15 -n "../../src/ned/;./"
+
+r16:
+	../../src/koisim -c I2I -r 16 -n "../../src/ned/;./"
+
+r17:
+	../../src/koisim -c I2I -r 17 -n "../../src/ned/;./"
+
+r18:
+	../../src/koisim -c I2I -r 18 -n "../../src/ned/;./"
+
+r19:
+	../../src/koisim -c I2I -r 19 -n "../../src/ned/;./"
+
+r20:
+	../../src/koisim -c I2I -r 20 -n "../../src/ned/;./"
+
+r21:
+	../../src/koisim -c I2I -r 21 -n "../../src/ned/;./"
+
+r22:
+	../../src/koisim -c I2I -r 22 -n "../../src/ned/;./"
+
+r23:
+	../../src/koisim -c I2I -r 23 -n "../../src/ned/;./"
+
+r24:
+	../../src/koisim -c I2I -r 24 -n "../../src/ned/;./"
+
+r25:
+	../../src/koisim -c I2I -r 25 -n "../../src/ned/;./"
+
+r26:
+	../../src/koisim -c I2I -r 26 -n "../../src/ned/;./"
+
+r27:
+	../../src/koisim -c I2I -r 27 -n "../../src/ned/;./"
+
+r28:
+	../../src/koisim -c I2I -r 28 -n "../../src/ned/;./"
+
+r29:
+	../../src/koisim -c I2I -r 29 -n "../../src/ned/;./"
+
+r30:
+	../../src/koisim -c I2I -r 30 -n "../../src/ned/;./"
+
+r31:
+	../../src/koisim -c I2I -r 31 -n "../../src/ned/;./"
+
+r32:
+	../../src/koisim -c I2I -r 32 -n "../../src/ned/;./"
+
+r33:
+	../../src/koisim -c I2I -r 33 -n "../../src/ned/;./"
+
+r34:
+	../../src/koisim -c I2I -r 34 -n "../../src/ned/;./"
+
+r35:
+	../../src/koisim -c I2I -r 35 -n "../../src/ned/;./"
+
+r36:
+	../../src/koisim -c I2I -r 36 -n "../../src/ned/;./"
+
+r37:
+	../../src/koisim -c I2I -r 37 -n "../../src/ned/;./"
+
+r38:
+	../../src/koisim -c I2I -r 38 -n "../../src/ned/;./"
+
+r39:
+	../../src/koisim -c I2I -r 39 -n "../../src/ned/;./"
+
+r40:
+	../../src/koisim -c I2I -r 40 -n "../../src/ned/;./"
+
+r41:
+	../../src/koisim -c I2I -r 41 -n "../../src/ned/;./"
+
+r42:
+	../../src/koisim -c I2I -r 42 -n "../../src/ned/;./"
+
+r43:
+	../../src/koisim -c I2I -r 43 -n "../../src/ned/;./"
+
+r44:
+	../../src/koisim -c I2I -r 44 -n "../../src/ned/;./"
+
+r45:
+	../../src/koisim -c I2I -r 45 -n "../../src/ned/;./"
+
+r46:
+	../../src/koisim -c I2I -r 46 -n "../../src/ned/;./"
+
+r47:
+	../../src/koisim -c I2I -r 47 -n "../../src/ned/;./"
+
+r48:
+	../../src/koisim -c I2I -r 48 -n "../../src/ned/;./"
+
+r49:
+	../../src/koisim -c I2I -r 49 -n "../../src/ned/;./"
+
+r50:
+	../../src/koisim -c I2I -r 50 -n "../../src/ned/;./"
+
+r51:
+	../../src/koisim -c I2I -r 51 -n "../../src/ned/;./"
+
+r52:
+	../../src/koisim -c I2I -r 52 -n "../../src/ned/;./"
+
+r53:
+	../../src/koisim -c I2I -r 53 -n "../../src/ned/;./"
+
+r54:
+	../../src/koisim -c I2I -r 54 -n "../../src/ned/;./"
+
+r55:
+	../../src/koisim -c I2I -r 55 -n "../../src/ned/;./"
+
+r56:
+	../../src/koisim -c I2I -r 56 -n "../../src/ned/;./"
+
+r57:
+	../../src/koisim -c I2I -r 57 -n "../../src/ned/;./"
+
+r58:
+	../../src/koisim -c I2I -r 58 -n "../../src/ned/;./"
+
+r59:
+	../../src/koisim -c I2I -r 59 -n "../../src/ned/;./"
+
+r60:
+	../../src/koisim -c I2I -r 60 -n "../../src/ned/;./"
+
+r61:
+	../../src/koisim -c I2I -r 61 -n "../../src/ned/;./"
+
+r62:
+	../../src/koisim -c I2I -r 62 -n "../../src/ned/;./"
+
+r63:
+	../../src/koisim -c I2I -r 63 -n "../../src/ned/;./"
+
+r64:
+	../../src/koisim -c I2I -r 64 -n "../../src/ned/;./"
+
+r65:
+	../../src/koisim -c I2I -r 65 -n "../../src/ned/;./"
+
+r66:
+	../../src/koisim -c I2I -r 66 -n "../../src/ned/;./"
+
+r67:
+	../../src/koisim -c I2I -r 67 -n "../../src/ned/;./"
+
+r68:
+	../../src/koisim -c I2I -r 68 -n "../../src/ned/;./"
+
+r69:
+	../../src/koisim -c I2I -r 69 -n "../../src/ned/;./"
+

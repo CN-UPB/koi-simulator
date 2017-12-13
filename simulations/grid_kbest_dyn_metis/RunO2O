@@ -1,0 +1,36 @@
+#
+# This makefile was generated with the following command:
+# /home/michael/fgrn/koi/horizon/bin/opp_runall --export RunO2O ../../src/koisim -r 0-8 -c O2O -n "../../src/ned/;./"
+#
+
+.PHONY:  r0 r1 r2 r3 r4 r5 r6 r7 r8
+
+all:  r0 r1 r2 r3 r4 r5 r6 r7 r8
+
+r0:
+	../../src/koisim -r 0 -c O2O -n "../../src/ned/;./"
+
+r1:
+	../../src/koisim -r 1 -c O2O -n "../../src/ned/;./"
+
+r2:
+	../../src/koisim -r 2 -c O2O -n "../../src/ned/;./"
+
+r3:
+	../../src/koisim -r 3 -c O2O -n "../../src/ned/;./"
+
+r4:
+	../../src/koisim -r 4 -c O2O -n "../../src/ned/;./"
+
+r5:
+	../../src/koisim -r 5 -c O2O -n "../../src/ned/;./"
+
+r6:
+	../../src/koisim -r 6 -c O2O -n "../../src/ned/;./"
+
+r7:
+	../../src/koisim -r 7 -c O2O -n "../../src/ned/;./"
+
+r8:
+	../../src/koisim -r 8 -c O2O -n "../../src/ned/;./"
+

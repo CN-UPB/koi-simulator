@@ -1,0 +1,15 @@
+#
+# This makefile was generated with the following command:
+# /home/michael/fgrn/omnetpp-5.0/bin/opp_runall --export RunSmallPeriod ../../src/koisim -c SmallPeriod -r 0,10 -n "../../src/ned/;./"
+#
+
+.PHONY:  r0 r10
+
+all:  r0 r10
+
+r0:
+	../../src/koisim -c SmallPeriod -r 0 -n "../../src/ned/;./"
+
+r10:
+	../../src/koisim -c SmallPeriod -r 10 -n "../../src/ned/;./"
+

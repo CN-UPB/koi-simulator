@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+	<cell id="0">
+		<ms id="0">
+			<stream cell="0" destid="1" period="10000.0010" d2d="0" deadline="1.0" />
+		</ms>
+		<ms id="1">
+			<stream cell="0" destid="0" period="1000.0010" d2d="0" deadline="1.0" />
+		</ms>
+	</cell>
+</root>

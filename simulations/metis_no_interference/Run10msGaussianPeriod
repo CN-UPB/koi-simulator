@@ -1,0 +1,30 @@
+#
+# This makefile was generated with the following command:
+# /home/michael/fgrn/omnetpp-5.0/bin/opp_runall --export Run10msGaussianPeriod ../../src/koisim -c Gaussian -r 21-27 -n "../../src/ned/;./"
+#
+
+.PHONY:  r21 r22 r23 r24 r25 r26 r27
+
+all:  r21 r22 r23 r24 r25 r26 r27
+
+r21:
+	../../src/koisim -c Gaussian -r 21 -n "../../src/ned/;./"
+
+r22:
+	../../src/koisim -c Gaussian -r 22 -n "../../src/ned/;./"
+
+r23:
+	../../src/koisim -c Gaussian -r 23 -n "../../src/ned/;./"
+
+r24:
+	../../src/koisim -c Gaussian -r 24 -n "../../src/ned/;./"
+
+r25:
+	../../src/koisim -c Gaussian -r 25 -n "../../src/ned/;./"
+
+r26:
+	../../src/koisim -c Gaussian -r 26 -n "../../src/ned/;./"
+
+r27:
+	../../src/koisim -c Gaussian -r 27 -n "../../src/ned/;./"
+

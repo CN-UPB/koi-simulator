@@ -1,0 +1,39 @@
+#
+# This makefile was generated with the following command:
+# ../../../horizon/bin/opp_runall --export Runfile ../../src/koisim -n "../../src/ned/;./" -r 0-9
+#
+
+.PHONY:  r0 r1 r2 r3 r4 r5 r6 r7 r8 r9
+
+all:  r0 r1 r2 r3 r4 r5 r6 r7 r8 r9
+
+r0:
+	../../src/koisim -n "../../src/ned/;./" -r 0
+
+r1:
+	../../src/koisim -n "../../src/ned/;./" -r 1
+
+r2:
+	../../src/koisim -n "../../src/ned/;./" -r 2
+
+r3:
+	../../src/koisim -n "../../src/ned/;./" -r 3
+
+r4:
+	../../src/koisim -n "../../src/ned/;./" -r 4
+
+r5:
+	../../src/koisim -n "../../src/ned/;./" -r 5
+
+r6:
+	../../src/koisim -n "../../src/ned/;./" -r 6
+
+r7:
+	../../src/koisim -n "../../src/ned/;./" -r 7
+
+r8:
+	../../src/koisim -n "../../src/ned/;./" -r 8
+
+r9:
+	../../src/koisim -n "../../src/ned/;./" -r 9
+
