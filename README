@@ -1,4 +1,4 @@
-The KOI Simulator
+The KoI Simulator
 =================
 
 This package contains the source code and simulation parameters for the KOI 
@@ -8,7 +8,7 @@ For installation/build instructions, please consult the INSTALL file.
 
 To execute an example simulation, build the simulation code as described in 
 the INSTALL file. Then, have a look into the 
-[simulations repository](https://git.cs.upb.de/koi/simulations.git) for 
+simulations folder for 
 configurations.
 
 Generating the Documentation
