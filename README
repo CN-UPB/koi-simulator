@@ -35,3 +35,11 @@ After you've imported the project successfully, right click it in your project
 explorer and choose *Generate NED Documentation*. Now, you will find 
 the full documentation under the `doc/neddoc` directory. To read the 
 freshly generated documentation, point your browser to `doc/index.html`.
+
+
+History
+--------
+
+This simulation was developed in the KoI project http://www.koi-projekt.de. 
+It is partially based on older simulation software, coming out of RWTH Aachen, TU Berlin, 
+KTH Stockholm, and Paderborn University. A grateful hattip to all the work that preceeded this one! 
