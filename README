@@ -36,6 +36,7 @@ explorer and choose *Generate NED Documentation*. Now, you will find
 the full documentation under the `doc/neddoc` directory. To read the 
 freshly generated documentation, point your browser to `doc/index.html`.
 
+The documentation can be also found in [Read the Docs.](https://koi-documentation.readthedocs.io/en/latest/)
 
 History
 --------
