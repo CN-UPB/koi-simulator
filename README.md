@@ -41,7 +41,7 @@ The documentation can be also found in [Read the Docs.](https://koi-documentatio
 History
 --------
 
-This simulation was developed in the [KoI project] (http://www.koi-projekt.de). 
+This simulation was developed in the [KoI project](http://www.koi-projekt.de). 
 It is partially based on older simulation software, coming out of RWTH Aachen, TU Berlin, 
 KTH Stockholm, and Paderborn University. A grateful hattip to all the work that preceeded this one! 
 
