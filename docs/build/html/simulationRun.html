@@ -1,0 +1,258 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Simulation Run &mdash; koi 0.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Channel Model" href="channelModel.html" />
+    <link rel="prev" title="Topology" href="topology.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> koi
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="projectDescription.html">Project Description</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="topology.html">Topology</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Simulation Run</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#initialization-phase">Initialization Phase</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#traffic-and-information-flow">Traffic and Information Flow</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="channelModel.html">Channel Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="instalationInstructions.html">Instalation instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">koi</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="projectDescription.html">Project Description</a> &raquo;</li>
+        
+      <li>Simulation Run</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/simulationRun.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="simulation-run">
+<h1>Simulation Run<a class="headerlink" href="#simulation-run" title="Permalink to this headline">¶</a></h1>
+<p>In addition to the simulated KoIData packets, other messages are generated, which are not consider as traffic, carrying information needed during simulation. The flow of the data into simulation is given in the following sections together with the messages generated for making possible the communication between the MobileStations.</p>
+<div class="section" id="initialization-phase">
+<h2>Initialization Phase<a class="headerlink" href="#initialization-phase" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div>An initialization phase ( <em>initOffset</em>) is used to disseminate information among all modules available in the simulation.</div></blockquote>
+<ul class="simple">
+<li>Firstly, the TrafficGen module in MobileStation sets up the corresponding streams and then forward <em>StreamInfo</em> messages to the MsMac, which then sends the message to the local cell’s Scheduler for the assignment of resource blocks.</li>
+<li>Each of the MobileStation sends its own position to the local BaseStation using the <em>PositionExchange</em> message.</li>
+<li>The BaseStation, after receiving the <em>PositionExchange</em> messages from all the MobileStations in the cell, adds its own position and sends a <em>BsMsPosition</em> message to all the neighboring cells.  Furthermore, those position messages as well as all such messages received from other cells are forwarded to the BsChannel instance with index 0.</li>
+<li>The BsChannel with index 0 is allways the channel which initializes the local cell’s METISChannel instance, as soon as <em>BsMsPositions</em> messages have been received from all cells in the simulation. Then, the initial coefficient tables for the METIS model can be computed.</li>
+</ul>
+</div>
+<div class="section" id="traffic-and-information-flow">
+<h2>Traffic and Information Flow<a class="headerlink" href="#traffic-and-information-flow" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>After the initialization phase, the TrafficGen module in each MobileStation, generates KoiData packets, based on the corresponding period for each stream and then forwards the packets to the MsMac module, in which the packets are organized into queues based on their stream id.</li>
+<li>At the beginning of each TTI, each of the MobileStations and the BaseStation, sends a <em>StreamTransReq</em> message, for each of the streams it handles to the local Scheduler.</li>
+<li>At the beginning of each TTI, each local Scheduler waits for an epsilon time, for receiving all the <em>StreamTransReq</em> messages sent to this module. Once the Scheduler receives the <em>StreamTransReq</em> messages, it organizes them into a list and sends a <em>TransReqList</em> to the RBScheduler, containing this list. Each of the lists contains the <em>StreamTransReq</em> messages for all the streams handled by each RBScheduler.</li>
+<li>Once each of the RBScheduler has received a <em>TransReqList</em>, it uses the round robin algorithm to choose one of the packets from all the streams it is responsible. Right after it chooses a packet, the RBScheduler notes it in a <em>StreamTransSched</em> message, which is sent back to the StreamScheduler.</li>
+<li>The StreamScheduler forwards the <em>StreamTransSched</em> message back to the MobileStation or BaseStation from where this packet has been generated.</li>
+<li>After the MobileStation or BaseStation, receives the <em>StreamTransSched</em> message, it takes KoiData packets from the corresponding stream based on the available bandwidth, packs them into a <em>DataPacketBundle</em> and forwards it to the MsPhy/BsPhy respectively.</li>
+<li>In addition to the <em>DataPacketBundle</em>, the corresponding MobileStation or BaseStation, generates also a <em>TransInfo</em> message. The purpose of this message is to inform all the other MobileStations for this transmission happening during this TTI. This message is received by the BsMac and is forwarded to the BsChannel and the local MobileStations, which then forwards the message from the MsMac to the MsChannel. The BsChannel and MsChannel use this information to calculate the interference during this TTI and the SINR for the received packets.</li>
+<li>In the case when the transmission takes place at the MobileStation, once the <em>DataPacketBundle</em> reaches the MsPhy, it is forwarded to the MsChannel of the destination in the case of a D2D communication or otherwise it is send to the BsChannel of the local BaseStation.</li>
+<li>In the case when the transmission takes place at the BaseStation, once the <em>DataPacketBundle</em> reaches the BsPhy, it is forwarded to the MsChannel of the destination MobileStation.</li>
+<li>Once the DataPacketBundle reaches the BsChannal/MsChannel, the corresponding SINR value is calculated. Based on the value obtained from the calculation, if the packet is received successfully (at the moment all the packets are received successfully), it is forwarded  to the MsPhy or BsPhy, otherwise, the packet is dropped.</li>
+<li>In the case of the MobileStation, the received packet is forwarded to the MsMac and then to the TrafficGen, which represents the sink for the packets in this simulator.</li>
+<li>In the case of the BaseStation, the received packet is forwarded to the BsMac , where all the KoiData packets are sorted into queues accrding to their stream id. In a later TTI, based on the Scheduler decision, the KoiData packets are forwarded to the destination.</li>
+</ul>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="channelModel.html" class="btn btn-neutral float-right" title="Channel Model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="topology.html" class="btn btn-neutral" title="Topology" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, sigrid.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.0.1',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

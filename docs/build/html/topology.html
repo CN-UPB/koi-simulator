@@ -1,0 +1,266 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Topology &mdash; koi 0.0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Simulation Run" href="simulationRun.html" />
+    <link rel="prev" title="Project Description" href="projectDescription.html" /> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> koi
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="projectDescription.html">Project Description</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Topology</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#basestation">BaseStation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mobilestation">MobileStation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#scheduler">Scheduler</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="simulationRun.html">Simulation Run</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="channelModel.html">Channel Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="instalationInstructions.html">Instalation instructions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FAQ.html">FAQ</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">koi</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="projectDescription.html">Project Description</a> &raquo;</li>
+        
+      <li>Topology</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/topology.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="topology">
+<h1>Topology<a class="headerlink" href="#topology" title="Permalink to this headline">¶</a></h1>
+<p>The network is comprised of <strong>LTECells</strong>, each of which contains exactly one <strong>BaseStation</strong>, a number of <strong>MobileStations</strong> and a <strong>Scheduler</strong>.</p>
+<p>The <strong>BaseStation</strong> behaves as a hub, forwarding the data packets received from a MobileStation to the corresponding destination. The BaseStation is connected to all the other LTECells, even though at the moment the connection between the BaseStations in different cells is used only for traffic information between neighboring cells.</p>
+<p>The <strong>MobileStations</strong> are the source and destination of the traffic, which is generated in form of KoiData packets. Each MobileStation can communicate with any other MobileStation in the same cell forwarding the data through the BaseStation or directly to the MobileStation using the device-to-device functionality (D2D communication).</p>
+<div class="aligh-center figure align-center" id="id1">
+<a class="reference internal image-reference" href="_images/scenario.png"><img alt="alternate text" src="_images/scenario.png" style="width: 800px; height: 400px;" /></a>
+<p class="caption"><span class="caption-text">Network Topology</span></p>
+</div>
+<p>The <strong>Scheduler</strong> is responsible for scheduling the traffic in each cell, in a way that the interference can be eliminated.  The transmissions are distributed in different time slots and different frequencies which are represented by the resource blocks.</p>
+<p>The whole simulation time is divided into fixed transmission time intervals (TTI), given as an input parameter.</p>
+<div class="section" id="basestation">
+<h2>BaseStation<a class="headerlink" href="#basestation" title="Permalink to this headline">¶</a></h2>
+<p>The <strong>BaseStation</strong> is the core of each LTECell and is responsible for forwarding the traffic for non-D2D communication, received from the source MobileStation to the destination MobileStation. It consists of the following submodules:</p>
+<ol class="arabic simple">
+<li><em>BsMac</em> - the submodule is responsible for managing the messages and the packet flow inside the BaseStation module. It is connected to all the MobileStations and the single Scheduler in its cell. The submodule makes possible to forward the traffic packets to the MobileStation destination. To complete this purpose, the submodule communicates with the Scheduler during each TTI.</li>
+<li><em>BsPhy</em> - the submodule is in charge of forwarding the simulated traffic packets either from the BsMac to MobileStation destination or those arriving from the BsChannel to the BsMac.</li>
+<li><em>BsChannel</em> - receives all the simulated traffic packets directed to the BaseStation. It computes the SINR value, using the channel coefficients calculated in the METISChannel class, taking in consideration the transmission power and the interference by the other mobile station transmitting at the same TTI. In the case, the packet has been received successfully, it will be forwarded to the BsMac, otherwise, it will be dropped. At the moment all the packets are considered to be received successfully.</li>
+</ol>
+</div>
+<div class="section" id="mobilestation">
+<h2>MobileStation<a class="headerlink" href="#mobilestation" title="Permalink to this headline">¶</a></h2>
+<p>A MobileStation is part of only one LTECell. It is the source and the destination of the traffic packets in the simulation. Each MobileStation communicates with any other MobileStation in the same cell forwarding the traffic packets through the BaseStation or using a direct transmission. A mobile station is comprised of the following submodules:</p>
+<ol class="arabic simple">
+<li><em>TrafficGen</em> - the submodule behaves as a generator and as a sink for the simulation traffic packets. To generate the traffic, a communication table in XML format is used, which defines the number of streams, each representing a traffic process between the source MobileStation and a destination MobileStation. The traffic generated is periodic and the packet size is fixed. After generation, the packets are transmitted to the MobileStation’s mac submodule, for storage and transmission.</li>
+<li><em>MsMac</em> - it holds information regarding the current position of the MobileStation. At the moment the MobileStations are considered to be static, they do not change their position during the simulation run. The position of each MobileStation is given as a parameter in the simulation. Secondly, it holds all the packets waiting for transmission, according to the communication stream. These packets are transmitted through MobileStation’s phy submodule either to the BaseStation or directly to the neighboring MobileStation depending on the type of communication. To determine which packets, from which streams will be transmitted during one TTI, the submodule is connected to the Scheduler. This submodule is also directly connected to the local BaseStation, using this connection for information exchange related to the MobileStation position.</li>
+<li><em>MsPhy</em> - the submodule is in charge of forwarding the simulation traffic packets either from the MsMac to MobileStation destinationor Base Station,  or those arriving from the MsChannel to the MsMac.</li>
+<li><em>MsChannel</em> - receives all the packets directed to this mobile station. It computes the SINR value, using the channel coefficients calculated in the METISChannel class, taking in consideration the transmission power and the interference by the other Mobile Station transmitting at the same TTI. In the case, the packet has been received successfully, it will be forwarded to the MsPhy, otherwise, it will be dropped. At the moment all the packets are considered to be received successfully.</li>
+</ol>
+</div>
+<div class="section" id="scheduler">
+<h2>Scheduler<a class="headerlink" href="#scheduler" title="Permalink to this headline">¶</a></h2>
+<p>The Scheduler is responsible for scheduling the transmissions inside a LTECell in a way, such that two transmissions cannot be scheduled in the same resource block at the same TTI. At the beginning of the simulation, each MobileStation sends to the Scheduler a StreamInfo message carrying information about the communication partners, type of communication and the period between the packets of that stream. Based on this information, the Scheduler schedules the streams into different resource blocks. The Scheduler is comprised of the following submodules:</p>
+<ol class="arabic simple">
+<li><em>StreamScheduler</em> - the submodule is in charge of assigning streams to resource blocks, each of which represents a different frequency. For this purpose, the simulator uses the Round Robin algorithm.</li>
+<li><em>RBScheduler</em> - a number of streams can be attached to each resource block, but during a TTI, only packets from one of the streams can be transmitted. To fill this purpose, the submodule uses the Round Robin algorithm.</li>
+</ol>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="simulationRun.html" class="btn btn-neutral float-right" title="Simulation Run" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="projectDescription.html" class="btn btn-neutral" title="Project Description" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2018, sigrid.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'0.0.1',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  <script type="text/javascript" src="_static/js/theme.js"></script>
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

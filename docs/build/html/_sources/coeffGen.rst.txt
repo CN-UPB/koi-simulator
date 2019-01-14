@@ -1,0 +1,7 @@
+Coefficient generation. 
+^^^^^^^^^^^^^^^^^^^^^^^
+
+- For the two strongest clusters (1 and 2) the rays are spread into three sub-clusters, each with a fixed delay offset and power ratio. The way the rays are matched into sub-clusters is given in Table 7-10 of [NKRR14]_.
+
+- The first set of channel coefficients is computed. The channel coefficients are recomputed during each TTI. The channel coefficients are scaled based on the calculated pathloss. Since the scenario taken into consideration is an indoor scenario, the location of the user in different floors is also taken into consideration for the calculation of the pathloss.
+
